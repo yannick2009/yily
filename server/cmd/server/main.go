@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/labstack/echo/v5"
@@ -13,10 +18,20 @@ import (
 // entry point for the server application.
 func main() {
 	// Load configuration settings
-	_ = config.NewConfig()
+	cfg, err := config.Load()
+	if err != nil {
+		echo.New().Logger.Error("failed to load configuration", "error", err)
+		os.Exit(1)
+	}
+	_ = cfg
 
 	// Initialize the database connection
-	_ = adapter.NewDB()
+	db, err := adapter.NewDB()
+	if err != nil {
+		echo.New().Logger.Error("failed to initialize database", "error", err)
+		os.Exit(1)
+	}
+	_ = db
 
 	// Create a new server instance
 	server := echo.New()
@@ -37,7 +52,15 @@ func main() {
 		return c.JSON(http.StatusOK, map[string]string{"message": "OK!"})
 	})
 
-	if err := server.Start(":16529"); err != nil {
+	// Setup graceful shutdown on SIGINT or SIGTERM
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	sc := echo.StartConfig{
+		Address: ":16529",
+	}
+
+	if err := sc.Start(ctx, server); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		server.Logger.Error("failed to start server", "error", err)
 	}
 }
