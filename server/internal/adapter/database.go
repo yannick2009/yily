@@ -2,66 +2,39 @@ package adapter
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// NewDB opens (and creates if needed) the SQLite database at path, applies
-// the connection settings and checks that the database is reachable.
-func NewDB(path string) (*gorm.DB, error) {
+// dbPath is the default path to the SQLite database file.
+const dbPath = "database.db"
 
-	if err := ensureFile(path); err != nil {
+// NewDB initializes and returns a new GORM database connection using SQLite.
+func NewDB() (*gorm.DB, error) {
+	if err := ensureFile(); err != nil {
 		return nil, err
 	}
 
-	db, err := gorm.Open(sqlite.Open(dsn(path)), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
-		return nil, fmt.Errorf("open database %q: %w", path, err)
-	}
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, fmt.Errorf("get database handle: %w", err)
+		return nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
 	// Migrate the schema
-	// db.AutoMigrate()
-
-	if err := sqlDB.Ping(); err != nil {
-		_ = sqlDB.Close()
-		return nil, fmt.Errorf("ping database %q: %w", path, err)
+	if err := db.AutoMigrate(); err != nil {
+		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
+
 	return db, nil
 }
 
-// ensureFile creates the database file with owner-only permissions (0600)
-// if it does not exist yet.
-//
-// SQLite would otherwise create it with the default umask (usually 0644),
-// making it readable by every user on the machine. The -wal and -shm files
-// created later by SQLite inherit the permissions of the main file.
-// An existing file keeps its current permissions.
-func ensureFile(path string) error {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+// ensureFile ensures the database file exists with restricted permissions (0600).
+func ensureFile() error {
+	f, err := os.OpenFile(dbPath, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
-		return fmt.Errorf("create database file %q: %w", path, err)
+		return fmt.Errorf("create database file: %w", err)
 	}
 	return f.Close()
-}
-
-// dsn builds the go-sqlite3 connection string. Parameters are applied to
-// every connection of the pool:
-//   - _foreign_keys=on: SQLite does NOT enforce foreign keys by default.
-//   - _journal_mode=WAL: readers do not block the writer, and vice versa.
-//   - _busy_timeout=5000: wait up to 5s for a lock instead of failing at once
-//     with "database is locked" under concurrent requests.
-func dsn(path string) string {
-	params := url.Values{}
-	params.Set("_foreign_keys", "on")
-	params.Set("_journal_mode", "WAL")
-	params.Set("_busy_timeout", "5000")
-	return path + "?" + params.Encode()
 }
