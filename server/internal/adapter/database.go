@@ -1,6 +1,8 @@
 package adapter
 
 import (
+	"os"
+
 	"github.com/yannick2009/yily/internal/domain/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -14,6 +16,10 @@ const (
 // It also performs automatic schema migration for the defined models.
 // The database connection is configured to enable foreign key support, set a busy timeout, and use WAL mode for better concurrency.
 func NewDB() *gorm.DB {
+	if err := ensureDBFile(); err != nil {
+		panic("failed to create database file")
+	}
+
 	db, err := gorm.Open(sqlite.Open(DatabaseFile+"?_foreign_keys=on&_busy_timeout=5000&_journal_mode=WAL"), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
@@ -32,4 +38,13 @@ func NewDB() *gorm.DB {
 	}
 
 	return db
+}
+
+// ensureDBFile ensures the database file exists with 0600 permissions.
+func ensureDBFile() error {
+	f, err := os.OpenFile(DatabaseFile, os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }
