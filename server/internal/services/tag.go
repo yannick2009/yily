@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"context"
@@ -10,8 +10,9 @@ import (
 
 // TagService defines the interface for tag business logic.
 type TagService interface {
-	Create(ctx context.Context, name string) (*model.Tag, error) // Create creates a new tag.
-	Delete(ctx context.Context, tagID uuid.UUID) error           // Delete deletes a tag.
+	Create(ctx context.Context, projectID uuid.UUID, name string) (*model.Tag, error) // Create creates a new tag for a project.
+	Delete(ctx context.Context, projectID, tagID uuid.UUID) error                     // Delete deletes a tag of a project.
+	GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Tag, error)             // GetAll retrieves all tags of a project.
 }
 
 // tagService implements TagService.
@@ -24,9 +25,9 @@ func NewTagService(tagRepository repository.TagRepository) TagService {
 	return &tagService{tagRepository}
 }
 
-// Create creates a new tag.
-func (s *tagService) Create(ctx context.Context, name string) (*model.Tag, error) {
-	tag := &model.Tag{Name: name}
+// Create creates a new tag for a project.
+func (s *tagService) Create(ctx context.Context, projectID uuid.UUID, name string) (*model.Tag, error) {
+	tag := &model.Tag{Name: name, ProjectID: projectID}
 	if err := s.tagRepository.Create(ctx, tag); err != nil {
 		return nil, err
 	}
@@ -34,7 +35,12 @@ func (s *tagService) Create(ctx context.Context, name string) (*model.Tag, error
 	return tag, nil
 }
 
-// Delete deletes a tag.
-func (s *tagService) Delete(ctx context.Context, tagID uuid.UUID) error {
-	return s.tagRepository.Delete(ctx, tagID)
+// Delete deletes a tag of a project.
+func (s *tagService) Delete(ctx context.Context, projectID, tagID uuid.UUID) error {
+	return s.tagRepository.Delete(ctx, projectID, tagID)
+}
+
+// GetAll retrieves all tags of a project.
+func (s *tagService) GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Tag, error) {
+	return s.tagRepository.GetAll(ctx, projectID)
 }
