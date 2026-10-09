@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	ErrVariableNotFound = errors.New("variable not found") // ErrNotFound is returned when a record is not found in the database.
+	ErrVariableNotFound          = errors.New("variable not found")                               // ErrVariableNotFound is returned when a variable is not found in the database.
+	ErrVariableNameAlreadyExists = errors.New("variable name already exists in this environment") // ErrVariableNameAlreadyExists is returned when a variable name already exists in the environment.
 )
 
 // VariableRepository defines the interface for interacting with variable data in the database.
@@ -36,13 +37,25 @@ func NewVariableRepository(db *gorm.DB) VariableRepository {
 
 // Create creates a new variable in the database.
 func (r *variableRepository) Create(ctx context.Context, variable *model.Variable) error {
-	return gorm.G[model.Variable](r.DB).Create(ctx, variable)
+	if err := gorm.G[model.Variable](r.DB).Create(ctx, variable); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return ErrVariableNameAlreadyExists
+		}
+		return err
+	}
+	return nil
 }
 
 // SetName updates the name of an existing variable in the database.
 func (r *variableRepository) SetName(ctx context.Context, variableID uuid.UUID, name string) error {
 	_, err := gorm.G[model.Variable](r.DB).Where("id = ?", variableID).Update(ctx, "name", name)
-	return err
+	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return ErrVariableNameAlreadyExists
+		}
+		return err
+	}
+	return nil
 }
 
 // Delete deletes a variable from the database by its ID.
@@ -92,6 +105,15 @@ func (r *variableRepository) GetByTags(ctx context.Context, environmentID uuid.U
 
 // SetTags replaces the set of tags associated with a variable.
 func (r *variableRepository) SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error {
+	// Resolve the variable's project via its environment to scope the tags.
+	v, err := gorm.G[model.Variable](r.DB).Where("id = ?", variableID).First(ctx)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrVariableNotFound
+		}
+		return err
+	}
+
 	variable := model.Variable{ID: variableID}
 
 	// No tags means "remove them all".
@@ -99,10 +121,23 @@ func (r *variableRepository) SetTags(ctx context.Context, variableID uuid.UUID, 
 		return r.DB.Model(&variable).Association("Tags").Clear()
 	}
 
+	env, err := gorm.G[model.Environment](r.DB).Where("id = ?", v.EnvironmentID).First(ctx)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrEnvironmentNotFound
+		}
+		return err
+	}
+
 	// Fetch the tag models (the generic API does not expose Association, hence plain r.DB below).
 	tags, err := gorm.G[model.Tag](r.DB).Where("id IN ?", tagIDs).Find(ctx)
 	if err != nil {
 		return err
+	}
+	for _, tag := range tags {
+		if tag.ProjectID != env.ProjectID {
+			return ErrTagNotInProject
+		}
 	}
 
 	return r.DB.Model(&variable).Association("Tags").Replace(tags)
