@@ -15,6 +15,8 @@ tmp/
 .env
 .env.*
 !.env.example
+instance/
+http/
 trash/
 trash.txt
 *.db
