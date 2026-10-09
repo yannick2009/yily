@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"errors"
 	"os"
 
 	"github.com/yannick2009/yily/internal/domain/model"
@@ -9,7 +10,12 @@ import (
 )
 
 const (
-	DatabaseFile = "database.db" // DatabaseFile is the name of the SQLite database file.
+	DatabaseFile = "instance/database.db" // DatabaseFile is the name of the SQLite database file.
+)
+
+var (
+	ErrCreateInstanceDir = errors.New("failed to create or access instance directory")
+	ErrDBFileNotFound    = errors.New("database file not found")
 )
 
 // NewDB initializes and returns a new GORM database connection using SQLite.
@@ -20,7 +26,9 @@ func NewDB() *gorm.DB {
 		panic("failed to create database file")
 	}
 
-	db, err := gorm.Open(sqlite.Open(DatabaseFile+"?_foreign_keys=on&_busy_timeout=5000&_journal_mode=WAL"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(DatabaseFile+"?_foreign_keys=on&_busy_timeout=5000&_journal_mode=WAL"), &gorm.Config{
+		TranslateError: true,
+	})
 	if err != nil {
 		panic("failed to connect database")
 	}
@@ -42,9 +50,14 @@ func NewDB() *gorm.DB {
 
 // ensureDBFile ensures the database file exists with 0600 permissions.
 func ensureDBFile() error {
+	err := os.MkdirAll("instance", 0o700) // Ensure the instance directory exists
+	if err != nil {
+		return errors.Join(ErrCreateInstanceDir, err)
+	}
+
 	f, err := os.OpenFile(DatabaseFile, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
-		return err
+		return errors.Join(ErrDBFileNotFound, err)
 	}
 	return f.Close()
 }
