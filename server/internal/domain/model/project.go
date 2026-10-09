@@ -14,6 +14,7 @@ type Project struct {
 	CreatedAt    time.Time     `gorm:"autoCreateTime" json:"created_at"`                                  // Timestamp when the project was created
 	UpdatedAt    time.Time     `gorm:"autoUpdateTime" json:"updated_at"`                                  // Timestamp when the project was last updated
 	Environments []Environment `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"environments"` // List of environments associated with the project
+	Tags         []Tag         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"tags"`         // List of tags associated with the project
 }
 
 // BeforeCreate is a GORM hook that is triggered before creating a new Project record.

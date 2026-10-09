@@ -8,7 +8,8 @@ import (
 // Tag represents a tag in the system.
 type Tag struct {
 	ID        uuid.UUID  `gorm:"primaryKey" json:"id"`                                                                   // Unique identifier for the tag
-	Name      string     `gorm:"type:varchar(255);not null;unique" json:"name"`                                          // Name of the tag
+	Name      string     `gorm:"type:varchar(255);not null;uniqueIndex:idx_tag_project_name" json:"name"`                // Name of the tag
+	ProjectID uuid.UUID  `gorm:"not null;index;uniqueIndex:idx_tag_project_name" json:"project_id"`                      // Foreign key referencing the associated project
 	Variables []Variable `gorm:"many2many:variable_tags;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"variables"` // List of variables associated with the tag
 }
 
