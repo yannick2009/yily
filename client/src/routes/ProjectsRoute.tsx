@@ -54,7 +54,8 @@ export function ProjectsRoute() {
         <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <For each={db.projects}>
             {(project) => {
-              const envCount = () => db.environments.filter((e) => e.projectId === project.id).length;
+              const envCount = () =>
+                db.environments.filter((e) => e.projectId === project.id).length;
               const tagCount = () => db.tags.filter((t) => t.projectId === project.id).length;
 
               return (
@@ -95,9 +96,7 @@ export function ProjectsRoute() {
                         {plural("projects.environments", envCount())}
                       </span>
                       <span aria-hidden="true">·</span>
-                      <span>
-                        {plural("projects.tags", tagCount())}
-                      </span>
+                      <span>{plural("projects.tags", tagCount())}</span>
                     </div>
                   </Card>
                 </li>
@@ -124,7 +123,11 @@ export function ProjectsRoute() {
       >
         <form id="new-project-form" onSubmit={submitCreate} class="space-y-4">
           <Field label={t("common.name")}>
-            <Input value={name()} onInput={(e) => setName(e.currentTarget.value)} placeholder={t("projects.namePlaceholder")} />
+            <Input
+              value={name()}
+              onInput={(e) => setName(e.currentTarget.value)}
+              placeholder={t("projects.namePlaceholder")}
+            />
           </Field>
         </form>
       </Dialog>
@@ -153,7 +156,9 @@ export function ProjectsRoute() {
           </>
         }
       >
-        <p class="text-sm text-ink-muted">{t("projects.deleteConfirm", { name: deleting()?.name ?? "" })}</p>
+        <p class="text-sm text-ink-muted">
+          {t("projects.deleteConfirm", { name: deleting()?.name ?? "" })}
+        </p>
       </Dialog>
     </div>
   );

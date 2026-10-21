@@ -1,7 +1,9 @@
 // Small inline label with neutral/brand/success color variants.
 import { splitProps, type ComponentProps } from "solid-js";
 
-export function Badge(props: ComponentProps<"span"> & { variant?: "neutral" | "brand" | "success" }) {
+export function Badge(
+  props: ComponentProps<"span"> & { variant?: "neutral" | "brand" | "success" },
+) {
   const [local, rest] = splitProps(props, ["variant", "class"]);
   const colors =
     local.variant === "brand"
@@ -13,7 +15,11 @@ export function Badge(props: ComponentProps<"span"> & { variant?: "neutral" | "b
   return (
     <span
       {...rest}
-      class={["inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium", colors, local.class]
+      class={[
+        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium",
+        colors,
+        local.class,
+      ]
         .filter(Boolean)
         .join(" ")}
     />

@@ -33,7 +33,8 @@ export function ValueGenerator(props: { onGenerate: (value: string) => void }) {
       <select
         class="input min-w-0"
         value={type()}
-        onChange={(e) => setType(e.currentTarget.value as GenType)}>
+        onChange={(e) => setType(e.currentTarget.value as GenType)}
+      >
         <option value="password">{t("gen.password")}</option>
         <option value="apiKey">{t("gen.apiKey")}</option>
         <option value="uuid">{t("gen.uuid")}</option>
@@ -46,7 +47,8 @@ export function ValueGenerator(props: { onGenerate: (value: string) => void }) {
         size="sm"
         variant="secondary"
         icon="refresh"
-        onClick={() => props.onGenerate(GENERATORS[type()]())}>
+        onClick={() => props.onGenerate(GENERATORS[type()]())}
+      >
         {t("gen.generate")}
       </Button>
     </div>

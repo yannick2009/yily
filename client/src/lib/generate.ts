@@ -1,8 +1,7 @@
 // Secure random-value generators for secrets. Every generator relies on
 // crypto.getRandomValues, so the output is cryptographically strong.
 const HEX = "0123456789abcdef";
-const URL_SAFE =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+const URL_SAFE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 const PASSWORD_CHARS =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{};:,.<>?";
 
@@ -32,9 +31,7 @@ export function generateUuid(): string {
 
 // Lowercase hex string (2 × `bytes` characters; 32 bytes = AES-256 key).
 export function generateHex(bytes = 32): string {
-  return Array.from(randomBytes(bytes), (x) =>
-    x.toString(16).padStart(2, "0"),
-  ).join("");
+  return Array.from(randomBytes(bytes), (x) => x.toString(16).padStart(2, "0")).join("");
 }
 
 // Standard base64 (with padding), like `openssl rand -base64 32`.

@@ -36,7 +36,10 @@ export function LoginRoute() {
           class="rounded-md p-2 text-ink-muted hover:bg-surface-2 hover:text-ink"
           title={`${t("nav.theme")}: ${t(`theme.${theme()}`)}`}
         >
-          <Icon name={theme() === "light" ? "sun" : theme() === "dark" ? "moon" : "computer-desktop"} size={18} />
+          <Icon
+            name={theme() === "light" ? "sun" : theme() === "dark" ? "moon" : "computer-desktop"}
+            size={18}
+          />
         </button>
       </div>
 

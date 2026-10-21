@@ -20,7 +20,10 @@ export default function App() {
         <Route path="/settings" component={SettingsRoute} />
         <Route path="/projects/:projectId" component={ProjectDetailRoute} />
         <Route path="/projects/:projectId/environments/:envId" component={EnvironmentRoute} />
-        <Route path="/projects/:projectId/environments/:envId/variables/:variableId" component={VariableDetailRoute} />
+        <Route
+          path="/projects/:projectId/environments/:envId/variables/:variableId"
+          component={VariableDetailRoute}
+        />
       </Route>
     </Router>
   );

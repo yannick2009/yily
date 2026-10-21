@@ -5,17 +5,7 @@ import { createSignal } from "solid-js";
 const STORAGE_KEY = "yily-lang";
 
 // Supported language codes for the application. These codes are used to identify the language in which the application should be displayed.
-export type LangCode =
-  | "en"
-  | "fr"
-  | "es"
-  | "de"
-  | "it"
-  | "pt"
-  | "ru"
-  | "zh"
-  | "ja"
-  | "ko";
+export type LangCode = "en" | "fr" | "es" | "de" | "it" | "pt" | "ru" | "zh" | "ja" | "ko";
 
 // Interface representing a language supported by the application. It includes the language code, the native name of the language, and the English name of the language.
 export interface Language {
@@ -129,8 +119,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.new": "New project",
     "projects.namePlaceholder": "e.g. Acme Web",
     "projects.emptyTitle": "No projects yet",
-    "projects.emptyDescription":
-      "Create your first project to start storing secrets.",
+    "projects.emptyDescription": "Create your first project to start storing secrets.",
     "projects.create": "Create project",
     "projects.deleteAll": "Delete all",
     "projects.deleteAllTitle": "Delete all projects",
@@ -149,8 +138,7 @@ const messages: Record<LangCode, Messages> = {
     "project.environments": "Environments",
     "project.newEnvironment": "New environment",
     "project.noEnvironments": "No environments",
-    "project.noEnvironmentsDesc":
-      "Create an environment to start storing variables.",
+    "project.noEnvironmentsDesc": "Create an environment to start storing variables.",
     "project.tags": "Tags",
     "project.newTag": "New tag",
     "project.noTags": "No tags",
@@ -192,8 +180,7 @@ const messages: Record<LangCode, Messages> = {
     "env.encryptedHint": "Stored encrypted at rest.",
     "env.varValuePlaceholder": "Secret value",
     "env.deleteVariable": "Delete variable",
-    "env.deleteVariableConfirm":
-      "This will permanently delete {name} and its version history.",
+    "env.deleteVariableConfirm": "This will permanently delete {name} and its version history.",
     "env.renameAria": "Rename environment",
     "env.editDescriptionAria": "Edit description",
     "env.importTitle": "Import variables",
@@ -225,28 +212,24 @@ const messages: Record<LangCode, Messages> = {
     "variable.clearValueConfirm":
       "This will deactivate every version of {name} and remove its current value.",
     "variable.noVersions": "No versions yet",
-    "variable.noVersionsDesc":
-      "Add a value to create the first version of this variable.",
+    "variable.noVersionsDesc": "Add a value to create the first version of this variable.",
     // tokens
     "tokens.title": "Tokens",
-    "tokens.subtitle":
-      "Authenticate the CLI and API clients to read your secrets.",
+    "tokens.subtitle": "Authenticate the CLI and API clients to read your secrets.",
     "tokens.create": "Create token",
     "tokens.docs": "How to use a token",
     "tokens.bannerTitle": "Tokens grant programmatic access to your variables",
     "tokens.bannerBody":
       "Use them with the Yily CLI or from any client calling the API. Treat them like passwords. The secret is only shown once, at creation.",
     "tokens.emptyTitle": "No tokens yet",
-    "tokens.emptyDescription":
-      "Create a token to let the CLI or API clients read your variables.",
+    "tokens.emptyDescription": "Create a token to let the CLI or API clients read your variables.",
     "tokens.created": "Created {date}",
     "tokens.lastUsed": "Last used {when}",
     "tokens.neverUsed": "Never used",
     "tokens.revokeAria": "Revoke {name}",
     "tokens.createTitle": "Create token",
     "tokens.createdTitle": "Token created",
-    "tokens.copyNow":
-      "Copy this token now. For security, it won't be shown again.",
+    "tokens.copyNow": "Copy this token now. For security, it won't be shown again.",
     "tokens.copy": "Copy token",
     "tokens.copied": "Copied",
     "tokens.done": "Done",
@@ -317,8 +300,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.new": "Nouveau projet",
     "projects.namePlaceholder": "ex. Acme Web",
     "projects.emptyTitle": "Aucun projet",
-    "projects.emptyDescription":
-      "Créez votre premier projet pour commencer à stocker des secrets.",
+    "projects.emptyDescription": "Créez votre premier projet pour commencer à stocker des secrets.",
     "projects.create": "Créer le projet",
     "projects.deleteAll": "Tout supprimer",
     "projects.deleteAllTitle": "Supprimer tous les projets",
@@ -336,8 +318,7 @@ const messages: Record<LangCode, Messages> = {
     "project.environments": "Environnements",
     "project.newEnvironment": "Nouvel environnement",
     "project.noEnvironments": "Aucun environnement",
-    "project.noEnvironmentsDesc":
-      "Créez un environnement pour commencer à stocker des variables.",
+    "project.noEnvironmentsDesc": "Créez un environnement pour commencer à stocker des variables.",
     "project.tags": "Étiquettes",
     "project.newTag": "Nouvelle étiquette",
     "project.noTags": "Aucune étiquette",
@@ -414,12 +395,10 @@ const messages: Record<LangCode, Messages> = {
     "variable.noVersionsDesc":
       "Ajoutez une valeur pour créer la première version de cette variable.",
     "tokens.title": "Jetons",
-    "tokens.subtitle":
-      "Authentifiez le CLI et les clients d'API pour lire vos secrets.",
+    "tokens.subtitle": "Authentifiez le CLI et les clients d'API pour lire vos secrets.",
     "tokens.create": "Créer un jeton",
     "tokens.docs": "Comment utiliser un jeton",
-    "tokens.bannerTitle":
-      "Les jetons donnent un accès programmatique à vos variables",
+    "tokens.bannerTitle": "Les jetons donnent un accès programmatique à vos variables",
     "tokens.bannerBody":
       "Utilisez-les avec le CLI Yily ou depuis n'importe quel client appelant l'API. Traitez-les comme des mots de passe. Le secret n'est affiché qu'une seule fois, à la création.",
     "tokens.emptyTitle": "Aucun jeton",
@@ -431,15 +410,13 @@ const messages: Record<LangCode, Messages> = {
     "tokens.revokeAria": "Révoquer {name}",
     "tokens.createTitle": "Créer un jeton",
     "tokens.createdTitle": "Jeton créé",
-    "tokens.copyNow":
-      "Copiez ce jeton maintenant. Par sécurité, il ne sera plus affiché.",
+    "tokens.copyNow": "Copiez ce jeton maintenant. Par sécurité, il ne sera plus affiché.",
     "tokens.copy": "Copier le jeton",
     "tokens.copied": "Copié",
     "tokens.done": "Terminé",
     "tokens.namePlaceholder": "Nom du jeton",
     "tokens.nameHint": "ex. CLI local, ou GitHub Actions",
-    "tokens.accessHint":
-      "Ce jeton pourra lire vos variables via le CLI ou l'API.",
+    "tokens.accessHint": "Ce jeton pourra lire vos variables via le CLI ou l'API.",
     "tokens.revokeTitle": "Révoquer le jeton",
     "tokens.revokeConfirm":
       "Révoquer {name} l'invalidera immédiatement. Tout client ou CLI utilisant ce jeton perdra l'accès. Cette action est irréversible.",
@@ -503,8 +480,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.new": "Nuevo proyecto",
     "projects.namePlaceholder": "p. ej. Acme Web",
     "projects.emptyTitle": "Aún no hay proyectos",
-    "projects.emptyDescription":
-      "Crea tu primer proyecto para empezar a guardar secretos.",
+    "projects.emptyDescription": "Crea tu primer proyecto para empezar a guardar secretos.",
     "projects.create": "Crear proyecto",
     "projects.deleteAll": "Eliminar todo",
     "projects.deleteAllTitle": "Eliminar todos los proyectos",
@@ -522,8 +498,7 @@ const messages: Record<LangCode, Messages> = {
     "project.environments": "Entornos",
     "project.newEnvironment": "Nuevo entorno",
     "project.noEnvironments": "Sin entornos",
-    "project.noEnvironmentsDesc":
-      "Crea un entorno para empezar a guardar variables.",
+    "project.noEnvironmentsDesc": "Crea un entorno para empezar a guardar variables.",
     "project.tags": "Etiquetas",
     "project.newTag": "Nueva etiqueta",
     "project.noTags": "Sin etiquetas",
@@ -597,11 +572,9 @@ const messages: Record<LangCode, Messages> = {
     "variable.clearValueConfirm":
       "Esto desactivará todas las versiones de {name} y eliminará su valor actual.",
     "variable.noVersions": "Aún no hay versiones",
-    "variable.noVersionsDesc":
-      "Añade un valor para crear la primera versión de esta variable.",
+    "variable.noVersionsDesc": "Añade un valor para crear la primera versión de esta variable.",
     "tokens.title": "Tokens",
-    "tokens.subtitle":
-      "Autentica el CLI y los clientes de la API para leer tus secretos.",
+    "tokens.subtitle": "Autentica el CLI y los clientes de la API para leer tus secretos.",
     "tokens.create": "Crear token",
     "tokens.docs": "Cómo usar un token",
     "tokens.bannerTitle": "Los tokens dan acceso programático a tus variables",
@@ -616,15 +589,13 @@ const messages: Record<LangCode, Messages> = {
     "tokens.revokeAria": "Revocar {name}",
     "tokens.createTitle": "Crear token",
     "tokens.createdTitle": "Token creado",
-    "tokens.copyNow":
-      "Copia este token ahora. Por seguridad, no se mostrará de nuevo.",
+    "tokens.copyNow": "Copia este token ahora. Por seguridad, no se mostrará de nuevo.",
     "tokens.copy": "Copiar token",
     "tokens.copied": "Copiado",
     "tokens.done": "Hecho",
     "tokens.namePlaceholder": "Nombre del token",
     "tokens.nameHint": "p. ej. CLI local, o GitHub Actions",
-    "tokens.accessHint":
-      "Este token podrá leer tus variables mediante el CLI o la API.",
+    "tokens.accessHint": "Este token podrá leer tus variables mediante el CLI o la API.",
     "tokens.revokeTitle": "Revocar token",
     "tokens.revokeConfirm":
       "Revocar {name} lo invalidará de inmediato. Cualquier cliente o CLI que use este token perderá el acceso. Esta acción no se puede deshacer.",
@@ -672,8 +643,7 @@ const messages: Record<LangCode, Messages> = {
     "login.hidePassword": "Passwort ausblenden",
     "login.submit": "Anmelden",
     "login.forgot": "Passwort vergessen?",
-    "login.error":
-      "Bitte gib eine gültige E-Mail-Adresse und ein Passwort ein.",
+    "login.error": "Bitte gib eine gültige E-Mail-Adresse und ein Passwort ein.",
     "settings.title": "Einstellungen",
     "settings.language": "Sprache",
     "settings.about": "Über",
@@ -689,8 +659,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.new": "Neues Projekt",
     "projects.namePlaceholder": "z. B. Acme Web",
     "projects.emptyTitle": "Noch keine Projekte",
-    "projects.emptyDescription":
-      "Erstelle dein erstes Projekt, um Geheimnisse zu speichern.",
+    "projects.emptyDescription": "Erstelle dein erstes Projekt, um Geheimnisse zu speichern.",
     "projects.create": "Projekt erstellen",
     "projects.deleteAll": "Alle löschen",
     "projects.deleteAllTitle": "Alle Projekte löschen",
@@ -708,8 +677,7 @@ const messages: Record<LangCode, Messages> = {
     "project.environments": "Umgebungen",
     "project.newEnvironment": "Neue Umgebung",
     "project.noEnvironments": "Keine Umgebungen",
-    "project.noEnvironmentsDesc":
-      "Erstelle eine Umgebung, um Variablen zu speichern.",
+    "project.noEnvironmentsDesc": "Erstelle eine Umgebung, um Variablen zu speichern.",
     "project.tags": "Tags",
     "project.newTag": "Neuer Tag",
     "project.noTags": "Keine Tags",
@@ -750,8 +718,7 @@ const messages: Record<LangCode, Messages> = {
     "env.encryptedHint": "Verschlüsselt im Ruhezustand gespeichert.",
     "env.varValuePlaceholder": "Geheimer Wert",
     "env.deleteVariable": "Variable löschen",
-    "env.deleteVariableConfirm":
-      "Dies löscht {name} und seinen Versionsverlauf dauerhaft.",
+    "env.deleteVariableConfirm": "Dies löscht {name} und seinen Versionsverlauf dauerhaft.",
     "env.renameAria": "Umgebung umbenennen",
     "env.editDescriptionAria": "Beschreibung bearbeiten",
     "env.importTitle": "Variablen importieren",
@@ -786,12 +753,10 @@ const messages: Record<LangCode, Messages> = {
     "variable.noVersionsDesc":
       "Füge einen Wert hinzu, um die erste Version dieser Variable zu erstellen.",
     "tokens.title": "Tokens",
-    "tokens.subtitle":
-      "Authentifiziere das CLI und API-Clients, um deine Geheimnisse zu lesen.",
+    "tokens.subtitle": "Authentifiziere das CLI und API-Clients, um deine Geheimnisse zu lesen.",
     "tokens.create": "Token erstellen",
     "tokens.docs": "So verwendest du ein Token",
-    "tokens.bannerTitle":
-      "Tokens gewähren programmatischen Zugriff auf deine Variablen",
+    "tokens.bannerTitle": "Tokens gewähren programmatischen Zugriff auf deine Variablen",
     "tokens.bannerBody":
       "Verwende sie mit dem Yily-CLI oder von jedem Client, der die API aufruft. Behandle sie wie Passwörter. Das Geheimnis wird nur einmal, bei der Erstellung, angezeigt.",
     "tokens.emptyTitle": "Noch keine Tokens",
@@ -810,8 +775,7 @@ const messages: Record<LangCode, Messages> = {
     "tokens.done": "Fertig",
     "tokens.namePlaceholder": "Token-Name",
     "tokens.nameHint": "z. B. Lokales CLI oder GitHub Actions",
-    "tokens.accessHint":
-      "Dieses Token kann deine Variablen über das CLI oder die API lesen.",
+    "tokens.accessHint": "Dieses Token kann deine Variablen über das CLI oder die API lesen.",
     "tokens.revokeTitle": "Token widerrufen",
     "tokens.revokeConfirm":
       "Das Widerrufen von {name} macht es sofort ungültig. Jeder Client oder jedes CLI, das dieses Token verwendet, verliert den Zugriff. Diese Aktion kann nicht rückgängig gemacht werden.",
@@ -875,8 +839,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.new": "Nuovo progetto",
     "projects.namePlaceholder": "es. Acme Web",
     "projects.emptyTitle": "Nessun progetto",
-    "projects.emptyDescription":
-      "Crea il tuo primo progetto per iniziare a memorizzare i segreti.",
+    "projects.emptyDescription": "Crea il tuo primo progetto per iniziare a memorizzare i segreti.",
     "projects.create": "Crea progetto",
     "projects.deleteAll": "Elimina tutto",
     "projects.deleteAllTitle": "Elimina tutti i progetti",
@@ -894,8 +857,7 @@ const messages: Record<LangCode, Messages> = {
     "project.environments": "Ambienti",
     "project.newEnvironment": "Nuovo ambiente",
     "project.noEnvironments": "Nessun ambiente",
-    "project.noEnvironmentsDesc":
-      "Crea un ambiente per iniziare a memorizzare le variabili.",
+    "project.noEnvironmentsDesc": "Crea un ambiente per iniziare a memorizzare le variabili.",
     "project.tags": "Etichette",
     "project.newTag": "Nuova etichetta",
     "project.noTags": "Nessuna etichetta",
@@ -972,12 +934,10 @@ const messages: Record<LangCode, Messages> = {
     "variable.noVersionsDesc":
       "Aggiungi un valore per creare la prima versione di questa variabile.",
     "tokens.title": "Token",
-    "tokens.subtitle":
-      "Autentica il CLI e i client API per leggere i tuoi segreti.",
+    "tokens.subtitle": "Autentica il CLI e i client API per leggere i tuoi segreti.",
     "tokens.create": "Crea token",
     "tokens.docs": "Come usare un token",
-    "tokens.bannerTitle":
-      "I token danno accesso programmatico alle tue variabili",
+    "tokens.bannerTitle": "I token danno accesso programmatico alle tue variabili",
     "tokens.bannerBody":
       "Usali con il CLI di Yily o da qualsiasi client che chiama l'API. Trattali come password. Il segreto viene mostrato una sola volta, alla creazione.",
     "tokens.emptyTitle": "Nessun token",
@@ -989,15 +949,13 @@ const messages: Record<LangCode, Messages> = {
     "tokens.revokeAria": "Revoca {name}",
     "tokens.createTitle": "Crea token",
     "tokens.createdTitle": "Token creato",
-    "tokens.copyNow":
-      "Copia questo token ora. Per sicurezza, non verrà mostrato di nuovo.",
+    "tokens.copyNow": "Copia questo token ora. Per sicurezza, non verrà mostrato di nuovo.",
     "tokens.copy": "Copia token",
     "tokens.copied": "Copiato",
     "tokens.done": "Fatto",
     "tokens.namePlaceholder": "Nome del token",
     "tokens.nameHint": "es. CLI locale o GitHub Actions",
-    "tokens.accessHint":
-      "Questo token potrà leggere le tue variabili tramite il CLI o l'API.",
+    "tokens.accessHint": "Questo token potrà leggere le tue variabili tramite il CLI o l'API.",
     "tokens.revokeTitle": "Revoca token",
     "tokens.revokeConfirm":
       "La revoca di {name} lo invaliderà immediatamente. Qualsiasi client o CLI che usa questo token perderà l'accesso. Questa azione non può essere annullata.",
@@ -1061,8 +1019,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.new": "Novo projeto",
     "projects.namePlaceholder": "ex. Acme Web",
     "projects.emptyTitle": "Nenhum projeto ainda",
-    "projects.emptyDescription":
-      "Crie seu primeiro projeto para começar a armazenar segredos.",
+    "projects.emptyDescription": "Crie seu primeiro projeto para começar a armazenar segredos.",
     "projects.create": "Criar projeto",
     "projects.deleteAll": "Excluir tudo",
     "projects.deleteAllTitle": "Excluir todos os projetos",
@@ -1080,8 +1037,7 @@ const messages: Record<LangCode, Messages> = {
     "project.environments": "Ambientes",
     "project.newEnvironment": "Novo ambiente",
     "project.noEnvironments": "Nenhum ambiente",
-    "project.noEnvironmentsDesc":
-      "Crie um ambiente para começar a armazenar variáveis.",
+    "project.noEnvironmentsDesc": "Crie um ambiente para começar a armazenar variáveis.",
     "project.tags": "Etiquetas",
     "project.newTag": "Nova etiqueta",
     "project.noTags": "Nenhuma etiqueta",
@@ -1122,8 +1078,7 @@ const messages: Record<LangCode, Messages> = {
     "env.encryptedHint": "Criptografada em repouso.",
     "env.varValuePlaceholder": "Valor secreto",
     "env.deleteVariable": "Excluir variável",
-    "env.deleteVariableConfirm":
-      "Isso excluirá permanentemente {name} e seu histórico de versões.",
+    "env.deleteVariableConfirm": "Isso excluirá permanentemente {name} e seu histórico de versões.",
     "env.renameAria": "Renomear ambiente",
     "env.editDescriptionAria": "Editar descrição",
     "env.importTitle": "Importar variáveis",
@@ -1155,11 +1110,9 @@ const messages: Record<LangCode, Messages> = {
     "variable.clearValueConfirm":
       "Isso desativará todas as versões de {name} e removerá seu valor atual.",
     "variable.noVersions": "Nenhuma versão ainda",
-    "variable.noVersionsDesc":
-      "Adicione um valor para criar a primeira versão desta variável.",
+    "variable.noVersionsDesc": "Adicione um valor para criar a primeira versão desta variável.",
     "tokens.title": "Tokens",
-    "tokens.subtitle":
-      "Autentique o CLI e os clientes da API para ler seus segredos.",
+    "tokens.subtitle": "Autentique o CLI e os clientes da API para ler seus segredos.",
     "tokens.create": "Criar token",
     "tokens.docs": "Como usar um token",
     "tokens.bannerTitle": "Os tokens dão acesso programático às suas variáveis",
@@ -1174,15 +1127,13 @@ const messages: Record<LangCode, Messages> = {
     "tokens.revokeAria": "Revogar {name}",
     "tokens.createTitle": "Criar token",
     "tokens.createdTitle": "Token criado",
-    "tokens.copyNow":
-      "Copie este token agora. Por segurança, ele não será mostrado novamente.",
+    "tokens.copyNow": "Copie este token agora. Por segurança, ele não será mostrado novamente.",
     "tokens.copy": "Copiar token",
     "tokens.copied": "Copiado",
     "tokens.done": "Concluído",
     "tokens.namePlaceholder": "Nome do token",
     "tokens.nameHint": "ex. CLI local ou GitHub Actions",
-    "tokens.accessHint":
-      "Este token poderá ler suas variáveis por meio do CLI ou da API.",
+    "tokens.accessHint": "Este token poderá ler suas variáveis por meio do CLI ou da API.",
     "tokens.revokeTitle": "Revogar token",
     "tokens.revokeConfirm":
       "Revogar {name} o invalidará imediatamente. Qualquer cliente ou CLI que use este token perderá o acesso. Esta ação não pode ser desfeita.",
@@ -1237,8 +1188,7 @@ const messages: Record<LangCode, Messages> = {
     "settings.dangerZone": "Опасная зона",
     "settings.dangerZoneHint":
       "Навсегда удаляет все проекты и их данные. Используйте только в крайнем случае.",
-    "about.tagline":
-      "Самостоятельно размещаемый менеджер секретов с открытым кодом.",
+    "about.tagline": "Самостоятельно размещаемый менеджер секретов с открытым кодом.",
     "about.version": "Версия",
     "about.license": "Лицензия",
     "about.repository": "Репозиторий",
@@ -1247,8 +1197,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.new": "Новый проект",
     "projects.namePlaceholder": "напр. Acme Web",
     "projects.emptyTitle": "Проектов пока нет",
-    "projects.emptyDescription":
-      "Создайте первый проект, чтобы начать хранить секреты.",
+    "projects.emptyDescription": "Создайте первый проект, чтобы начать хранить секреты.",
     "projects.create": "Создать проект",
     "projects.deleteAll": "Удалить всё",
     "projects.deleteAllTitle": "Удалить все проекты",
@@ -1268,8 +1217,7 @@ const messages: Record<LangCode, Messages> = {
     "project.environments": "Окружения",
     "project.newEnvironment": "Новое окружение",
     "project.noEnvironments": "Нет окружений",
-    "project.noEnvironmentsDesc":
-      "Создайте окружение, чтобы начать хранить переменные.",
+    "project.noEnvironmentsDesc": "Создайте окружение, чтобы начать хранить переменные.",
     "project.tags": "Теги",
     "project.newTag": "Новый тег",
     "project.noTags": "Нет тегов",
@@ -1287,8 +1235,7 @@ const messages: Record<LangCode, Messages> = {
     "project.deleteEnvironmentConfirm":
       "Это навсегда удалит {name} и все его переменные. Это действие необратимо.",
     "project.deleteTag": "Удалить тег",
-    "project.deleteTagConfirm":
-      "Это удалит тег {name} из каждой переменной этого проекта.",
+    "project.deleteTagConfirm": "Это удалит тег {name} из каждой переменной этого проекта.",
     "project.deleteTagAria": "Удалить тег {name}",
     "env.notFound": "Окружение не найдено.",
     "env.import": "Импортировать",
@@ -1311,8 +1258,7 @@ const messages: Record<LangCode, Messages> = {
     "env.encryptedHint": "Хранится в зашифрованном виде.",
     "env.varValuePlaceholder": "Секретное значение",
     "env.deleteVariable": "Удалить переменную",
-    "env.deleteVariableConfirm":
-      "Это навсегда удалит {name} и его историю версий.",
+    "env.deleteVariableConfirm": "Это навсегда удалит {name} и его историю версий.",
     "env.renameAria": "Переименовать окружение",
     "env.editDescriptionAria": "Изменить описание",
     "env.importTitle": "Импортировать переменные",
@@ -1344,11 +1290,9 @@ const messages: Record<LangCode, Messages> = {
     "variable.clearValueConfirm":
       "Это деактивирует все версии {name} и удалит его текущее значение.",
     "variable.noVersions": "Версий пока нет",
-    "variable.noVersionsDesc":
-      "Добавьте значение, чтобы создать первую версию этой переменной.",
+    "variable.noVersionsDesc": "Добавьте значение, чтобы создать первую версию этой переменной.",
     "tokens.title": "Токены",
-    "tokens.subtitle":
-      "Аутентифицируйте CLI и API-клиенты для чтения ваших секретов.",
+    "tokens.subtitle": "Аутентифицируйте CLI и API-клиенты для чтения ваших секретов.",
     "tokens.create": "Создать токен",
     "tokens.docs": "Как использовать токен",
     "tokens.bannerTitle": "Токены дают программный доступ к вашим переменным",
@@ -1370,8 +1314,7 @@ const messages: Record<LangCode, Messages> = {
     "tokens.done": "Готово",
     "tokens.namePlaceholder": "Название токена",
     "tokens.nameHint": "напр. Локальный CLI или GitHub Actions",
-    "tokens.accessHint":
-      "Этот токен сможет читать ваши переменные через CLI или API.",
+    "tokens.accessHint": "Этот токен сможет читать ваши переменные через CLI или API.",
     "tokens.revokeTitle": "Отозвать токен",
     "tokens.revokeConfirm":
       "Отзыв {name} немедленно сделает его недействительным. Любой клиент или CLI, использующий этот токен, потеряет доступ. Это действие необратимо.",
@@ -1438,11 +1381,9 @@ const messages: Record<LangCode, Messages> = {
     "projects.create": "创建项目",
     "projects.deleteAll": "删除全部",
     "projects.deleteAllTitle": "删除所有项目",
-    "projects.deleteAllConfirm":
-      "这将永久删除所有项目、环境、变量和版本。此操作无法撤销。",
+    "projects.deleteAllConfirm": "这将永久删除所有项目、环境、变量和版本。此操作无法撤销。",
     "projects.deleteTitle": "删除项目",
-    "projects.deleteConfirm":
-      "这将永久删除 {name} 及其所有环境与变量。此操作无法撤销。",
+    "projects.deleteConfirm": "这将永久删除 {name} 及其所有环境与变量。此操作无法撤销。",
     "projects.environments.one": "{count} 个环境",
     "projects.environments.other": "{count} 个环境",
     "projects.tags.one": "{count} 个标签",
@@ -1466,8 +1407,7 @@ const messages: Record<LangCode, Messages> = {
     "project.createTag": "创建标签",
     "project.tagNamePlaceholder": "例如：数据库",
     "project.deleteEnvironment": "删除环境",
-    "project.deleteEnvironmentConfirm":
-      "这将永久删除 {name} 及其所有变量。此操作无法撤销。",
+    "project.deleteEnvironmentConfirm": "这将永久删除 {name} 及其所有变量。此操作无法撤销。",
     "project.deleteTag": "删除标签",
     "project.deleteTagConfirm": "这将从该项目中的每个变量移除标签 {name}。",
     "project.deleteTagAria": "删除标签 {name}",
@@ -1609,8 +1549,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.new": "新しいプロジェクト",
     "projects.namePlaceholder": "例：Acme Web",
     "projects.emptyTitle": "プロジェクトはまだありません",
-    "projects.emptyDescription":
-      "最初のプロジェクトを作成してシークレットの保存を始めましょう。",
+    "projects.emptyDescription": "最初のプロジェクトを作成してシークレットの保存を始めましょう。",
     "projects.create": "プロジェクトを作成",
     "projects.deleteAll": "すべて削除",
     "projects.deleteAllTitle": "すべてのプロジェクトを削除",
@@ -1669,8 +1608,7 @@ const messages: Record<LangCode, Messages> = {
     "env.encryptedHint": "保存時に暗号化されます。",
     "env.varValuePlaceholder": "シークレットの値",
     "env.deleteVariable": "変数を削除",
-    "env.deleteVariableConfirm":
-      "これにより {name} とそのバージョン履歴が完全に削除されます。",
+    "env.deleteVariableConfirm": "これにより {name} とそのバージョン履歴が完全に削除されます。",
     "env.renameAria": "環境名を変更",
     "env.editDescriptionAria": "説明を編集",
     "env.importTitle": "変数をインポート",
@@ -1702,15 +1640,12 @@ const messages: Record<LangCode, Messages> = {
     "variable.clearValueConfirm":
       "これにより {name} のすべてのバージョンが無効化され、現在の値が削除されます。",
     "variable.noVersions": "バージョンはまだありません",
-    "variable.noVersionsDesc":
-      "値を追加すると、この変数の最初のバージョンが作成されます。",
+    "variable.noVersionsDesc": "値を追加すると、この変数の最初のバージョンが作成されます。",
     "tokens.title": "トークン",
-    "tokens.subtitle":
-      "CLI や API クライアントを認証してシークレットを読み取ります。",
+    "tokens.subtitle": "CLI や API クライアントを認証してシークレットを読み取ります。",
     "tokens.create": "トークンを作成",
     "tokens.docs": "トークンの使い方",
-    "tokens.bannerTitle":
-      "トークンは変数へのプログラムによるアクセスを許可します",
+    "tokens.bannerTitle": "トークンは変数へのプログラムによるアクセスを許可します",
     "tokens.bannerBody":
       "Yily CLI や API を呼び出す任意のクライアントで使用できます。パスワードと同様に扱ってください。シークレットは作成時に一度だけ表示されます。",
     "tokens.emptyTitle": "トークンはまだありません",
@@ -1729,8 +1664,7 @@ const messages: Record<LangCode, Messages> = {
     "tokens.done": "完了",
     "tokens.namePlaceholder": "トークン名",
     "tokens.nameHint": "例：ローカル CLI または GitHub Actions",
-    "tokens.accessHint":
-      "このトークンは CLI または API 経由で変数を読み取れます。",
+    "tokens.accessHint": "このトークンは CLI または API 経由で変数を読み取れます。",
     "tokens.revokeTitle": "トークンを失効",
     "tokens.revokeConfirm":
       "{name} を失効すると、すぐに無効になります。このトークンを使用しているクライアントや CLI はアクセスを失います。この操作は取り消せません。",
@@ -1794,8 +1728,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.new": "새 프로젝트",
     "projects.namePlaceholder": "예: Acme Web",
     "projects.emptyTitle": "아직 프로젝트가 없습니다",
-    "projects.emptyDescription":
-      "첫 프로젝트를 만들어 시크릿 저장을 시작하세요.",
+    "projects.emptyDescription": "첫 프로젝트를 만들어 시크릿 저장을 시작하세요.",
     "projects.create": "프로젝트 만들기",
     "projects.deleteAll": "모두 삭제",
     "projects.deleteAllTitle": "모든 프로젝트 삭제",
@@ -1830,8 +1763,7 @@ const messages: Record<LangCode, Messages> = {
     "project.deleteEnvironmentConfirm":
       "이 작업은 {name}과(와) 모든 변수를 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다.",
     "project.deleteTag": "태그 삭제",
-    "project.deleteTagConfirm":
-      "이 작업은 이 프로젝트의 모든 변수에서 {name} 태그를 제거합니다.",
+    "project.deleteTagConfirm": "이 작업은 이 프로젝트의 모든 변수에서 {name} 태그를 제거합니다.",
     "project.deleteTagAria": "태그 {name} 삭제",
     "env.notFound": "환경을 찾을 수 없습니다.",
     "env.import": "가져오기",
@@ -1854,8 +1786,7 @@ const messages: Record<LangCode, Messages> = {
     "env.encryptedHint": "저장 시 암호화됩니다.",
     "env.varValuePlaceholder": "시크릿 값",
     "env.deleteVariable": "변수 삭제",
-    "env.deleteVariableConfirm":
-      "이 작업은 {name}과(와) 해당 버전 기록을 영구적으로 삭제합니다.",
+    "env.deleteVariableConfirm": "이 작업은 {name}과(와) 해당 버전 기록을 영구적으로 삭제합니다.",
     "env.renameAria": "환경 이름 바꾸기",
     "env.editDescriptionAria": "설명 편집",
     "env.importTitle": "변수 가져오기",
@@ -1887,14 +1818,12 @@ const messages: Record<LangCode, Messages> = {
     "variable.clearValueConfirm":
       "이 작업은 {name}의 모든 버전을 비활성화하고 현재 값을 제거합니다.",
     "variable.noVersions": "아직 버전이 없습니다",
-    "variable.noVersionsDesc":
-      "값을 추가하면 이 변수의 첫 번째 버전이 생성됩니다.",
+    "variable.noVersionsDesc": "값을 추가하면 이 변수의 첫 번째 버전이 생성됩니다.",
     "tokens.title": "토큰",
     "tokens.subtitle": "CLI 및 API 클라이언트를 인증하여 시크릿을 읽습니다.",
     "tokens.create": "토큰 만들기",
     "tokens.docs": "토큰 사용 방법",
-    "tokens.bannerTitle":
-      "토큰은 변수에 대한 프로그래밍 방식 접근을 허용합니다",
+    "tokens.bannerTitle": "토큰은 변수에 대한 프로그래밍 방식 접근을 허용합니다",
     "tokens.bannerBody":
       "Yily CLI 또는 API를 호출하는 모든 클라이언트에서 사용하세요. 비밀번호처럼 취급하세요. 시크릿은 생성 시 한 번만 표시됩니다.",
     "tokens.emptyTitle": "아직 토큰이 없습니다",
@@ -1906,15 +1835,13 @@ const messages: Record<LangCode, Messages> = {
     "tokens.revokeAria": "{name} 취소",
     "tokens.createTitle": "토큰 만들기",
     "tokens.createdTitle": "토큰이 생성되었습니다",
-    "tokens.copyNow":
-      "지금 이 토큰을 복사하세요. 보안을 위해 다시 표시되지 않습니다.",
+    "tokens.copyNow": "지금 이 토큰을 복사하세요. 보안을 위해 다시 표시되지 않습니다.",
     "tokens.copy": "토큰 복사",
     "tokens.copied": "복사됨",
     "tokens.done": "완료",
     "tokens.namePlaceholder": "토큰 이름",
     "tokens.nameHint": "예: 로컬 CLI 또는 GitHub Actions",
-    "tokens.accessHint":
-      "이 토큰은 CLI 또는 API를 통해 변수를 읽을 수 있습니다.",
+    "tokens.accessHint": "이 토큰은 CLI 또는 API를 통해 변수를 읽을 수 있습니다.",
     "tokens.revokeTitle": "토큰 취소",
     "tokens.revokeConfirm":
       "{name}을(를) 취소하면 즉시 무효화됩니다. 이 토큰을 사용하는 모든 클라이언트 또는 CLI는 접근 권한을 잃습니다. 이 작업은 취소할 수 없습니다.",
@@ -1947,10 +1874,7 @@ export function locale(): string {
 
 // Translation function that retrieves the appropriate message based on the current language and key, and replaces any parameters in the message.
 // If the message is not found in the current language, it falls back to English. If it's not found in English either, it returns the key itself.
-export function t(
-  key: string,
-  params?: Record<string, string | number>,
-): string {
+export function t(key: string, params?: Record<string, string | number>): string {
   let s = messages[lang()][key] ?? messages.en[key] ?? key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {

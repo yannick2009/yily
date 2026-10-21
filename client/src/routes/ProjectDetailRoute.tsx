@@ -77,14 +77,20 @@ export function ProjectDetailRoute() {
       fallback={
         <div class="space-y-4">
           <p class="text-sm text-ink-muted">{t("project.notFound")}</p>
-          <A href="/projects" class="inline-flex items-center gap-1.5 text-sm text-brand hover:underline">
+          <A
+            href="/projects"
+            class="inline-flex items-center gap-1.5 text-sm text-brand hover:underline"
+          >
             <Icon name="arrow-left" size={14} /> {t("common.backToProjects")}
           </A>
         </div>
       }
     >
       <div>
-        <A href="/projects" class="mb-3 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
+        <A
+          href="/projects"
+          class="mb-3 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
+        >
           <Icon name="arrow-left" size={14} /> {t("nav.projects")}
         </A>
 
@@ -157,7 +163,9 @@ export function ProjectDetailRoute() {
                           </div>
                           <div>
                             <p class="text-sm font-medium">{env.name}</p>
-                            <p class="text-xs text-ink-muted">{env.description || t("project.noDescription")}</p>
+                            <p class="text-xs text-ink-muted">
+                              {env.description || t("project.noDescription")}
+                            </p>
                           </div>
                         </div>
 
@@ -196,7 +204,13 @@ export function ProjectDetailRoute() {
 
             <Show
               when={tags().length > 0}
-              fallback={<EmptyState icon="tag" title={t("project.noTags")} description={t("project.noTagsDesc")} />}
+              fallback={
+                <EmptyState
+                  icon="tag"
+                  title={t("project.noTags")}
+                  description={t("project.noTagsDesc")}
+                />
+              }
             >
               <ul class="space-y-2">
                 <For each={tags()}>
@@ -240,7 +254,11 @@ export function ProjectDetailRoute() {
       >
         <form id="new-env-form" onSubmit={submitEnv} class="space-y-4">
           <Field label={t("common.name")}>
-            <Input value={envName()} onInput={(e) => setEnvName(e.currentTarget.value)} placeholder={t("project.envNamePlaceholder")} />
+            <Input
+              value={envName()}
+              onInput={(e) => setEnvName(e.currentTarget.value)}
+              placeholder={t("project.envNamePlaceholder")}
+            />
           </Field>
           <Field label={t("common.description")} hint={t("common.optional")}>
             <Textarea
@@ -270,7 +288,11 @@ export function ProjectDetailRoute() {
       >
         <form id="new-tag-form" onSubmit={submitTag} class="space-y-4">
           <Field label={t("common.name")}>
-            <Input value={tagName()} onInput={(e) => setTagName(e.currentTarget.value)} placeholder={t("project.tagNamePlaceholder")} />
+            <Input
+              value={tagName()}
+              onInput={(e) => setTagName(e.currentTarget.value)}
+              placeholder={t("project.tagNamePlaceholder")}
+            />
           </Field>
         </form>
       </Dialog>

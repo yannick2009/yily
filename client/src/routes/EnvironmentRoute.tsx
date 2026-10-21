@@ -19,29 +19,19 @@ export function EnvironmentRoute() {
   const projectId = () => params.projectId ?? "";
   const envId = () => params.envId ?? "";
 
-  const environment = createMemo(() =>
-    db.environments.find((e) => e.id === envId()),
-  );
-  const variables = createMemo(() =>
-    db.variables.filter((v) => v.environmentId === envId()),
-  );
-  const tags = createMemo(() =>
-    db.tags.filter((t) => t.projectId === projectId()),
-  );
+  const environment = createMemo(() => db.environments.find((e) => e.id === envId()));
+  const variables = createMemo(() => db.variables.filter((v) => v.environmentId === envId()));
+  const tags = createMemo(() => db.tags.filter((t) => t.projectId === projectId()));
 
   // Tag filter (matches at least one selected tag).
   const [selectedTags, setSelectedTags] = createSignal<string[]>([]);
   const toggleTag = (id: string) =>
-    setSelectedTags((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    setSelectedTags((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const filtered = createMemo(() =>
     selectedTags().length === 0
       ? variables()
-      : variables().filter((v) =>
-          v.tagIds.some((id) => selectedTags().includes(id)),
-        ),
+      : variables().filter((v) => v.tagIds.some((id) => selectedTags().includes(id))),
   );
 
   // Value reveal + copy.
@@ -50,9 +40,7 @@ export function EnvironmentRoute() {
   const isRevealed = (id: string) => revealedIds().includes(id);
 
   const toggleReveal = (id: string) =>
-    setRevealedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    setRevealedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const copy = async (id: string) => {
     try {
@@ -192,17 +180,19 @@ export function EnvironmentRoute() {
           <p class="text-sm text-ink-muted">{t("env.notFound")}</p>
           <A
             href="/projects"
-            class="inline-flex items-center gap-1.5 text-sm text-brand hover:underline">
+            class="inline-flex items-center gap-1.5 text-sm text-brand hover:underline"
+          >
             <Icon name="arrow-left" size={14} /> {t("common.backToProjects")}
           </A>
         </div>
-      }>
+      }
+    >
       <div>
         <A
           href={`/projects/${projectId()}`}
-          class="mb-3 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-          <Icon name="arrow-left" size={14} />{" "}
-          {db.projects.find((p) => p.id === projectId())?.name}
+          class="mb-3 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
+        >
+          <Icon name="arrow-left" size={14} /> {db.projects.find((p) => p.id === projectId())?.name}
         </A>
 
         <div class="mb-6 flex items-start justify-between gap-4">
@@ -211,18 +201,18 @@ export function EnvironmentRoute() {
               when={renaming()}
               fallback={
                 <div class="flex items-center gap-2">
-                  <h1 class="text-2xl font-semibold tracking-tight">
-                    {environment()!.name}
-                  </h1>
+                  <h1 class="text-2xl font-semibold tracking-tight">{environment()!.name}</h1>
                   <button
                     type="button"
                     onClick={startRename}
                     class="rounded-md p-1.5 text-ink-faint hover:bg-surface-2 hover:text-ink"
-                    aria-label={t("env.renameAria")}>
+                    aria-label={t("env.renameAria")}
+                  >
                     <Icon name="pencil" size={15} />
                   </button>
                 </div>
-              }>
+              }
+            >
               <Input
                 ref={(el) => (renameInput = el)}
                 value={draftName()}
@@ -244,11 +234,13 @@ export function EnvironmentRoute() {
                     type="button"
                     onClick={startDescEdit}
                     class="rounded-md p-1 text-ink-faint hover:bg-surface-2 hover:text-ink"
-                    aria-label={t("env.editDescriptionAria")}>
+                    aria-label={t("env.editDescriptionAria")}
+                  >
                     <Icon name="pencil" size={13} />
                   </button>
                 </div>
-              }>
+              }
+            >
               <Input
                 ref={(el) => (descInput = el)}
                 value={draftDesc()}
@@ -287,7 +279,8 @@ export function EnvironmentRoute() {
                       active()
                         ? "bg-brand text-on-brand"
                         : "bg-surface-2 text-ink-muted hover:text-ink",
-                    ].join(" ")}>
+                    ].join(" ")}
+                  >
                     {tag.name}
                   </button>
                 );
@@ -301,16 +294,8 @@ export function EnvironmentRoute() {
           fallback={
             <EmptyState
               icon="lock"
-              title={
-                variables().length === 0
-                  ? t("env.noVariables")
-                  : t("env.noVariablesMatch")
-              }
-              description={
-                variables().length === 0
-                  ? t("env.addFirst")
-                  : t("env.tryRemoving")
-              }
+              title={variables().length === 0 ? t("env.noVariables") : t("env.noVariablesMatch")}
+              description={variables().length === 0 ? t("env.addFirst") : t("env.tryRemoving")}
               action={
                 variables().length === 0 ? (
                   <Button icon="plus" onClick={() => setCreateOpen(true)}>
@@ -319,20 +304,17 @@ export function EnvironmentRoute() {
                 ) : undefined
               }
             />
-          }>
+          }
+        >
           <div class="overflow-x-auto rounded-xl border border-line bg-surface">
             <table class="w-full table-fixed border-collapse text-left text-sm">
               <thead>
                 <tr class="border-b border-line text-xs uppercase tracking-wide text-ink-faint">
                   <th class="px-4 py-3 font-medium">{t("common.name")}</th>
-                  <th class="w-16 px-4 py-3 text-center font-medium">
-                    {t("env.status")}
-                  </th>
+                  <th class="w-16 px-4 py-3 text-center font-medium">{t("env.status")}</th>
                   <th class="w-64 px-4 py-3 font-medium">{t("env.value")}</th>
                   <th class="px-4 py-3 font-medium">{t("project.tags")}</th>
-                  <th class="w-32 px-4 py-3 text-right font-medium">
-                    {t("env.actions")}
-                  </th>
+                  <th class="w-32 px-4 py-3 text-right font-medium">{t("env.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -343,16 +325,15 @@ export function EnvironmentRoute() {
                     const variableTags = () =>
                       v.tagIds.map((id) => db.tags.find((t) => t.id === id));
                     const isActive = () =>
-                      db.variableVersions.some(
-                        (vv) => vv.variableId === v.id && vv.active,
-                      );
+                      db.variableVersions.some((vv) => vv.variableId === v.id && vv.active);
 
                     return (
                       <tr class="border-t border-line first:border-t-0">
                         <td class="py-3 pl-4 pr-4 align-top">
                           <A
                             href={`/projects/${projectId()}/environments/${envId()}/variables/${v.id}`}
-                            class="font-mono text-sm text-ink hover:text-brand hover:underline">
+                            class="font-mono text-sm text-ink hover:text-brand hover:underline"
+                          >
                             {v.name}
                           </A>
                         </td>
@@ -362,36 +343,23 @@ export function EnvironmentRoute() {
                               "mt-1.5 inline-block h-1.5 w-1.5 rounded-full",
                               isActive() ? "bg-success" : "bg-ink-faint",
                             ].join(" ")}
-                            title={
-                              isActive()
-                                ? t("variable.active")
-                                : t("variable.inactive")
-                            }
+                            title={isActive() ? t("variable.active") : t("variable.inactive")}
                           />
                         </td>
                         <td class="py-3 pr-4 align-top">
                           <code
                             class="font-mono text-sm text-ink-muted"
-                            title={
-                              revealed()
-                                ? currentValue() || undefined
-                                : undefined
-                            }>
+                            title={revealed() ? currentValue() || undefined : undefined}
+                          >
                             {revealed()
-                              ? truncateMiddle(
-                                  currentValue() || t("env.noValue"),
-                                )
+                              ? truncateMiddle(currentValue() || t("env.noValue"))
                               : "••••••••••"}
                           </code>
                         </td>
                         <td class="py-3 pr-4 align-top">
                           <div class="flex flex-wrap gap-1">
                             <For each={variableTags()}>
-                              {(t) =>
-                                t ? (
-                                  <Badge variant="brand">{t.name}</Badge>
-                                ) : null
-                              }
+                              {(t) => (t ? <Badge variant="brand">{t.name}</Badge> : null)}
                             </For>
                           </div>
                         </td>
@@ -405,31 +373,26 @@ export function EnvironmentRoute() {
                                 revealed()
                                   ? t("env.hideAria", { name: v.name })
                                   : t("env.revealAria", { name: v.name })
-                              }>
-                              <Icon
-                                name={revealed() ? "eye-off" : "eye"}
-                                size={15}
-                              />
+                              }
+                            >
+                              <Icon name={revealed() ? "eye-off" : "eye"} size={15} />
                             </button>
                             <button
                               type="button"
                               onClick={() => copy(v.id)}
                               class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink"
-                              aria-label={t("env.copyAria", { name: v.name })}>
-                              <Icon
-                                name={copiedId() === v.id ? "check" : "copy"}
-                                size={15}
-                              />
+                              aria-label={t("env.copyAria", { name: v.name })}
+                            >
+                              <Icon name={copiedId() === v.id ? "check" : "copy"} size={15} />
                             </button>
                             <button
                               type="button"
-                              onClick={() =>
-                                setDeleting({ id: v.id, name: v.name })
-                              }
+                              onClick={() => setDeleting({ id: v.id, name: v.name })}
                               class="rounded-md p-1.5 text-ink-muted hover:bg-danger-subtle hover:text-danger"
                               aria-label={t("common.deleteAria", {
                                 name: v.name,
-                              })}>
+                              })}
+                            >
                               <Icon name="trash" size={15} />
                             </button>
                           </div>
@@ -457,7 +420,8 @@ export function EnvironmentRoute() {
               {t("env.createVariable")}
             </Button>
           </>
-        }>
+        }
+      >
         <form id="new-variable-form" onSubmit={submitCreate} class="space-y-4">
           <Field label={t("common.name")}>
             <Input
@@ -495,11 +459,13 @@ export function EnvironmentRoute() {
                   removeVariable(d.id);
                   setDeleting(null);
                 }
-              }}>
+              }}
+            >
               {t("common.delete")}
             </Button>
           </>
-        }>
+        }
+      >
         <p class="text-sm text-ink-muted">
           {t("env.deleteVariableConfirm", { name: deleting()?.name ?? "" })}
         </p>
@@ -513,7 +479,8 @@ export function EnvironmentRoute() {
           <Button variant="secondary" onClick={closeImport}>
             {t("common.cancel")}
           </Button>
-        }>
+        }
+      >
         <div class="space-y-3">
           <p class="text-sm text-ink-muted">{t("env.importHint")}</p>
           <div
@@ -534,12 +501,9 @@ export function EnvironmentRoute() {
               dragging()
                 ? "border-brand bg-brand-subtle"
                 : "border-line bg-surface-2 hover:border-ink-faint",
-            ].join(" ")}>
-            <Icon
-              name="upload"
-              size={28}
-              class={dragging() ? "text-brand" : "text-ink-faint"}
-            />
+            ].join(" ")}
+          >
+            <Icon name="upload" size={28} class={dragging() ? "text-brand" : "text-ink-faint"} />
             <p class="text-sm font-medium text-ink">{t("env.dropTitle")}</p>
             <p class="text-xs text-ink-muted">{t("env.dropBrowse")}</p>
             <input
@@ -566,10 +530,7 @@ function truncateMiddle(value: string, head = 16, tail = 6): string {
 }
 
 // Parse a .env, .json, or .yaml file into a key/value object. Throws on invalid format.
-function parseVariablesFile(
-  content: string,
-  filename: string,
-): Record<string, string> {
+function parseVariablesFile(content: string, filename: string): Record<string, string> {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   const out: Record<string, string> = {};
 
@@ -601,10 +562,7 @@ function parseVariablesFile(
     }
 
     if (!key) continue;
-    if (
-      (val.startsWith('"') && val.endsWith('"')) ||
-      (val.startsWith("'") && val.endsWith("'"))
-    ) {
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
     out[key] = val;

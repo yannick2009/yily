@@ -1,7 +1,14 @@
 // Variable detail: current value, version history with activate/deactivate, and tag editing.
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { A, useParams } from "@solidjs/router";
-import { addVariableVersion, clearVariableValue, db, renameVariable, setVariableTags, setVariableVersionActive } from "../store";
+import {
+  addVariableVersion,
+  clearVariableValue,
+  db,
+  renameVariable,
+  setVariableTags,
+  setVariableVersionActive,
+} from "../store";
 import { locale, t } from "../lib/i18n";
 import { Badge, Button, Card, Icon, Input, Textarea } from "../components/ui";
 import { Dialog, EmptyState, Field, ValueGenerator } from "../components/shared";
@@ -17,10 +24,14 @@ export function VariableDetailRoute() {
 
   // Newest first, mirroring GET /variables/:id/versions.
   const versions = createMemo(() =>
-    db.variableVersions.filter((v) => v.variableId === variableId()).sort((a, b) => b.version - a.version),
+    db.variableVersions
+      .filter((v) => v.variableId === variableId())
+      .sort((a, b) => b.version - a.version),
   );
   const currentVersion = createMemo(() => versions().find((v) => v.active) ?? null);
-  const variableTags = createMemo(() => (variable()?.tagIds ?? []).map((id) => db.tags.find((t) => t.id === id)));
+  const variableTags = createMemo(() =>
+    (variable()?.tagIds ?? []).map((id) => db.tags.find((t) => t.id === id)),
+  );
   const projectTags = createMemo(() => db.tags.filter((t) => t.projectId === projectId()));
 
   // Reveal + copy per version.
@@ -124,7 +135,9 @@ export function VariableDetailRoute() {
               when={renaming()}
               fallback={
                 <div class="flex items-center gap-2">
-                  <h1 class="font-mono text-2xl font-semibold tracking-tight">{variable()!.name}</h1>
+                  <h1 class="font-mono text-2xl font-semibold tracking-tight">
+                    {variable()!.name}
+                  </h1>
                   <button
                     type="button"
                     onClick={startRename}
@@ -146,7 +159,9 @@ export function VariableDetailRoute() {
               />
             </Show>
             <div class="mt-2 flex flex-wrap items-center gap-1">
-              <For each={variableTags()}>{(tag) => (tag ? <Badge variant="brand">{tag.name}</Badge> : null)}</For>
+              <For each={variableTags()}>
+                {(tag) => (tag ? <Badge variant="brand">{tag.name}</Badge> : null)}
+              </For>
               <button
                 type="button"
                 onClick={openTags}
@@ -170,7 +185,9 @@ export function VariableDetailRoute() {
             <h2 class="text-sm font-semibold text-ink">{t("variable.currentValue")}</h2>
             <div class="flex items-center gap-2">
               <Show when={currentVersion()}>
-                <Badge variant="brand">{t("variable.version", { n: currentVersion()!.version })}</Badge>
+                <Badge variant="brand">
+                  {t("variable.version", { n: currentVersion()!.version })}
+                </Badge>
               </Show>
               <Show when={currentVersion()}>
                 <Button size="sm" variant="ghost" onClick={() => setClearOpen(true)}>
@@ -179,7 +196,10 @@ export function VariableDetailRoute() {
               </Show>
             </div>
           </div>
-          <Show when={currentVersion()} fallback={<p class="text-sm text-ink-muted">{t("variable.noActiveValue")}</p>}>
+          <Show
+            when={currentVersion()}
+            fallback={<p class="text-sm text-ink-muted">{t("variable.noActiveValue")}</p>}
+          >
             <div class="flex items-start gap-2">
               <code class="min-w-0 flex-1 break-all font-mono text-sm text-ink-muted">
                 {isRevealed(currentVersion()!.id) ? currentVersion()!.value : "••••••••••"}
@@ -214,7 +234,13 @@ export function VariableDetailRoute() {
           <h2 class="mb-3 text-base font-semibold">{t("variable.versions")}</h2>
           <Show
             when={versions().length > 0}
-            fallback={<EmptyState icon="lock" title={t("variable.noVersions")} description={t("variable.noVersionsDesc")} />}
+            fallback={
+              <EmptyState
+                icon="lock"
+                title={t("variable.noVersions")}
+                description={t("variable.noVersionsDesc")}
+              />
+            }
           >
             <Card class="divide-y divide-line">
               <For each={versions()}>
@@ -224,7 +250,9 @@ export function VariableDetailRoute() {
                     <div class="flex items-center gap-4 px-4 py-3.5">
                       <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
-                          <span class="text-sm font-medium text-ink">{t("variable.version", { n: vv.version })}</span>
+                          <span class="text-sm font-medium text-ink">
+                            {t("variable.version", { n: vv.version })}
+                          </span>
                           {vv.active ? (
                             <Badge variant="brand">{t("variable.active")}</Badge>
                           ) : (
@@ -244,7 +272,9 @@ export function VariableDetailRoute() {
                           onClick={() => toggleReveal(vv.id)}
                           class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink"
                           aria-label={
-                            revealed() ? t("variable.hideAria", { n: vv.version }) : t("variable.revealAria", { n: vv.version })
+                            revealed()
+                              ? t("variable.hideAria", { n: vv.version })
+                              : t("variable.revealAria", { n: vv.version })
                           }
                         >
                           <Icon name={revealed() ? "eye-off" : "eye"} size={15} />
@@ -315,7 +345,10 @@ export function VariableDetailRoute() {
           </>
         }
       >
-        <Show when={projectTags().length > 0} fallback={<p class="text-sm text-ink-muted">{t("project.noTags")}</p>}>
+        <Show
+          when={projectTags().length > 0}
+          fallback={<p class="text-sm text-ink-muted">{t("project.noTags")}</p>}
+        >
           <ul class="space-y-2">
             <For each={projectTags()}>
               {(tag) => {
@@ -363,5 +396,9 @@ export function VariableDetailRoute() {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });
+  return new Date(iso).toLocaleDateString(locale(), {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }

@@ -10,9 +10,7 @@ export function Field(props: {
 }) {
   return (
     <div class={["space-y-1.5", props.class].filter(Boolean).join(" ")}>
-      {props.label ? (
-        <span class="block text-sm font-medium text-ink">{props.label}</span>
-      ) : null}
+      {props.label ? <span class="block text-sm font-medium text-ink">{props.label}</span> : null}
       {props.children}
       {props.error ? (
         <p class="text-sm text-danger">{props.error}</p>

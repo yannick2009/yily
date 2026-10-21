@@ -23,7 +23,9 @@ export function Dialog(props: {
 
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
-    queueMicrotask(() => panel?.querySelector<HTMLElement>("input, textarea, select, button")?.focus());
+    queueMicrotask(() =>
+      panel?.querySelector<HTMLElement>("input, textarea, select, button")?.focus(),
+    );
 
     onCleanup(() => {
       document.removeEventListener("keydown", onKey);

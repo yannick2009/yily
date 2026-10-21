@@ -53,9 +53,7 @@ export function TokensRoute() {
     <div>
       <div class="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-semibold tracking-tight">
-            {t("tokens.title")}
-          </h1>
+          <h1 class="text-2xl font-semibold tracking-tight">{t("tokens.title")}</h1>
           <p class="mt-1 text-sm text-ink-muted">{t("tokens.subtitle")}</p>
         </div>
         <Button icon="plus" onClick={openCreate}>
@@ -78,7 +76,8 @@ export function TokensRoute() {
           href="https://docs.yily.io"
           target="_blank"
           rel="noreferrer"
-          class="inline-flex items-center gap-1.5 text-sm text-brand hover:underline">
+          class="inline-flex items-center gap-1.5 text-sm text-brand hover:underline"
+        >
           <Icon name="book-open" size={14} />
           {t("tokens.docs")}
         </a>
@@ -97,7 +96,8 @@ export function TokensRoute() {
               </Button>
             }
           />
-        }>
+        }
+      >
         <Card class="divide-y divide-line">
           <For each={db.tokens}>
             {(token) => {
@@ -107,9 +107,7 @@ export function TokensRoute() {
                     <Icon name="key" size={16} />
                   </div>
                   <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-medium text-ink">
-                      {token.name}
-                    </p>
+                    <p class="truncate text-sm font-medium text-ink">{token.name}</p>
                     <p class="truncate text-xs text-ink-muted">
                       {token.lastUsedAt
                         ? t("tokens.lastUsed", {
@@ -129,7 +127,8 @@ export function TokensRoute() {
                     type="button"
                     class="rounded-md p-1.5 text-ink-faint hover:bg-danger-subtle hover:text-danger"
                     onClick={() => setDeleting(token)}
-                    aria-label={t("tokens.revokeAria", { name: token.name })}>
+                    aria-label={t("tokens.revokeAria", { name: token.name })}
+                  >
                     <Icon name="x-circle" size={15} />
                   </button>
                 </div>
@@ -143,11 +142,7 @@ export function TokensRoute() {
       <Dialog
         open={createOpen()}
         onClose={closeCreate}
-        title={
-          created() === null
-            ? t("tokens.createTitle")
-            : t("tokens.createdTitle")
-        }
+        title={created() === null ? t("tokens.createTitle") : t("tokens.createdTitle")}
         footer={
           created() === null ? (
             <>
@@ -163,7 +158,8 @@ export function TokensRoute() {
               {t("tokens.done")}
             </Button>
           )
-        }>
+        }
+      >
         <Show
           when={created() === null}
           fallback={
@@ -179,15 +175,14 @@ export function TokensRoute() {
                 variant="secondary"
                 icon={copied() ? "check" : "copy"}
                 onClick={copySecret}
-                class="w-full">
+                class="w-full"
+              >
                 {copied() ? t("tokens.copied") : t("tokens.copy")}
               </Button>
             </div>
-          }>
-          <form
-            id="create-token-form"
-            onSubmit={submitCreate}
-            class="space-y-4">
+          }
+        >
+          <form id="create-token-form" onSubmit={submitCreate} class="space-y-4">
             <Field label={t("common.name")} hint={t("tokens.nameHint")}>
               <Input
                 value={name()}
@@ -218,11 +213,13 @@ export function TokensRoute() {
                   removeToken(d.id);
                   setDeleting(null);
                 }
-              }}>
+              }}
+            >
               {t("tokens.revoke")}
             </Button>
           </>
-        }>
+        }
+      >
         <p class="text-sm text-ink-muted">
           {t("tokens.revokeConfirm", { name: deleting()?.name ?? "" })}
         </p>

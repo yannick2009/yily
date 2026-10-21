@@ -14,10 +14,20 @@ interface Db {
 
 // App-wide reactive store seeded from the mock data. Swapping the seed data for
 // API calls is the only change needed when we wire the client to the server.
-export const [db, setDb] = createStore<Db>({ projects, environments, tags, variables, variableVersions, tokens });
+export const [db, setDb] = createStore<Db>({
+  projects,
+  environments,
+  tags,
+  variables,
+  variableVersions,
+  tokens,
+});
 
 // Generate a UUID (fallback to a random string) and an ISO timestamp.
-const uid = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+const uid = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
 const now = () => new Date().toISOString();
 
 // Create a project and return its new id.
@@ -57,7 +67,10 @@ export function clearAllProjects(): void {
 // Create an environment inside a project and return its id.
 export function addEnvironment(projectId: string, name: string, description: string): string {
   const id = uid();
-  setDb("environments", (e) => [...e, { id, projectId, name, description, createdAt: now(), updatedAt: now() }]);
+  setDb("environments", (e) => [
+    ...e,
+    { id, projectId, name, description, createdAt: now(), updatedAt: now() },
+  ]);
   return id;
 }
 
@@ -72,12 +85,16 @@ export function removeEnvironment(id: string): void {
 
 // Update an environment's name.
 export function renameEnvironment(id: string, name: string): void {
-  setDb("environments", (e) => e.map((x) => (x.id === id ? { ...x, name: name.trim(), updatedAt: now() } : x)));
+  setDb("environments", (e) =>
+    e.map((x) => (x.id === id ? { ...x, name: name.trim(), updatedAt: now() } : x)),
+  );
 }
 
 // Update an environment's description.
 export function setEnvironmentDescription(id: string, description: string): void {
-  setDb("environments", (e) => e.map((x) => (x.id === id ? { ...x, description: description.trim(), updatedAt: now() } : x)));
+  setDb("environments", (e) =>
+    e.map((x) => (x.id === id ? { ...x, description: description.trim(), updatedAt: now() } : x)),
+  );
 }
 
 // Create a tag inside a project and return its id.
@@ -91,17 +108,42 @@ export function addTag(projectId: string, name: string): string {
 export function removeTag(projectId: string, tagId: string): void {
   void projectId;
   setDb("tags", (t) => t.filter((x) => x.id !== tagId));
-  setDb("variables", (v) => v.map((x) => (x.tagIds.includes(tagId) ? { ...x, tagIds: x.tagIds.filter((t) => t !== tagId) } : x)));
+  setDb("variables", (v) =>
+    v.map((x) =>
+      x.tagIds.includes(tagId) ? { ...x, tagIds: x.tagIds.filter((t) => t !== tagId) } : x,
+    ),
+  );
 }
 
 // Create a variable (name uppercased); a value also creates its first version.
 export function addVariable(environmentId: string, name: string, value: string): string {
   const id = uid();
   const ts = now();
-  setDb("variables", (v) => [...v, { id, environmentId, name: name.trim().toUpperCase(), tagIds: [], createdAt: ts, updatedAt: ts }]);
+  setDb("variables", (v) => [
+    ...v,
+    {
+      id,
+      environmentId,
+      name: name.trim().toUpperCase(),
+      tagIds: [],
+      createdAt: ts,
+      updatedAt: ts,
+    },
+  ]);
   if (value.trim() !== "") {
     values[id] = value.trim();
-    setDb("variableVersions", (v) => [...v, { id: uid(), variableId: id, version: 1, value: value.trim(), active: true, createdAt: ts, updatedAt: ts }]);
+    setDb("variableVersions", (v) => [
+      ...v,
+      {
+        id: uid(),
+        variableId: id,
+        version: 1,
+        value: value.trim(),
+        active: true,
+        createdAt: ts,
+        updatedAt: ts,
+      },
+    ]);
   }
   return id;
 }
@@ -115,35 +157,55 @@ export function removeVariable(id: string): void {
 
 // Update a variable's name (uppercased).
 export function renameVariable(id: string, name: string): void {
-  setDb("variables", (v) => v.map((x) => (x.id === id ? { ...x, name: name.trim().toUpperCase(), updatedAt: now() } : x)));
+  setDb("variables", (v) =>
+    v.map((x) => (x.id === id ? { ...x, name: name.trim().toUpperCase(), updatedAt: now() } : x)),
+  );
 }
 
 // Replace a variable's tag ids.
 export function setVariableTags(variableId: string, tagIds: string[]): void {
-  setDb("variables", (v) => v.map((x) => (x.id === variableId ? { ...x, tagIds, updatedAt: now() } : x)));
+  setDb("variables", (v) =>
+    v.map((x) => (x.id === variableId ? { ...x, tagIds, updatedAt: now() } : x)),
+  );
 }
 
 // Deactivate every version and remove the current plaintext value.
 export function clearVariableValue(variableId: string): void {
-  setDb("variableVersions", (v) => v.map((x) => (x.variableId === variableId ? { ...x, active: false, updatedAt: now() } : x)));
+  setDb("variableVersions", (v) =>
+    v.map((x) => (x.variableId === variableId ? { ...x, active: false, updatedAt: now() } : x)),
+  );
   delete values[variableId];
   setDb("variables", (v) => v.map((x) => (x.id === variableId ? { ...x, updatedAt: now() } : x)));
 }
 
 // Append a new (active) version and update the current plaintext value.
 export function addVariableVersion(variableId: string, value: string): void {
-  const next = db.variableVersions
-    .filter((v) => v.variableId === variableId)
-    .reduce((m, v) => Math.max(m, v.version), 0) + 1;
+  const next =
+    db.variableVersions
+      .filter((v) => v.variableId === variableId)
+      .reduce((m, v) => Math.max(m, v.version), 0) + 1;
   const ts = now();
-  setDb("variableVersions", (v) => [...v, { id: uid(), variableId, version: next, value: value.trim(), active: true, createdAt: ts, updatedAt: ts }]);
+  setDb("variableVersions", (v) => [
+    ...v,
+    {
+      id: uid(),
+      variableId,
+      version: next,
+      value: value.trim(),
+      active: true,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+  ]);
   values[variableId] = value.trim();
   setDb("variables", (v) => v.map((x) => (x.id === variableId ? { ...x, updatedAt: ts } : x)));
 }
 
 // Activate/deactivate a version and recompute the current plaintext value.
 export function setVariableVersionActive(versionId: string, active: boolean): void {
-  setDb("variableVersions", (v) => v.map((x) => (x.id === versionId ? { ...x, active, updatedAt: now() } : x)));
+  setDb("variableVersions", (v) =>
+    v.map((x) => (x.id === versionId ? { ...x, active, updatedAt: now() } : x)),
+  );
   const vv = db.variableVersions.find((x) => x.id === versionId);
   if (vv) {
     const highest = db.variableVersions
@@ -159,7 +221,9 @@ export function importVariables(environmentId: string, entries: Record<string, s
   for (const [name, value] of Object.entries(entries)) {
     const normalized = name.trim().toUpperCase();
     const trimmed = value.trim();
-    const existing = db.variables.find((x) => x.environmentId === environmentId && x.name === normalized);
+    const existing = db.variables.find(
+      (x) => x.environmentId === environmentId && x.name === normalized,
+    );
     if (existing) {
       if (trimmed !== (values[existing.id] ?? "")) addVariableVersion(existing.id, trimmed);
     } else {

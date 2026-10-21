@@ -22,7 +22,8 @@ export function AppShell(props: RouteSectionProps) {
             href="/projects"
             class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium"
             inactiveClass="text-ink-muted hover:bg-surface-2 hover:text-ink"
-            activeClass="bg-brand text-on-brand">
+            activeClass="bg-brand text-on-brand"
+          >
             <Icon name="folder" size={15} />
             {t("nav.projects")}
           </A>
@@ -30,7 +31,8 @@ export function AppShell(props: RouteSectionProps) {
             href="/tokens"
             class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium"
             inactiveClass="text-ink-muted hover:bg-surface-2 hover:text-ink"
-            activeClass="bg-brand text-on-brand">
+            activeClass="bg-brand text-on-brand"
+          >
             <Icon name="key" size={15} />
             {t("nav.tokens")}
           </A>
@@ -42,7 +44,8 @@ export function AppShell(props: RouteSectionProps) {
               href="/settings"
               class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium"
               inactiveClass="text-ink-muted hover:bg-surface-2 hover:text-ink"
-              activeClass="bg-brand text-on-brand">
+              activeClass="bg-brand text-on-brand"
+            >
               <Icon name="settings" size={15} />
               {t("nav.settings")}
             </A>
@@ -50,12 +53,11 @@ export function AppShell(props: RouteSectionProps) {
               type="button"
               onClick={cycleTheme}
               class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-ink-muted hover:bg-surface-2 hover:text-ink"
-              title={`${t("nav.theme")}: ${t(`theme.${theme()}`)}`}>
+              title={`${t("nav.theme")}: ${t(`theme.${theme()}`)}`}
+            >
               <Icon name={themeIcon()} size={15} />
               <span class="flex-1 text-left">{t("nav.theme")}</span>
-              <span class="text-xs text-ink-faint">
-                {t(`theme.${theme()}`)}
-              </span>
+              <span class="text-xs text-ink-faint">{t(`theme.${theme()}`)}</span>
             </button>
           </div>
         </div>
@@ -70,8 +72,4 @@ export function AppShell(props: RouteSectionProps) {
 
 // Function to determine the appropriate icon for the current theme. It returns a sun icon for light theme, a moon icon for dark theme, and a computer desktop icon for system theme.
 const themeIcon = (): IconName =>
-  theme() === "light"
-    ? "sun"
-    : theme() === "dark"
-      ? "moon"
-      : "computer-desktop";
+  theme() === "light" ? "sun" : theme() === "dark" ? "moon" : "computer-desktop";

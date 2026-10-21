@@ -31,15 +31,29 @@ const sizes: Record<Size, string> = {
 };
 
 export function Button(props: ButtonProps & ComponentProps<"button">) {
-  const [local, rest] = splitProps(props, ["variant", "size", "icon", "iconRight", "loading", "children", "class"]);
+  const [local, rest] = splitProps(props, [
+    "variant",
+    "size",
+    "icon",
+    "iconRight",
+    "loading",
+    "children",
+    "class",
+  ]);
 
   return (
     <button
       {...rest}
-      class={[base, variants[local.variant ?? "primary"], sizes[local.size ?? "md"], local.class].filter(Boolean).join(" ")}
+      class={[base, variants[local.variant ?? "primary"], sizes[local.size ?? "md"], local.class]
+        .filter(Boolean)
+        .join(" ")}
       disabled={local.loading || !!rest.disabled}
     >
-      {local.loading ? <Spinner size={14} /> : local.icon ? <Icon name={local.icon} size={15} /> : null}
+      {local.loading ? (
+        <Spinner size={14} />
+      ) : local.icon ? (
+        <Icon name={local.icon} size={15} />
+      ) : null}
       {local.children}
       {local.iconRight && !local.loading ? <Icon name={local.iconRight} size={15} /> : null}
     </button>
