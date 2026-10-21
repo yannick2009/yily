@@ -1,1 +1,165 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+/*
+ * Semantic design tokens. Utilities (bg-bg, text-ink, border-line, bg-brand…)
+ * are generated from these via `@theme inline`, so they resolve at runtime and
+ * flip automatically with the OS colour scheme.
+ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-on-brand: var(--on-brand);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+}
+
+/* Light is the default. The theme is driven by a `data-theme` attribute on
+ * <html> ("light" | "dark" | "system"), set by lib/theme.ts and by an inline
+ * script in index.html before first paint. 
+*/
+:root {
+  color-scheme: light;
+
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --ink: #18181b;
+  --ink-muted: #6b7280;
+  --ink-faint: #9ca3af;
+  --line: #e5e7eb;
+
+  --brand: #8338ec;
+  --brand-hover: #7026cc;
+  --brand-subtle: #f4ecff;
+  --on-brand: #ffffff;
+
+  --danger: #dc2626;
+  --danger-subtle: #fee2e2;
+
+  --success: #16a34a;
+  --success-subtle: #dcfce7;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0b0b0d;
+  --surface: #161618;
+  --surface-2: #1e1e21;
+  --ink: #f4f4f5;
+  --ink-muted: #a1a1aa;
+  --ink-faint: #6b7280;
+  --line: #26262a;
+
+  --brand: #a855f7;
+  --brand-hover: #b879f8;
+  --brand-subtle: #2b1f47;
+  --on-brand: #ffffff;
+
+  --danger: #f87171;
+  --danger-subtle: #3a1d1d;
+
+  --success: #4ade80;
+  --success-subtle: #14532d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+
+    --bg: #0b0b0d;
+    --surface: #161618;
+    --surface-2: #1e1e21;
+    --ink: #f4f4f5;
+    --ink-muted: #a1a1aa;
+    --ink-faint: #6b7280;
+    --line: #26262a;
+
+    --brand: #a855f7;
+    --brand-hover: #b879f8;
+    --brand-subtle: #2b1f47;
+    --on-brand: #ffffff;
+
+    --danger: #f87171;
+    --danger-subtle: #3a1d1d;
+
+    --success: #4ade80;
+    --success-subtle: #14532d;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: var(--brand-subtle);
+}
+
+/* Buttons and clickable elements should advertise that they are clickable. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Shared form controls. */
+.input,
+.textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background-color: var(--surface);
+  color: var(--ink);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--ink-faint);
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 18%, transparent);
+  outline: none;
+}
+
+.input:disabled,
+.textarea:disabled {
+  opacity: 0.5;
+}
