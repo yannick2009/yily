@@ -145,6 +145,9 @@ func (s *variableService) GetCurrentVersion(ctx context.Context, variableID uuid
 	if err != nil {
 		return nil, err
 	}
+	if version == nil {
+		return nil, repository.ErrVariableVersionNotFound
+	}
 
 	// Never expose the value here; use GetValue.
 	version.Value = ""
