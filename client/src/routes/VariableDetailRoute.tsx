@@ -10,8 +10,9 @@ import {
   setVariableVersionActive,
 } from "../store";
 import { locale, t } from "../lib/i18n";
+import { createRevealController } from "../lib/reveal";
 import { Badge, Button, Card, Icon, Input, Textarea } from "../components/ui";
-import { Dialog, EmptyState, Field, ValueGenerator } from "../components/shared";
+import { Dialog, EmptyState, Field, RevealCountdown, ValueGenerator } from "../components/shared";
 
 export function VariableDetailRoute() {
   const params = useParams();
@@ -34,12 +35,9 @@ export function VariableDetailRoute() {
   );
   const projectTags = createMemo(() => db.tags.filter((t) => t.projectId === projectId()));
 
-  // Reveal + copy per version.
-  const [revealedIds, setRevealedIds] = createSignal<string[]>([]);
+  // Reveal + copy per version. Revealed values auto-hide after 20s, with a countdown.
+  const { isRevealed, countdownFor, toggle: toggleReveal } = createRevealController();
   const [copiedId, setCopiedId] = createSignal<string | null>(null);
-  const isRevealed = (id: string) => revealedIds().includes(id);
-  const toggleReveal = (id: string) =>
-    setRevealedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const copy = async (id: string, value: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -201,9 +199,20 @@ export function VariableDetailRoute() {
             fallback={<p class="text-sm text-ink-muted">{t("variable.noActiveValue")}</p>}
           >
             <div class="flex items-start gap-2">
-              <code class="min-w-0 flex-1 break-all font-mono text-sm text-ink-muted">
+              <code
+                class="min-w-0 flex-1 truncate font-mono text-sm text-ink-muted"
+                title={isRevealed(currentVersion()!.id) ? currentVersion()!.value : undefined}
+              >
                 {isRevealed(currentVersion()!.id) ? currentVersion()!.value : "••••••••••"}
               </code>
+              <Show
+                when={
+                  isRevealed(currentVersion()!.id) &&
+                  countdownFor(currentVersion()!.id) > 0
+                }
+              >
+                <RevealCountdown seconds={countdownFor(currentVersion()!.id)} />
+              </Show>
               <div class="flex shrink-0 items-center gap-1">
                 <button
                   type="button"
@@ -246,6 +255,7 @@ export function VariableDetailRoute() {
               <For each={versions()}>
                 {(vv) => {
                   const revealed = () => isRevealed(vv.id);
+                  const remaining = () => countdownFor(vv.id);
                   return (
                     <div class="flex items-center gap-4 px-4 py-3.5">
                       <div class="min-w-0 flex-1">
@@ -262,9 +272,17 @@ export function VariableDetailRoute() {
                         <p class="mt-0.5 text-xs text-ink-muted">
                           {t("variable.created", { date: formatDate(vv.createdAt) })}
                         </p>
-                        <code class="mt-1 block break-all font-mono text-sm text-ink-muted">
-                          {revealed() ? vv.value : "••••••••••"}
-                        </code>
+                        <div class="mt-1 flex items-center gap-2">
+                          <code
+                            class="min-w-0 flex-1 truncate font-mono text-sm text-ink-muted"
+                            title={revealed() ? vv.value : undefined}
+                          >
+                            {revealed() ? vv.value : "••••••••••"}
+                          </code>
+                          <Show when={revealed() && remaining() > 0}>
+                            <RevealCountdown seconds={remaining()} />
+                          </Show>
+                        </div>
                       </div>
                       <div class="flex shrink-0 items-center gap-1">
                         <button

@@ -3,3 +3,4 @@ export { Dialog } from "./Dialog";
 export { Field } from "./Field";
 export { EmptyState } from "./EmptyState";
 export { ValueGenerator } from "./ValueGenerator";
+export { RevealCountdown } from "./RevealCountdown";

@@ -11,8 +11,9 @@ import {
 } from "../store";
 import { values } from "../store/mock";
 import { t } from "../lib/i18n";
+import { createRevealController } from "../lib/reveal";
 import { Badge, Button, Icon, Input, Textarea } from "../components/ui";
-import { Dialog, EmptyState, Field, ValueGenerator } from "../components/shared";
+import { Dialog, EmptyState, Field, RevealCountdown, ValueGenerator } from "../components/shared";
 
 export function EnvironmentRoute() {
   const params = useParams();
@@ -34,13 +35,9 @@ export function EnvironmentRoute() {
       : variables().filter((v) => v.tagIds.some((id) => selectedTags().includes(id))),
   );
 
-  // Value reveal + copy.
-  const [revealedIds, setRevealedIds] = createSignal<string[]>([]);
+  // Value reveal + copy. Revealed values auto-hide after 20s, with a countdown.
+  const { isRevealed, countdownFor, toggle: toggleReveal } = createRevealController();
   const [copiedId, setCopiedId] = createSignal<string | null>(null);
-  const isRevealed = (id: string) => revealedIds().includes(id);
-
-  const toggleReveal = (id: string) =>
-    setRevealedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const copy = async (id: string) => {
     try {
@@ -321,6 +318,7 @@ export function EnvironmentRoute() {
                 <For each={filtered()}>
                   {(v) => {
                     const revealed = () => isRevealed(v.id);
+                    const remaining = () => countdownFor(v.id);
                     const currentValue = () => values[v.id] ?? "";
                     const variableTags = () =>
                       v.tagIds.map((id) => db.tags.find((t) => t.id === id));
@@ -347,14 +345,19 @@ export function EnvironmentRoute() {
                           />
                         </td>
                         <td class="py-3 pr-4 align-top">
-                          <code
-                            class="font-mono text-sm text-ink-muted"
-                            title={revealed() ? currentValue() || undefined : undefined}
-                          >
-                            {revealed()
-                              ? truncateMiddle(currentValue() || t("env.noValue"))
-                              : "••••••••••"}
-                          </code>
+                          <div class="flex items-center gap-2">
+                            <code
+                              class="min-w-0 flex-1 truncate font-mono text-sm text-ink-muted"
+                              title={revealed() ? currentValue() || undefined : undefined}
+                            >
+                              {revealed()
+                                ? truncateMiddle(currentValue() || t("env.noValue"))
+                                : "••••••••••"}
+                            </code>
+                            <Show when={revealed() && remaining() > 0}>
+                              <RevealCountdown seconds={remaining()} />
+                            </Show>
+                          </div>
                         </td>
                         <td class="py-3 pr-4 align-top">
                           <div class="flex flex-wrap gap-1">
