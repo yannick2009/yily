@@ -29,11 +29,17 @@ export function EnvironmentRoute() {
   const toggleTag = (id: string) =>
     setSelectedTags((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const filtered = createMemo(() =>
-    selectedTags().length === 0
-      ? variables()
-      : variables().filter((v) => v.tagIds.some((id) => selectedTags().includes(id))),
-  );
+  // Text search (by variable name), combined with the tag filter below.
+  const [query, setQuery] = createSignal("");
+
+  const filtered = createMemo(() => {
+    const byTags =
+      selectedTags().length === 0
+        ? variables()
+        : variables().filter((v) => v.tagIds.some((id) => selectedTags().includes(id)));
+    const q = query().trim().toLowerCase();
+    return q ? byTags.filter((v) => v.name.toLowerCase().includes(q)) : byTags;
+  });
 
   // Value reveal + copy. Revealed values auto-hide after 20s, with a countdown.
   const { isRevealed, countdownFor, toggle: toggleReveal } = createRevealController();
@@ -281,30 +287,45 @@ export function EnvironmentRoute() {
           </div>
         </div>
 
-        <Show when={tags().length > 0}>
-          <div class="mb-4 flex flex-wrap items-center gap-2">
-            <span class="mr-1 text-xs font-medium uppercase tracking-wide text-ink-faint">
-              {t("env.filter")}
-            </span>
-            <For each={tags()}>
-              {(tag) => {
-                const active = () => selectedTags().includes(tag.id);
-                return (
-                  <button
-                    type="button"
-                    onClick={() => toggleTag(tag.id)}
-                    class={[
-                      "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                      active()
-                        ? "bg-brand text-on-brand"
-                        : "bg-surface-2 text-ink-muted hover:text-ink",
-                    ].join(" ")}
-                  >
-                    {tag.name}
-                  </button>
-                );
-              }}
-            </For>
+        <Show when={variables().length > 0}>
+          <div class="mb-4 space-y-3">
+            <div class="relative w-full sm:w-72">
+              <Input
+                value={query()}
+                onInput={(e) => setQuery(e.currentTarget.value)}
+                placeholder={t("env.searchPlaceholder")}
+                style={{ "padding-left": "2.5rem" }}
+              />
+              <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-ink-faint">
+                <Icon name="search" size={16} />
+              </span>
+            </div>
+            <Show when={tags().length > 0}>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="mr-1 text-xs font-medium uppercase tracking-wide text-ink-faint">
+                  {t("env.filter")}
+                </span>
+                <For each={tags()}>
+                  {(tag) => {
+                    const active = () => selectedTags().includes(tag.id);
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => toggleTag(tag.id)}
+                        class={[
+                          "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                          active()
+                            ? "bg-brand text-on-brand"
+                            : "bg-surface-2 text-ink-muted hover:text-ink",
+                        ].join(" ")}
+                      >
+                        {tag.name}
+                      </button>
+                    );
+                  }}
+                </For>
+              </div>
+            </Show>
           </div>
         </Show>
 

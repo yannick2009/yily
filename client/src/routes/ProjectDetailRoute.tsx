@@ -3,7 +3,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { A, useNavigate, useParams } from "@solidjs/router";
 import { addEnvironment, addTag, db, removeEnvironment, removeTag, renameProject } from "../store";
 import { plural, t } from "../lib/i18n";
-import { Badge, Button, Icon, Input, Textarea } from "../components/ui";
+import { Button, Icon, Input, Textarea } from "../components/ui";
 import { Dialog, EmptyState, Field } from "../components/shared";
 
 export function ProjectDetailRoute() {
@@ -212,21 +212,19 @@ export function ProjectDetailRoute() {
                 />
               }
             >
-              <ul class="space-y-2">
+              <ul class="flex flex-wrap gap-2">
                 <For each={tags()}>
                   {(tag) => (
-                    <li class="flex items-center justify-between rounded-lg border border-line bg-surface px-3 py-2">
-                      <Badge variant="brand">
-                        <Icon name="tag" size={12} />
-                        {tag.name}
-                      </Badge>
+                    <li class="inline-flex items-center gap-1.5 rounded-full bg-brand-subtle py-1.5 pl-3 pr-1.5 text-sm font-medium text-brand">
+                      <Icon name="tag" size={12} class="opacity-70" />
+                      {tag.name}
                       <button
                         type="button"
                         onClick={() => setDeletingTag({ id: tag.id, name: tag.name })}
-                        class="rounded p-1 text-ink-faint hover:bg-danger-subtle hover:text-danger"
+                        class="rounded-full p-0.5 text-brand hover:bg-brand hover:text-on-brand"
                         aria-label={t("project.deleteTagAria", { name: tag.name })}
                       >
-                        <Icon name="x" size={14} />
+                        <Icon name="x" size={12} />
                       </button>
                     </li>
                   )}
