@@ -169,6 +169,25 @@ export function EnvironmentRoute() {
     if (file) void handleFile(file);
   };
 
+  // Export.
+  const [exportOpen, setExportOpen] = createSignal(false);
+
+  const entries = createMemo<[string, string][]>(() =>
+    variables()
+      .map((v) => [v.name, values[v.id] ?? ""] as [string, string])
+      .sort((a, b) => a[0].localeCompare(b[0])),
+  );
+
+  const doExport = (format: FormatOption) => {
+    const slug =
+      (environment()?.name ?? "environment")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "environment";
+    downloadFile(`${slug}.${format.ext}`, format.serialize(entries()), format.mime);
+    setExportOpen(false);
+  };
+
   return (
     <Show
       when={environment()}
@@ -250,8 +269,11 @@ export function EnvironmentRoute() {
             </Show>
           </div>
           <div class="flex gap-2">
-            <Button variant="secondary" icon="upload" onClick={openImport}>
+            <Button variant="secondary" icon="download" onClick={openImport}>
               {t("env.import")}
+            </Button>
+            <Button variant="secondary" icon="upload" onClick={() => setExportOpen(true)}>
+              {t("env.export")}
             </Button>
             <Button icon="plus" onClick={() => setCreateOpen(true)}>
               {t("env.newVariable")}
@@ -522,6 +544,36 @@ export function EnvironmentRoute() {
           </Show>
         </div>
       </Dialog>
+
+      <Dialog
+        open={exportOpen()}
+        onClose={() => setExportOpen(false)}
+        title={t("env.exportTitle")}
+      >
+        <div class="space-y-3">
+          <p class="text-sm text-ink-muted">{t("env.exportHint")}</p>
+          <div class="space-y-2">
+            <For each={EXPORT_FORMATS}>
+              {(format) => (
+                <button
+                  type="button"
+                  onClick={() => doExport(format)}
+                  class="flex w-full items-center gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2.5 text-left transition-colors hover:border-brand hover:bg-surface"
+                >
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-brand">
+                    <Icon name="code-bracket" size={15} />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm font-medium text-ink">{format.label}</p>
+                    <p class="text-xs text-ink-muted">.{format.ext}</p>
+                  </div>
+                  <Icon name="chevron-right" size={15} class="text-ink-faint" />
+                </button>
+              )}
+            </For>
+          </div>
+        </div>
+      </Dialog>
     </Show>
   );
 }
@@ -572,4 +624,53 @@ function parseVariablesFile(content: string, filename: string): Record<string, s
   }
 
   return out;
+}
+
+// --- Export helpers ---
+
+interface FormatOption {
+  ext: string;
+  label: string;
+  mime: string;
+  serialize: (entries: [string, string][]) => string;
+}
+
+const EXPORT_FORMATS: FormatOption[] = [
+  { ext: "json", label: "JSON", mime: "application/json", serialize: serializeJson },
+  { ext: "env", label: ".env", mime: "text/plain", serialize: serializeEnv },
+  { ext: "yaml", label: "YAML", mime: "text/yaml", serialize: serializeYaml },
+];
+
+function serializeJson(entries: [string, string][]): string {
+  const obj: Record<string, string> = {};
+  for (const [k, v] of entries) obj[k] = v;
+  return `${JSON.stringify(obj, null, 2)}\n`;
+}
+
+function serializeEnv(entries: [string, string][]): string {
+  return entries.map(([k, v]) => `${k}=${quoteEnv(v)}`).join("\n") + (entries.length ? "\n" : "");
+}
+
+function serializeYaml(entries: [string, string][]): string {
+  return entries.map(([k, v]) => `${k}: ${quoteYaml(v)}`).join("\n") + (entries.length ? "\n" : "");
+}
+
+function quoteEnv(value: string): string {
+  return /[\s#"=']/.test(value) ? JSON.stringify(value) : value;
+}
+
+function quoteYaml(value: string): string {
+  return value === "" || /^[\s#]|[\s]$|:\s|#/.test(value) ? JSON.stringify(value) : value;
+}
+
+function downloadFile(filename: string, content: string, mime: string): void {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

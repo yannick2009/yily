@@ -1,7 +1,8 @@
+import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { tokenSecrets, tokens, values, variableVersions } from "./mock";
-import { environments, projects, tags, variables } from "./mock";
-import type { Environment, Project, Tag, Token, Variable, VariableVersion } from "../types";
+import { auditEvents, environments, projects, tags, variables } from "./mock";
+import type { AuditEvent, Environment, Project, Tag, Token, User, Variable, VariableVersion } from "../types";
 
 interface Db {
   projects: Project[];
@@ -10,6 +11,7 @@ interface Db {
   variables: Variable[];
   variableVersions: VariableVersion[];
   tokens: Token[];
+  auditEvents: AuditEvent[];
 }
 
 // App-wide reactive store seeded from the mock data. Swapping the seed data for
@@ -21,7 +23,42 @@ export const [db, setDb] = createStore<Db>({
   variables,
   variableVersions,
   tokens,
+  auditEvents,
 });
+
+// Signed-in user. Empty until the first-run /init screen creates the account.
+export const [currentUser, setCurrentUser] = createSignal<User>({
+  id: "",
+  name: "",
+  email: "",
+});
+
+// Whether the instance has an account yet. Starts false so a fresh instance
+// lands on the /init setup screen instead of the login page.
+export const [initialized, setInitialized] = createSignal(false);
+
+// Update the mock profile name/email.
+export function updateCurrentUser(patch: Partial<Pick<User, "name" | "email">>): void {
+  setCurrentUser((u) => ({ ...u, ...patch }));
+}
+
+// Mock account password (plaintext only because this is a mock; the real API
+// never exposes it). Used by the settings screen to simulate a password change.
+export const [currentPassword, setCurrentPassword] = createSignal("demo1234");
+
+// Change the password after validating the current one. Returns true on success.
+export function updatePassword(current: string, next: string): boolean {
+  if (current !== currentPassword()) return false;
+  setCurrentPassword(next);
+  return true;
+}
+
+// Create the first admin account during first-run setup.
+export function initAccount(name: string, email: string, password: string): void {
+  setCurrentUser({ id: "u1", name: name.trim(), email: email.trim() });
+  setCurrentPassword(password);
+  setInitialized(true);
+}
 
 // Generate a UUID (fallback to a random string) and an ISO timestamp.
 const uid = () =>

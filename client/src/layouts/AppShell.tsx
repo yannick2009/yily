@@ -1,12 +1,21 @@
 // Main layout: sidebar navigation + content area rendering the route children.
+import { createMemo } from "solid-js";
 import { A, type RouteSectionProps } from "@solidjs/router";
 import { t } from "../lib/i18n";
 import { cycleTheme, theme } from "../lib/theme";
 import { Icon, type IconName } from "../components/ui/Icon";
+import { currentUser } from "../store";
 
 // AppShell component provides the main layout for the application, including a sidebar with navigation links and a content area for rendering route-specific components. It handles theme switching and displays the current theme in the sidebar.
 // The sidebar includes links to the projects, tokens, and settings pages, and it highlights the active route. The content area is scrollable and centered within the layout.
 export function AppShell(props: RouteSectionProps) {
+  const initials = createMemo(() =>
+    currentUser()
+      .name.split(" ")
+      .map((part) => part[0] ?? "")
+      .join("")
+      .toUpperCase(),
+  );
   return (
     <div class="flex h-screen bg-bg text-ink">
       <aside class="flex w-60 shrink-0 flex-col border-r border-line bg-surface">
@@ -18,6 +27,16 @@ export function AppShell(props: RouteSectionProps) {
           <p class="px-3 pb-2 text-xs font-medium uppercase tracking-wide text-ink-faint">
             {t("nav.workspace")}
           </p>
+          <A
+            href="/"
+            end
+            class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium"
+            inactiveClass="text-ink-muted hover:bg-surface-2 hover:text-ink"
+            activeClass="bg-brand text-on-brand"
+          >
+            <Icon name="squares-2x2" size={15} />
+            {t("dashboard.title")}
+          </A>
           <A
             href="/projects"
             class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium"
@@ -35,6 +54,15 @@ export function AppShell(props: RouteSectionProps) {
           >
             <Icon name="key" size={15} />
             {t("nav.tokens")}
+          </A>
+          <A
+            href="/audit"
+            class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium"
+            inactiveClass="text-ink-muted hover:bg-surface-2 hover:text-ink"
+            activeClass="bg-brand text-on-brand"
+          >
+            <Icon name="clock" size={15} />
+            {t("audit.title")}
           </A>
         </nav>
 
@@ -59,6 +87,34 @@ export function AppShell(props: RouteSectionProps) {
               <span class="flex-1 text-left">{t("nav.theme")}</span>
               <span class="text-xs text-ink-faint">{t(`theme.${theme()}`)}</span>
             </button>
+          </div>
+        </div>
+
+        <div class="border-t border-line p-2">
+          <div class="flex items-center gap-1">
+            <A
+              href="/profile"
+              class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-surface-2"
+            >
+              <span
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-semibold text-on-brand"
+                aria-hidden="true"
+              >
+                {initials()}
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium text-ink">{currentUser().name}</p>
+                <p class="truncate text-xs text-ink-muted">{currentUser().email}</p>
+              </div>
+            </A>
+            <A
+              href="/login"
+              class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink"
+              title={t("nav.signOut")}
+              aria-label={t("nav.signOut")}
+            >
+              <Icon name="logout" size={15} />
+            </A>
           </div>
         </div>
       </aside>

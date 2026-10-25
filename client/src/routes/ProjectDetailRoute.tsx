@@ -157,19 +157,19 @@ export function ProjectDetailRoute() {
                           }
                         }}
                       >
-                        <div class="flex items-center gap-3">
-                          <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-2 text-ink-muted">
+                        <div class="flex min-w-0 flex-1 items-center gap-3">
+                          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-ink-muted">
                             <Icon name="lock" size={16} />
                           </div>
-                          <div>
-                            <p class="text-sm font-medium">{env.name}</p>
-                            <p class="text-xs text-ink-muted">
+                          <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-medium">{env.name}</p>
+                            <p class="truncate text-xs text-ink-muted" title={env.description}>
                               {env.description || t("project.noDescription")}
                             </p>
                           </div>
                         </div>
 
-                        <div class="flex items-center gap-1">
+                        <div class="flex shrink-0 items-center gap-1">
                           <span class="mr-2 text-xs text-ink-faint">
                             {plural("project.variables", varCount(env.id))}
                           </span>

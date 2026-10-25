@@ -57,3 +57,23 @@ export interface Token {
   createdAt: string;
   lastUsedAt: string | null;
 }
+
+// The signed-in user (mock until auth is wired to the server).
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// A point-in-time audit record: who did what to which resource.
+export interface AuditEvent {
+  id: string;
+  createdAt: string;
+  actorType: "user" | "token" | "system";
+  actorId: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  resourceName: string;
+  metadata: string;
+}
