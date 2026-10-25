@@ -33,7 +33,7 @@
           nixfmt
         ];
 
-        vite-plus = import ./nix/vite-plus.nix { inherit pkgs system; };
+        vite-plus = import (pkgs.lib.cleanSource ./nix/vite-plus.nix) { inherit pkgs system; };
       in
       {
         devShells = {

@@ -1,24 +1,24 @@
 { pkgs, system }:
 let
   sources = {
-    version = "1.2.0";
+    version = "1.4.0";
 
     platforms = {
       x86_64-linux = {
         target = "x86_64-unknown-linux-gnu";
-        sha256 = "489e2493d10499d1e0f19f0c7938b1baa5cd488be1f2e3abd3fbf820131452bf";
+        sha256 = "992558abc9621384434a22d80e06e117615680f14a3e17a58eb287fd30a07694";
       };
       aarch64-linux = {
         target = "aarch64-unknown-linux-gnu";
-        sha256 = "42d25a6676c28d0749da7edc97003a7a34c5e31ea1ea479f3d8239ad16d09d2d";
+        sha256 = "8eee2d3e9a5bf8654f5150048f5a82b86d4f546c34c530f052545f5058db60de";
       };
       x86_64-darwin = {
         target = "x86_64-apple-darwin";
-        sha256 = "b19096e684a6d6924a7e3792e2690b331f7c8486fcc3ead62335eb7a09ac0e1c";
+        sha256 = "10cdffc49c20dea7ef5bd69f74e8a52f6553076e551326d4efd1013b2efdd9fa";
       };
       aarch64-darwin = {
         target = "aarch64-apple-darwin";
-        sha256 = "a4dd88b5d6b9e7dfa93694fa11e5d27213ae163052ae4fd5f4301723064bef8e";
+        sha256 = "d54d258ce67d43c0deffb09329825241db197c2f20e72871121227f03fb40312";
       };
     };
   };
