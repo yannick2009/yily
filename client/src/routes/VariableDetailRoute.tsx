@@ -206,10 +206,7 @@ export function VariableDetailRoute() {
                 {isRevealed(currentVersion()!.id) ? currentVersion()!.value : "••••••••••"}
               </code>
               <Show
-                when={
-                  isRevealed(currentVersion()!.id) &&
-                  countdownFor(currentVersion()!.id) > 0
-                }
+                when={isRevealed(currentVersion()!.id) && countdownFor(currentVersion()!.id) > 0}
               >
                 <RevealCountdown seconds={countdownFor(currentVersion()!.id)} />
               </Show>

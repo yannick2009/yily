@@ -446,7 +446,8 @@ const messages: Record<LangCode, Messages> = {
     "env.importInvalid": "Impossible de lire ce fichier.",
     "env.export": "Exporter",
     "env.exportTitle": "Exporter les variables",
-    "env.exportHint": "Téléchargez les variables de cet environnement dans le format de votre choix.",
+    "env.exportHint":
+      "Téléchargez les variables de cet environnement dans le format de votre choix.",
     "variable.notFound": "Variable introuvable.",
     "variable.renameAria": "Renommer la variable",
     "variable.currentValue": "Valeur actuelle",
@@ -1281,8 +1282,7 @@ const messages: Record<LangCode, Messages> = {
     "login.error": "Digite um e-mail e uma senha válidos.",
     // init
     "init.title": "Crie sua conta",
-    "init.subtitle":
-      "Configure sua instância do Yily criando a primeira conta de administrador.",
+    "init.subtitle": "Configure sua instância do Yily criando a primeira conta de administrador.",
     "init.submit": "Criar conta",
     "settings.title": "Configurações",
     "settings.profile": "Perfil",
@@ -1513,8 +1513,7 @@ const messages: Record<LangCode, Messages> = {
     "login.error": "Введите действительные адрес почты и пароль.",
     // init
     "init.title": "Создайте аккаунт",
-    "init.subtitle":
-      "Настройте ваш экземпляр Yily, создав первую учётную запись администратора.",
+    "init.subtitle": "Настройте ваш экземпляр Yily, создав первую учётную запись администратора.",
     "init.submit": "Создать аккаунт",
     "settings.title": "Настройки",
     "settings.profile": "Профиль",
@@ -1972,8 +1971,7 @@ const messages: Record<LangCode, Messages> = {
     "login.error": "有効なメールアドレスとパスワードを入力してください。",
     // init
     "init.title": "アカウントを作成",
-    "init.subtitle":
-      "最初の管理者アカウントを作成して、Yily インスタンスをセットアップします。",
+    "init.subtitle": "最初の管理者アカウントを作成して、Yily インスタンスをセットアップします。",
     "init.submit": "アカウントを作成",
     "settings.title": "設定",
     "settings.profile": "プロフィール",

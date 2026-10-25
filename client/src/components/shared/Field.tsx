@@ -1,6 +1,6 @@
 import type { JSX } from "solid-js";
 
-// Field component is a reusable form field wrapper that can display a label, hint, error message, and any child elements (like input fields). It provides a consistent layout and styling for form fields in the application.
+// Field component is a reusable form field wrapper that can display a label, hint, error message, and any child elements (like input fields). It provides a consistent layout and styling for form fields in the application.²
 export function Field(props: {
   label?: string;
   hint?: string;

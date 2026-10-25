@@ -566,11 +566,7 @@ export function EnvironmentRoute() {
         </div>
       </Dialog>
 
-      <Dialog
-        open={exportOpen()}
-        onClose={() => setExportOpen(false)}
-        title={t("env.exportTitle")}
-      >
+      <Dialog open={exportOpen()} onClose={() => setExportOpen(false)} title={t("env.exportTitle")}>
         <div class="space-y-3">
           <p class="text-sm text-ink-muted">{t("env.exportHint")}</p>
           <div class="space-y-2">

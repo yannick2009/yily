@@ -57,7 +57,11 @@ export function AuditRoute() {
           <span class="mr-1 text-xs font-medium uppercase tracking-wide text-ink-faint">
             {t("env.filter")}
           </span>
-          <button type="button" onClick={() => setAction("all")} class={chipClass(action() === "all")}>
+          <button
+            type="button"
+            onClick={() => setAction("all")}
+            class={chipClass(action() === "all")}
+          >
             {t("audit.all")}
           </button>
           <For each={ACTIONS}>
@@ -99,7 +103,9 @@ export function AuditRoute() {
                       <span class="font-medium text-ink">{actorName(e)}</span>
                     </td>
                     <td class="py-3 pl-4 pr-4 align-top">
-                      <Badge variant={actionVariant(e.action)}>{t(`audit.action.${e.action}`)}</Badge>
+                      <Badge variant={actionVariant(e.action)}>
+                        {t(`audit.action.${e.action}`)}
+                      </Badge>
                     </td>
                     <td class="py-3 pl-4 pr-4 align-top">
                       <Show when={e.resourceType} fallback={<span class="text-ink-faint">—</span>}>
@@ -154,7 +160,9 @@ export function AuditRoute() {
                   {t("audit.resource")}
                 </dt>
                 <dd class="min-w-0 text-right text-ink">
-                  {e.resourceType ? `${e.resourceName} · ${t(`audit.resource.${e.resourceType}`)}` : "—"}
+                  {e.resourceType
+                    ? `${e.resourceName} · ${t(`audit.resource.${e.resourceType}`)}`
+                    : "—"}
                 </dd>
               </div>
               <div class="flex items-start justify-between gap-4">

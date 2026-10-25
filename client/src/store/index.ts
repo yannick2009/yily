@@ -2,7 +2,16 @@ import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { tokenSecrets, tokens, values, variableVersions } from "./mock";
 import { auditEvents, environments, projects, tags, variables } from "./mock";
-import type { AuditEvent, Environment, Project, Tag, Token, User, Variable, VariableVersion } from "../types";
+import type {
+  AuditEvent,
+  Environment,
+  Project,
+  Tag,
+  Token,
+  User,
+  Variable,
+  VariableVersion,
+} from "../types";
 
 interface Db {
   projects: Project[];

@@ -103,8 +103,7 @@ export function DashboardRoute() {
             >
               <For each={projects()}>
                 {(p) => {
-                  const envCount = () =>
-                    db.environments.filter((e) => e.projectId === p.id).length;
+                  const envCount = () => db.environments.filter((e) => e.projectId === p.id).length;
                   const varCount = () =>
                     db.variables.filter((v) =>
                       db.environments
