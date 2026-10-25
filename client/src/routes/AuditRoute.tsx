@@ -36,38 +36,38 @@ export function AuditRoute() {
 
   return (
     <div>
-      <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight">{t("audit.title")}</h1>
-          <p class="mt-1 text-sm text-ink-muted">{t("audit.subtitle")}</p>
-        </div>
-        <div class="relative w-full sm:w-64">
+      <div class="mb-6">
+        <h1 class="text-2xl font-semibold tracking-tight">{t("audit.title")}</h1>
+        <p class="mt-1 text-sm text-ink-muted">{t("audit.subtitle")}</p>
+      </div>
+
+      <div class="mb-4 space-y-3">
+        <div class="relative w-full sm:w-72">
           <Input
             value={query()}
             onInput={(e) => setQuery(e.currentTarget.value)}
             placeholder={t("audit.searchPlaceholder")}
-            style={{ "padding-left": "2.25rem" }}
+            style={{ "padding-left": "2.5rem" }}
           />
           <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-ink-faint">
-            <Icon name="search" size={15} />
+            <Icon name="search" size={16} />
           </span>
         </div>
-      </div>
-
-      <div class="mb-4 flex flex-wrap items-center gap-2">
-        <span class="mr-1 text-xs font-medium uppercase tracking-wide text-ink-faint">
-          {t("env.filter")}
-        </span>
-        <button type="button" onClick={() => setAction("all")} class={chipClass(action() === "all")}>
-          {t("audit.all")}
-        </button>
-        <For each={ACTIONS}>
-          {(a) => (
-            <button type="button" onClick={() => setAction(a)} class={chipClass(action() === a)}>
-              {t(`audit.action.${a}`)}
-            </button>
-          )}
-        </For>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="mr-1 text-xs font-medium uppercase tracking-wide text-ink-faint">
+            {t("env.filter")}
+          </span>
+          <button type="button" onClick={() => setAction("all")} class={chipClass(action() === "all")}>
+            {t("audit.all")}
+          </button>
+          <For each={ACTIONS}>
+            {(a) => (
+              <button type="button" onClick={() => setAction(a)} class={chipClass(action() === a)}>
+                {t(`audit.action.${a}`)}
+              </button>
+            )}
+          </For>
+        </div>
       </div>
 
       <Show
