@@ -10,6 +10,7 @@ import (
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/env"
 	"github.com/yannick2009/yily/internal/repository"
+	"github.com/yannick2009/yily/internal/services"
 )
 
 // HTTPResponse is the standard JSON envelope used for every API response.
@@ -42,21 +43,35 @@ func bindAndValidate(c *echo.Context, req any) bool {
 // Sentinel "not found" errors become 404, anything else becomes 500.
 func httpStatus(err error) int {
 	switch {
+	case errors.Is(err, services.ErrInvalidCredentials),
+		errors.Is(err, services.ErrUnauthorized),
+		errors.Is(err, services.ErrSessionExpired),
+		errors.Is(err, services.ErrSessionRevoked),
+		errors.Is(err, services.ErrPATExpired),
+		errors.Is(err, services.ErrPATRevoked):
+		return http.StatusUnauthorized
 	case errors.Is(err, repository.ErrVariableNameAlreadyExists),
-		errors.Is(err, repository.ErrTagNameAlreadyExists):
+		errors.Is(err, repository.ErrTagNameAlreadyExists),
+		errors.Is(err, repository.ErrUserAlreadyExists):
 		return http.StatusConflict
 	case errors.Is(err, repository.ErrTagNotInProject),
 		errors.Is(err, env.ErrInvalidJSONFormat),
 		errors.Is(err, env.ErrInvalidYAMLFormat),
 		errors.Is(err, env.ErrInvalidEnvFileFormat),
 		errors.Is(err, types.ErrUnsupportedFileType),
-		errors.Is(err, env.ErrDuplicateVariableName):
+		errors.Is(err, env.ErrDuplicateVariableName),
+		errors.Is(err, services.ErrWeakPassword),
+		errors.Is(err, services.ErrInvalidPATName),
+		errors.Is(err, services.ErrInvalidPATExpiration):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrProjectNotFound),
 		errors.Is(err, repository.ErrEnvironmentNotFound),
 		errors.Is(err, repository.ErrVariableNotFound),
 		errors.Is(err, repository.ErrVariableVersionNotFound),
-		errors.Is(err, repository.ErrTagNotFound):
+		errors.Is(err, repository.ErrTagNotFound),
+		errors.Is(err, repository.ErrUserNotFound),
+		errors.Is(err, repository.ErrSessionNotFound),
+		errors.Is(err, repository.ErrPATNotFound):
 		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError

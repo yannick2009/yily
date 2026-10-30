@@ -35,11 +35,14 @@ func NewDB() *gorm.DB {
 
 	// Migrate the schema
 	err = db.AutoMigrate(
-		&model.Project{},         // Migrate the Project model
-		&model.Environment{},     // Migrate the Environment model
-		&model.Variable{},        // Migrate the Variable model
-		&model.VariableVersion{}, // Migrate the VariableVersion model
-		&model.Tag{},             // Migrate the Tag model
+		&model.User{},                // Migrate the User model
+		&model.Session{},             // Migrate the Session model
+		&model.PersonalAccessToken{}, // Migrate the PersonalAccessToken model
+		&model.Project{},             // Migrate the Project model
+		&model.Environment{},         // Migrate the Environment model
+		&model.Variable{},            // Migrate the Variable model
+		&model.VariableVersion{},     // Migrate the VariableVersion model
+		&model.Tag{},                 // Migrate the Tag model
 	)
 	if err != nil {
 		panic("failed to migrate database schema")

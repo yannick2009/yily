@@ -11,10 +11,11 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
-	"github.com/labstack/echo/v5/middleware"
+	echomw "github.com/labstack/echo/v5/middleware"
 	"github.com/yannick2009/yily/internal/adapter"
 	"github.com/yannick2009/yily/internal/config"
 	"github.com/yannick2009/yily/internal/handler"
+	"github.com/yannick2009/yily/internal/middleware"
 	"github.com/yannick2009/yily/internal/repository"
 	"github.com/yannick2009/yily/internal/services"
 )
@@ -31,6 +32,9 @@ func main() {
 	db := adapter.NewDB()
 
 	// Repositories
+	userRepository := repository.NewUserRepository(db)
+	sessionRepository := repository.NewSessionRepository(db)
+	patRepository := repository.NewPATRepository(db)
 	projectRepository := repository.NewProjectRepository(db)
 	environmentRepository := repository.NewEnvironmentRepository(db)
 	variableRepository := repository.NewVariableRepository(db)
@@ -38,12 +42,16 @@ func main() {
 	tagRepository := repository.NewTagRepository(db)
 
 	// Services
+	authService := services.NewAuthService(userRepository, sessionRepository)
+	patService := services.NewPATService(userRepository, patRepository)
 	projectService := services.NewProjectService(projectRepository, environmentRepository)
 	environmentService := services.NewEnvironmentService(environmentRepository)
 	variableService := services.NewVariableService(variableRepository, versionRepository, cfg.MasterKey)
 	tagService := services.NewTagService(tagRepository)
 
 	// Handlers
+	authHandler := handler.NewAuthHandler(authService)
+	patHandler := handler.NewPATHandler(patService)
 	projectHandler := handler.NewProjectHandler(projectService)
 	environmentHandler := handler.NewEnvironmentHandler(environmentService, variableService)
 	variableHandler := handler.NewVariableHandler(variableService)
@@ -56,15 +64,32 @@ func main() {
 	server.Validator = NewValidator()
 
 	// Middleware configuration
-	server.Use(middleware.RequestLogger())                                         // Log incoming requests
-	server.Use(middleware.Recover())                                               // Recover from panics and return a 500 error
-	server.Use(middleware.BodyLimit(1 << 20))                                      // 1 MB
-	server.Use(middleware.ContextTimeout(30 * time.Second))                        // Set a timeout for request context
-	server.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(50.0))) // Rate limiting 50 requests per second
-	server.Use(middleware.Secure())                                                // Enable security headers
+	server.Use(echomw.RequestLogger())                                         // Log incoming requests
+	server.Use(echomw.Recover())                                               // Recover from panics and return a 500 error
+	server.Use(echomw.BodyLimit(1 << 20))                                      // 1 MB
+	server.Use(echomw.ContextTimeout(30 * time.Second))                        // Set a timeout for request context
+	server.Use(echomw.RateLimiter(echomw.NewRateLimiterMemoryStore(50.0)))     // Rate limiting 50 requests per second
+	server.Use(echomw.Secure())                                                // Enable security headers
+
+	// Authentication middleware
+	authMiddleware := middleware.RequireAuth(authService, patService)
 
 	// Define API routes
-	routes := server.Group("/api/v1")
+	api := server.Group("/api/v1")
+
+	// Public authentication routes
+	api.POST("/auth/setup", authHandler.Setup)
+	api.POST("/auth/login", authHandler.Login)
+
+	// Protected API routes (require a valid server-side session or Bearer PAT)
+	routes := api.Group("", authMiddleware)
+
+	// Authentication and token management
+	routes.POST("/auth/logout", authHandler.Logout)
+	routes.GET("/auth/me", authHandler.Me)
+	routes.POST("/tokens", patHandler.Create)
+	routes.GET("/tokens", patHandler.GetAll)
+	routes.DELETE("/tokens/:id", patHandler.Revoke)
 
 	// Projects
 	routes.POST("/projects", projectHandler.Create)
