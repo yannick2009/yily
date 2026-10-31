@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
@@ -9,11 +10,22 @@ import (
 	"github.com/yannick2009/yily/internal/repository"
 )
 
+// EnvironmentDTO is the response shape for an environment in list endpoints, including its variable count.
+type EnvironmentDTO struct {
+	ID            uuid.UUID `json:"id"`             // Unique identifier of the environment.
+	Name          string    `json:"name"`           // Name of the environment.
+	Description   string    `json:"description"`    // Description of the environment.
+	ProjectID     uuid.UUID `json:"project_id"`     // Foreign key referencing the associated project.
+	VariableCount int       `json:"variable_count"` // Number of variables in the environment.
+	CreatedAt     time.Time `json:"created_at"`     // Timestamp when the environment was created.
+	UpdatedAt     time.Time `json:"updated_at"`     // Timestamp when the environment was last updated.
+}
+
 // EnvironmentService defines the interface for environment business logic.
 type EnvironmentService interface {
 	Create(ctx context.Context, projectID uuid.UUID, name, description string) (*model.Environment, error) // Create creates a new environment.
 	GetByID(ctx context.Context, environmentID uuid.UUID) (*model.Environment, error)                      // GetByID retrieves an environment by its ID.
-	GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Environment, error)                          // GetAll retrieves all environments of a project.
+	GetAll(ctx context.Context, projectID uuid.UUID) ([]EnvironmentDTO, error)                             // GetAll retrieves all environments of a project with their variable counts.
 	SetName(ctx context.Context, environmentID uuid.UUID, name string) error                               // SetName updates the name of an environment.
 	SetDescription(ctx context.Context, environmentID uuid.UUID, description string) error                 // SetDescription updates the description of an environment.
 	Delete(ctx context.Context, environmentID uuid.UUID) error                                             // Delete deletes an environment.
@@ -22,12 +34,13 @@ type EnvironmentService interface {
 // environmentService implements EnvironmentService.
 type environmentService struct {
 	environmentRepository repository.EnvironmentRepository
+	variableRepository    repository.VariableRepository
 	audit                 AuditService
 }
 
-// NewEnvironmentService creates a new environmentService with the provided EnvironmentRepository and audit service.
-func NewEnvironmentService(environmentRepository repository.EnvironmentRepository, audit AuditService) EnvironmentService {
-	return &environmentService{environmentRepository, audit}
+// NewEnvironmentService creates a new environmentService with the provided repositories and audit service.
+func NewEnvironmentService(environmentRepository repository.EnvironmentRepository, variableRepository repository.VariableRepository, audit AuditService) EnvironmentService {
+	return &environmentService{environmentRepository, variableRepository, audit}
 }
 
 // Create creates a new environment.
@@ -51,9 +64,32 @@ func (s *environmentService) GetByID(ctx context.Context, environmentID uuid.UUI
 	return s.environmentRepository.GetByID(ctx, environmentID)
 }
 
-// GetAll retrieves all environments of a project.
-func (s *environmentService) GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Environment, error) {
-	return s.environmentRepository.GetAll(ctx, projectID)
+// GetAll retrieves all environments of a project with their variable counts.
+func (s *environmentService) GetAll(ctx context.Context, projectID uuid.UUID) ([]EnvironmentDTO, error) {
+	environments, err := s.environmentRepository.GetAll(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	dtos := make([]EnvironmentDTO, 0, len(environments))
+	for _, environment := range environments {
+		variableCount, err := s.variableRepository.CountByEnvironmentID(ctx, environment.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		dtos = append(dtos, EnvironmentDTO{
+			ID:            environment.ID,
+			Name:          environment.Name,
+			Description:   environment.Description,
+			ProjectID:     environment.ProjectID,
+			VariableCount: int(variableCount),
+			CreatedAt:     environment.CreatedAt,
+			UpdatedAt:     environment.UpdatedAt,
+		})
+	}
+
+	return dtos, nil
 }
 
 // SetName updates the name of an environment.
