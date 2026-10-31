@@ -13,6 +13,7 @@ type VariableHandler interface {
 	Create(c *echo.Context) error
 	List(c *echo.Context) error
 	GetByID(c *echo.Context) error
+	GetValue(c *echo.Context) error
 	SetName(c *echo.Context) error
 	Delete(c *echo.Context) error
 	SetTags(c *echo.Context) error
@@ -58,6 +59,11 @@ type setVersionActiveRequest struct {
 // setTagsRequest represents the expected JSON body for setting tags on a variable.
 type setTagsRequest struct {
 	TagIDs []uuid.UUID `json:"tag_ids"`
+}
+
+// variableValueResponse represents the response body for revealing a variable's decrypted value.
+type variableValueResponse struct {
+	Value string `json:"value"`
 }
 
 // Create handles POST /environments/:environmentID/variables.
@@ -120,6 +126,20 @@ func (h *variableHandler) GetByID(c *echo.Context) error {
 		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
 	}
 	return NewHTTPResponse(c, http.StatusOK, "Variable retrieved successfully", variable)
+}
+
+// GetValue handles GET /variables/:id/value.
+func (h *variableHandler) GetValue(c *echo.Context) error {
+	id, ok := uuidParam(c, "id")
+	if !ok {
+		return nil
+	}
+
+	value, err := h.variableService.GetValue(c.Request().Context(), id)
+	if err != nil {
+		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+	}
+	return NewHTTPResponse(c, http.StatusOK, "Variable value retrieved successfully", variableValueResponse{Value: value})
 }
 
 // SetName handles PATCH /variables/:id.

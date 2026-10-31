@@ -8,6 +8,7 @@ const (
 	ActionUpdated   Action = "updated"    // ActionUpdated records a change to a resource (rename, value, tags, …).
 	ActionDeleted   Action = "deleted"    // ActionDeleted records the deletion of a resource.
 	ActionRevealed  Action = "revealed"   // ActionRevealed records a decrypted secret value being returned.
+	ActionExport    Action = "export"     // ActionExport records an environment's variables being exported.
 	ActionRevoked   Action = "revoked"    // ActionRevoked records the revocation of a Personal Access Token.
 	ActionSignedIn  Action = "signed_in"  // ActionSignedIn records a successful login.
 	ActionSignedOut Action = "signed_out" // ActionSignedOut records an explicit logout.

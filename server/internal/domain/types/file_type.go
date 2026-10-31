@@ -32,3 +32,32 @@ func FromFilename(filename string) (FileType, error) {
 		return "", ErrUnsupportedFileType
 	}
 }
+
+// FromString returns the FileType for a format name (e.g. "json", "yaml" or "env"), case-insensitively.
+// It returns ErrUnsupportedFileType when the name does not match a supported format.
+func FromString(s string) (FileType, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "json":
+		return FileTypeJSON, nil
+	case "yaml", "yml":
+		return FileTypeYAML, nil
+	case "env":
+		return FileTypeEnv, nil
+	default:
+		return "", ErrUnsupportedFileType
+	}
+}
+
+// Extension returns the file extension for the file type, including the leading dot.
+func (f FileType) Extension() string {
+	switch f {
+	case FileTypeJSON:
+		return ".json"
+	case FileTypeYAML:
+		return ".yaml"
+	case FileTypeEnv:
+		return ".env"
+	default:
+		return ""
+	}
+}

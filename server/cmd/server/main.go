@@ -48,7 +48,7 @@ func main() {
 	patService := services.NewPATService(userRepository, patRepository, auditService)
 	projectService := services.NewProjectService(projectRepository, environmentRepository, tagRepository, auditService)
 	environmentService := services.NewEnvironmentService(environmentRepository, variableRepository, auditService)
-	variableService := services.NewVariableService(variableRepository, versionRepository, auditService, cfg.MasterKey)
+	variableService := services.NewVariableService(variableRepository, versionRepository, environmentRepository, auditService, cfg.MasterKey)
 	tagService := services.NewTagService(tagRepository, auditService)
 	dashboardService := services.NewDashboardService(projectRepository, environmentRepository, variableRepository, patRepository, auditService)
 
@@ -115,11 +115,13 @@ func main() {
 	routes.PATCH("/environments/:id/description", environmentHandler.SetDescription)
 	routes.DELETE("/environments/:id", environmentHandler.Delete)
 	routes.POST("/environments/:id/imports", environmentHandler.Import)
+	routes.GET("/environments/:id/export", environmentHandler.Export)
 
 	// Variables
 	routes.POST("/environments/:environmentID/variables", variableHandler.Create)
 	routes.GET("/environments/:environmentID/variables", variableHandler.List)
 	routes.GET("/variables/:id", variableHandler.GetByID)
+	routes.GET("/variables/:id/value", variableHandler.GetValue)
 	routes.PATCH("/variables/:id", variableHandler.SetName)
 	routes.DELETE("/variables/:id", variableHandler.Delete)
 	routes.PUT("/variables/:id/tags", variableHandler.SetTags)

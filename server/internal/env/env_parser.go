@@ -50,3 +50,30 @@ func ParseEnvFileVariables(data []byte) (map[string]string, error) {
 
 	return vars, nil
 }
+
+// FormatJSONVariables serializes the variables into an indented JSON object.
+func FormatJSONVariables(variables map[string]string) ([]byte, error) {
+	data, err := json.MarshalIndent(variables, "", "  ")
+	if err != nil {
+		return nil, ErrInvalidJSONFormat
+	}
+	return append(data, '\n'), nil
+}
+
+// FormatYAMLVariables serializes the variables into a YAML mapping.
+func FormatYAMLVariables(variables map[string]string) ([]byte, error) {
+	data, err := yaml.Marshal(variables)
+	if err != nil {
+		return nil, ErrInvalidYAMLFormat
+	}
+	return data, nil
+}
+
+// FormatEnvFileVariables serializes the variables into KEY=VALUE lines.
+func FormatEnvFileVariables(variables map[string]string) ([]byte, error) {
+	data, err := godotenv.Marshal(variables)
+	if err != nil {
+		return nil, ErrInvalidEnvFileFormat
+	}
+	return []byte(data), nil
+}

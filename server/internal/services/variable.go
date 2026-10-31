@@ -29,30 +29,34 @@ type VariableService interface {
 	Delete(ctx context.Context, variableID uuid.UUID) error                                               // Delete deletes a variable (and its versions via cascade).
 	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                          // SetTags replaces the set of tags associated with a variable.
 	Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType) error      // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
+	Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error)         // Export serializes all variables of an environment into the given file format.
 
 	// versions
 	AddVersion(ctx context.Context, variableID uuid.UUID, value string) (*model.VariableVersion, error) // AddVersion adds a new active version to a variable.
 	ClearValue(ctx context.Context, variableID uuid.UUID) error                                         // ClearValue clears the variable's current value by deactivating all active versions.
 	SetVersionActive(ctx context.Context, variableVersionID uuid.UUID, active bool) error               // SetVersionActive activates or deactivates a version.
 	GetCurrentVersion(ctx context.Context, variableID uuid.UUID) (*model.VariableVersion, error)        // GetCurrentVersion returns the current active version of a variable.
+	GetValue(ctx context.Context, variableID uuid.UUID) (string, error)                                 // GetValue returns the current decrypted value of a variable.
 	GetAllVersions(ctx context.Context, variableID uuid.UUID) ([]model.VariableVersion, error)          // GetAllVersions returns all versions of a variable, newest first.
 }
 
 // variableService implements VariableService.
 type variableService struct {
-	variableRepository repository.VariableRepository
-	versionRepository  repository.VariableVersionRepository
-	audit              AuditService
-	masterKey          []byte
+	variableRepository    repository.VariableRepository
+	versionRepository     repository.VariableVersionRepository
+	environmentRepository repository.EnvironmentRepository
+	audit                 AuditService
+	masterKey             []byte
 }
 
 // NewVariableService creates a new variableService with the provided repositories, audit service and master key.
-func NewVariableService(variableRepository repository.VariableRepository, versionRepository repository.VariableVersionRepository, audit AuditService, masterKey []byte) VariableService {
+func NewVariableService(variableRepository repository.VariableRepository, versionRepository repository.VariableVersionRepository, environmentRepository repository.EnvironmentRepository, audit AuditService, masterKey []byte) VariableService {
 	return &variableService{
-		variableRepository: variableRepository,
-		versionRepository:  versionRepository,
-		audit:              audit,
-		masterKey:          bytes.Clone(masterKey),
+		variableRepository:    variableRepository,
+		versionRepository:     versionRepository,
+		environmentRepository: environmentRepository,
+		audit:                 audit,
+		masterKey:             bytes.Clone(masterKey),
 	}
 }
 
@@ -135,25 +139,37 @@ func (s *variableService) SetVersionActive(ctx context.Context, variableVersionI
 	return s.versionRepository.SetActive(ctx, variableVersionID, active)
 }
 
-// GetCurrentVersion returns the current active version of a variable with its decrypted value.
+// GetCurrentVersion returns the current active version of a variable, without its value.
 func (s *variableService) GetCurrentVersion(ctx context.Context, variableID uuid.UUID) (*model.VariableVersion, error) {
 	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
 	if err != nil {
 		return nil, err
 	}
 
-	decrypted, err := crypto.Decrypt(version.Value, s.masterKey, version.VariableID, version.Version)
-	if err != nil {
-		return nil, ErrDecryptionFailed
-	}
-	version.Value = decrypted
-
-	s.auditVariable(ctx, types.ActionRevealed, variableID)
+	// Never expose the value here; use GetValue.
+	version.Value = ""
 
 	return version, nil
 }
 
-// GetAllVersions returns all versions of a variable with their decrypted values, newest first.
+// GetValue returns the current decrypted value of a variable.
+func (s *variableService) GetValue(ctx context.Context, variableID uuid.UUID) (string, error) {
+	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
+	if err != nil {
+		return "", err
+	}
+
+	value, err := s.decryptVersion(version)
+	if err != nil {
+		return "", err
+	}
+
+	s.auditVariable(ctx, types.ActionRevealed, variableID)
+
+	return value, nil
+}
+
+// GetAllVersions returns all versions of a variable, newest first, without their values.
 func (s *variableService) GetAllVersions(ctx context.Context, variableID uuid.UUID) ([]model.VariableVersion, error) {
 	versions, err := s.versionRepository.GetAll(ctx, variableID)
 	if err != nil {
@@ -161,11 +177,8 @@ func (s *variableService) GetAllVersions(ctx context.Context, variableID uuid.UU
 	}
 
 	for i := range versions {
-		decrypted, err := crypto.Decrypt(versions[i].Value, s.masterKey, versions[i].VariableID, versions[i].Version)
-		if err != nil {
-			return nil, ErrDecryptionFailed
-		}
-		versions[i].Value = decrypted
+		// Never expose values here; use GetValue.
+		versions[i].Value = ""
 	}
 
 	return versions, nil
@@ -213,8 +226,8 @@ func (s *variableService) addVersion(ctx context.Context, variableID uuid.UUID, 
 		return nil, err
 	}
 
-	// Keep plaintext value in memory to avoid leaking ciphertext in API responses.
-	version.Value = value
+	// Never expose the value in API responses; use GetValue.
+	version.Value = ""
 	return version, nil
 }
 
@@ -251,9 +264,68 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 	return s.variableRepository.Import(ctx, environmentID, variables)
 }
 
+// Export serializes all variables of an environment (name → current decrypted value) into the given file format.
+func (s *variableService) Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error) {
+	variables, err := s.variableRepository.GetAll(ctx, environmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	values := make(map[string]string, len(variables))
+	for _, variable := range variables {
+		value := ""
+		version, err := s.versionRepository.GetCurrentActive(ctx, variable.ID)
+		switch {
+		case err == nil:
+			value, err = s.decryptVersion(version)
+			if err != nil {
+				return nil, err
+			}
+		case errors.Is(err, repository.ErrVariableVersionNotFound):
+			// The variable has no value yet — export it as empty.
+		default:
+			return nil, err
+		}
+		values[variable.Name] = value
+	}
+
+	var content []byte
+	switch fileType {
+	case types.FileTypeJSON:
+		content, err = env.FormatJSONVariables(values)
+	case types.FileTypeYAML:
+		content, err = env.FormatYAMLVariables(values)
+	case types.FileTypeEnv:
+		content, err = env.FormatEnvFileVariables(values)
+	default:
+		return nil, types.ErrUnsupportedFileType
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Record a single export event rather than a reveal per variable.
+	environment, err := s.environmentRepository.GetByID(ctx, environmentID)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.audit.Record(ctx, types.ActionExport, types.ResourceEnvironment, environmentID, environment.Name)
+
+	return content, nil
+}
+
 // normalizeVariableName returns a variable name trimmed and uppercased.
 func normalizeVariableName(name string) string {
 	return strings.ToUpper(strings.TrimSpace(name))
+}
+
+// decryptVersion returns the decrypted value of a version.
+func (s *variableService) decryptVersion(version *model.VariableVersion) (string, error) {
+	value, err := crypto.Decrypt(version.Value, s.masterKey, version.VariableID, version.Version)
+	if err != nil {
+		return "", ErrDecryptionFailed
+	}
+	return value, nil
 }
 
 // auditVariable records an audit event for a variable, resolving its name best-effort.
