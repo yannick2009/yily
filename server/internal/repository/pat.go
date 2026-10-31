@@ -20,6 +20,7 @@ type PATRepository interface {
 	GetByTokenHash(ctx context.Context, tokenHash string) (*model.PersonalAccessToken, error)  // GetByTokenHash retrieves a PAT by its SHA-256 hash during Bearer authentication.
 	GetByID(ctx context.Context, id uuid.UUID) (*model.PersonalAccessToken, error)             // GetByID retrieves a PAT by its ID.
 	GetAllByUserID(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error) // GetAllByUserID retrieves all PAT metadata belonging to a user.
+	CountByUserID(ctx context.Context, userID uuid.UUID) (int64, error)                        // CountByUserID counts the PATs belonging to a user.
 	RevokeByID(ctx context.Context, id uuid.UUID, userID uuid.UUID, revokedAt time.Time) error // RevokeByID marks a user's PAT as revoked by its ID.
 }
 
@@ -65,6 +66,15 @@ func (r *patRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Perso
 // GetAllByUserID retrieves all PATs belonging to a user ordered by creation date descending.
 func (r *patRepository) GetAllByUserID(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error) {
 	return gorm.G[model.PersonalAccessToken](r.DB).Where("user_id = ?", userID).Order("created_at DESC").Find(ctx)
+}
+
+// CountByUserID counts the PATs belonging to a user.
+func (r *patRepository) CountByUserID(ctx context.Context, userID uuid.UUID) (int64, error) {
+	var count int64
+	if err := r.DB.WithContext(ctx).Model(&model.PersonalAccessToken{}).Where("user_id = ?", userID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // RevokeByID sets revoked_at on an active PAT owned by the user, or returns ErrPATNotFound if the ID does not belong to them.

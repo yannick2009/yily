@@ -21,6 +21,7 @@ type EnvironmentRepository interface {
 	Delete(ctx context.Context, environmentID uuid.UUID) error                             // Delete deletes an environment from the database by its ID.
 	GetByID(ctx context.Context, environmentID uuid.UUID) (*model.Environment, error)      // GetByID retrieves an environment from the database by its ID.
 	GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Environment, error)          // GetAll retrieves all environments from the database.
+	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error)              // CountByProjectID counts the environments of a project.
 }
 
 // environmentRepository is a struct that implements the EnvironmentRepository interface.
@@ -75,4 +76,13 @@ func (r *environmentRepository) GetAll(ctx context.Context, projectID uuid.UUID)
 		return nil, err
 	}
 	return environments, nil
+}
+
+// CountByProjectID counts the environments of a project.
+func (r *environmentRepository) CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error) {
+	var count int64
+	if err := r.DB.WithContext(ctx).Model(&model.Environment{}).Where("project_id = ?", projectID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
 }
