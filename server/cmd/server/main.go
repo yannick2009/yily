@@ -46,7 +46,7 @@ func main() {
 	auditService := services.NewAuditService(auditRepository)
 	authService := services.NewAuthService(userRepository, sessionRepository)
 	patService := services.NewPATService(userRepository, patRepository, auditService)
-	projectService := services.NewProjectService(projectRepository, environmentRepository, auditService)
+	projectService := services.NewProjectService(projectRepository, environmentRepository, tagRepository, auditService)
 	environmentService := services.NewEnvironmentService(environmentRepository, auditService)
 	variableService := services.NewVariableService(variableRepository, versionRepository, auditService, cfg.MasterKey)
 	tagService := services.NewTagService(tagRepository, auditService)

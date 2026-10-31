@@ -63,35 +63,9 @@ func (s *dashboardService) GetDashboard(ctx context.Context, userID uuid.UUID) (
 		return nil, err
 	}
 
-	pats, err := s.patRepository.GetAllByUserID(ctx, userID)
+	tokenCount, err := s.patRepository.CountByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
-	}
-
-	// A self-hosted instance holds modest amounts of data, so enumerate environments and
-	// variables per project/environment rather than adding dedicated global repository methods.
-	environmentsByID := make(map[uuid.UUID]model.Environment)
-	environmentsByProject := make(map[uuid.UUID][]model.Environment, len(projects))
-	variablesByEnvironment := make(map[uuid.UUID][]model.Variable)
-	var variables []model.Variable
-
-	for _, project := range projects {
-		environments, err := s.environmentRepository.GetAll(ctx, project.ID)
-		if err != nil {
-			return nil, err
-		}
-		environmentsByProject[project.ID] = environments
-
-		for _, environment := range environments {
-			environmentsByID[environment.ID] = environment
-
-			vars, err := s.variableRepository.GetAll(ctx, environment.ID)
-			if err != nil {
-				return nil, err
-			}
-			variablesByEnvironment[environment.ID] = vars
-			variables = append(variables, vars...)
-		}
 	}
 
 	recent, err := s.audit.List(ctx, AuditFilter{Limit: dashboardListLimit})
@@ -99,36 +73,46 @@ func (s *dashboardService) GetDashboard(ctx context.Context, userID uuid.UUID) (
 		return nil, err
 	}
 
+	summaries, environmentCount, variableCount, err := s.projectSummaries(ctx, projects)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Dashboard{
 		Stats: DashboardStats{
 			Projects:     len(projects),
-			Environments: len(environmentsByID),
-			Variables:    len(variables),
-			Tokens:       len(pats),
+			Environments: environmentCount,
+			Variables:    variableCount,
+			Tokens:       int(tokenCount),
 		},
 		RecentActivity: recent.Events,
-		Projects:       projectSummaries(projects, environmentsByProject, variablesByEnvironment),
+		Projects:       summaries,
 	}, nil
 }
 
-// projectSummaries builds a summary for the most recently updated projects, newest first, capped at dashboardListLimit.
-func projectSummaries(
-	projects []model.Project,
-	environmentsByProject map[uuid.UUID][]model.Environment,
-	variablesByEnvironment map[uuid.UUID][]model.Variable,
-) []ProjectSummary {
+// projectSummaries builds a summary per project (environment and variable counts), newest first,
+// capped at dashboardListLimit, and returns the totals across all projects.
+func (s *dashboardService) projectSummaries(ctx context.Context, projects []model.Project) ([]ProjectSummary, int, int, error) {
 	summaries := make([]ProjectSummary, 0, len(projects))
+	totalEnvironments, totalVariables := 0, 0
 	for _, project := range projects {
-		environments := environmentsByProject[project.ID]
-		variableCount := 0
-		for _, environment := range environments {
-			variableCount += len(variablesByEnvironment[environment.ID])
+		environmentCount, err := s.environmentRepository.CountByProjectID(ctx, project.ID)
+		if err != nil {
+			return nil, 0, 0, err
 		}
+		variableCount, err := s.variableRepository.CountByProjectID(ctx, project.ID)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+
+		totalEnvironments += int(environmentCount)
+		totalVariables += int(variableCount)
+
 		summaries = append(summaries, ProjectSummary{
 			ID:               project.ID,
 			Name:             project.Name,
-			EnvironmentCount: len(environments),
-			VariableCount:    variableCount,
+			EnvironmentCount: int(environmentCount),
+			VariableCount:    int(variableCount),
 			UpdatedAt:        project.UpdatedAt,
 		})
 	}
@@ -136,5 +120,5 @@ func projectSummaries(
 	if len(summaries) > dashboardListLimit {
 		summaries = summaries[:dashboardListLimit]
 	}
-	return summaries
+	return summaries, totalEnvironments, totalVariables, nil
 }
