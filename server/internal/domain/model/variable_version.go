@@ -11,7 +11,7 @@ import (
 type VariableVersion struct {
 	ID         uuid.UUID `gorm:"primaryKey" json:"id"`                                                   // Unique identifier for the variable version
 	Version    int       `gorm:"not null;uniqueIndex:idx_variable_version_num" json:"version"`           // Version of the variable
-	Value      string    `gorm:"type:text;not null" json:"value"`                                        // Value of the variable version
+	Value      string    `gorm:"type:text;not null" json:"value,omitempty"`                              // Value of the variable version (encrypted at rest; omitted when redacted)
 	Active     bool      `gorm:"not null;default:true" json:"active"`                                    // Indicates if this version is the active version
 	UpdatedAt  time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                       // Timestamp when the variable version was last updated
 	CreatedAt  time.Time `gorm:"autoCreateTime" json:"created_at"`                                       // Timestamp when the variable version was created

@@ -3,6 +3,7 @@ package handler
 import (
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/types"
@@ -18,6 +19,7 @@ type EnvironmentHandler interface {
 	SetDescription(c *echo.Context) error
 	Delete(c *echo.Context) error
 	Import(c *echo.Context) error
+	Export(c *echo.Context) error
 }
 
 // environmentHandler handles HTTP requests for environments.
@@ -187,4 +189,51 @@ func (h *environmentHandler) Import(c *echo.Context) error {
 	}
 
 	return NewHTTPResponse[any](c, http.StatusOK, "Variables imported successfully", nil)
+}
+
+// Export handles GET /environments/:id/export?format=json|yaml|env.
+func (h *environmentHandler) Export(c *echo.Context) error {
+	id, ok := uuidParam(c, "id")
+	if !ok {
+		return nil
+	}
+
+	fileType, err := types.FromString(c.QueryParam("format"))
+	if err != nil {
+		return NewHTTPResponse[any](c, http.StatusBadRequest, "unsupported or missing format", nil)
+	}
+
+	environment, err := h.environmentService.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+	}
+
+	content, err := h.variableService.Export(c.Request().Context(), id, fileType)
+	if err != nil {
+		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+	}
+
+	filename := exportFilename(environment.Name, fileType)
+	c.Response().Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+	return c.Blob(http.StatusOK, exportContentType(fileType), content)
+}
+
+// exportFilename builds a safe download filename from an environment name and file type.
+func exportFilename(name string, fileType types.FileType) string {
+	name = strings.NewReplacer(`"`, "", "\r", "", "\n", "").Replace(name)
+	return "export_" + name + fileType.Extension()
+}
+
+// exportContentType returns the HTTP content type for an exported file.
+func exportContentType(fileType types.FileType) string {
+	switch fileType {
+	case types.FileTypeJSON:
+		return "application/json"
+	case types.FileTypeYAML:
+		return "application/x-yaml"
+	case types.FileTypeEnv:
+		return "text/plain"
+	default:
+		return "application/octet-stream"
+	}
 }
