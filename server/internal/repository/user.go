@@ -55,24 +55,24 @@ func (r *userRepository) Create(ctx context.Context, user *model.User) error {
 
 // GetByEmail retrieves a user by normalized lowercase email address.
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
-	user, err := gorm.G[model.User](r.DB).Where("email = ?", email).First(ctx)
-	if err != nil {
+	user := new(model.User)
+	if err := r.DB.WithContext(ctx).Where("email = ?", email).First(user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}
-	return &user, nil
+	return user, nil
 }
 
 // GetByID loads the User entity owning a validated session or PAT so it can be injected into the request context.
 func (r *userRepository) GetByID(ctx context.Context, userID uuid.UUID) (*model.User, error) {
-	user, err := gorm.G[model.User](r.DB).Where("id = ?", userID).First(ctx)
-	if err != nil {
+	user := new(model.User)
+	if err := r.DB.WithContext(ctx).Where("id = ?", userID).First(user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}
-	return &user, nil
+	return user, nil
 }

@@ -68,14 +68,14 @@ func (r *variableRepository) Delete(ctx context.Context, variableID uuid.UUID) e
 
 // GetByID retrieves a variable from the database by its ID.
 func (r *variableRepository) GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error) {
-	variable, err := gorm.G[model.Variable](r.DB).Where("id = ?", variableID).First(ctx)
-	if err != nil {
+	variable := new(model.Variable)
+	if err := r.DB.WithContext(ctx).Where("id = ?", variableID).First(variable).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrVariableNotFound
 		}
 		return nil, err
 	}
-	return &variable, nil
+	return variable, nil
 }
 
 // GetAll retrieves all variables from the database.

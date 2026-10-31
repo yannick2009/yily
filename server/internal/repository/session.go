@@ -39,14 +39,14 @@ func (r *sessionRepository) Create(ctx context.Context, session *model.Session) 
 
 // GetByTokenHash retrieves a session by its SHA-256 token hash.
 func (r *sessionRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*model.Session, error) {
-	session, err := gorm.G[model.Session](r.DB).Where("token_hash = ?", tokenHash).First(ctx)
-	if err != nil {
+	session := new(model.Session)
+	if err := r.DB.WithContext(ctx).Where("token_hash = ?", tokenHash).First(session).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrSessionNotFound
 		}
 		return nil, err
 	}
-	return &session, nil
+	return session, nil
 }
 
 // RevokeByTokenHash marks an active session as revoked by its SHA-256 token hash.

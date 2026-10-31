@@ -95,12 +95,12 @@ func (r *variableVersionRepository) GetAll(ctx context.Context, variableID uuid.
 
 // GetCurrentActive retrieves the current active variable version for a given variable ID.
 func (r *variableVersionRepository) GetCurrentActive(ctx context.Context, variableID uuid.UUID) (*model.VariableVersion, error) {
-	variableVersion, err := gorm.G[model.VariableVersion](r.DB).Where("variable_id = ? AND active = ?", variableID, true).Order("version DESC").First(ctx)
-	if err != nil {
+	variableVersion := new(model.VariableVersion)
+	if err := r.DB.WithContext(ctx).Where("variable_id = ? AND active = ?", variableID, true).Order("version DESC").First(variableVersion).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrVariableVersionNotFound
 		}
 		return nil, err
 	}
-	return &variableVersion, nil
+	return variableVersion, nil
 }
