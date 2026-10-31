@@ -23,6 +23,7 @@ type VariableRepository interface {
 	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                           // GetByID retrieves a variable from the database by its ID.
 	GetAll(ctx context.Context, environmentID uuid.UUID) ([]model.Variable, error)                        // GetAll retrieves all variables from the database.
 	GetByTags(ctx context.Context, environmentID uuid.UUID, tagIDs []uuid.UUID) ([]model.Variable, error) // GetByTags retrieves all variables that have at least one of the given tags.
+	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error)                             // CountByProjectID counts the variables across all environments of a project.
 	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                          // SetTags replaces the set of tags associated with a variable.
 	Import(ctx context.Context, environmentID uuid.UUID, variables map[string]string) error               // Import applies the given variables (name → value), creating new ones and updating existing ones whose value changed.
 }
@@ -85,6 +86,19 @@ func (r *variableRepository) GetAll(ctx context.Context, environmentID uuid.UUID
 		return nil, err
 	}
 	return variables, nil
+}
+
+// CountByProjectID counts the variables across all environments of a project.
+func (r *variableRepository) CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error) {
+	var count int64
+	if err := r.DB.WithContext(ctx).
+		Model(&model.Variable{}).
+		Joins("JOIN environments ON environments.id = variables.environment_id").
+		Where("environments.project_id = ?", projectID).
+		Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // GetByTags retrieves all variables of the given environment that have at least one of the given tags.

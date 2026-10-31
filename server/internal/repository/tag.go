@@ -17,10 +17,11 @@ var (
 
 // TagRepository defines the interface for interacting with tag data in the database.
 type TagRepository interface {
-	Create(ctx context.Context, tag *model.Tag) error                     // Create creates a new tag in the database.
-	Delete(ctx context.Context, projectID, tagID uuid.UUID) error         // Delete deletes a tag from the database by its project and ID.
-	GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Tag, error) // GetAll retrieves all tags of a project from the database.
-	GetByID(ctx context.Context, tagID uuid.UUID) (*model.Tag, error)     // GetByID retrieves a tag from the database by its ID.
+	Create(ctx context.Context, tag *model.Tag) error                         // Create creates a new tag in the database.
+	Delete(ctx context.Context, projectID, tagID uuid.UUID) error             // Delete deletes a tag from the database by its project and ID.
+	GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Tag, error)     // GetAll retrieves all tags of a project from the database.
+	GetByID(ctx context.Context, tagID uuid.UUID) (*model.Tag, error)         // GetByID retrieves a tag from the database by its ID.
+	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error) // CountByProjectID counts the tags of a project.
 }
 
 // tagRepository is a struct that implements the TagRepository interface.
@@ -75,4 +76,13 @@ func (r *tagRepository) GetByID(ctx context.Context, tagID uuid.UUID) (*model.Ta
 		return nil, err
 	}
 	return tag, nil
+}
+
+// CountByProjectID counts the tags of a project.
+func (r *tagRepository) CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error) {
+	var count int64
+	if err := r.DB.WithContext(ctx).Model(&model.Tag{}).Where("project_id = ?", projectID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
 }
