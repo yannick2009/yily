@@ -85,7 +85,7 @@ export function AuditRoute() {
         }
       >
         <div class="overflow-x-auto rounded-xl border border-line bg-surface">
-          <table class="w-full min-w-[560px] border-collapse text-left text-sm">
+          <table class="w-full min-w-140 border-collapse text-left text-sm">
             <thead>
               <tr class="border-b border-line text-xs uppercase tracking-wide text-ink-faint">
                 <th class="px-4 py-3 font-medium">{t("audit.actor")}</th>
