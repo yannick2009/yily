@@ -40,8 +40,10 @@ func main() {
 	variableRepository := repository.NewVariableRepository(db)
 	versionRepository := repository.NewVariableVersionRepository(db)
 	tagRepository := repository.NewTagRepository(db)
+	auditRepository := repository.NewAuditRepository(db)
 
 	// Services
+	auditService := services.NewAuditService(auditRepository)
 	authService := services.NewAuthService(userRepository, sessionRepository)
 	patService := services.NewPATService(userRepository, patRepository)
 	projectService := services.NewProjectService(projectRepository, environmentRepository)
@@ -127,6 +129,9 @@ func main() {
 	routes.POST("/projects/:projectID/tags", tagHandler.Create)
 	routes.GET("/projects/:projectID/tags", tagHandler.GetAll)
 	routes.DELETE("/projects/:projectID/tags/:tagID", tagHandler.Delete)
+
+	// Audit log
+	routes.GET("/audit", auditHandler.List)
 
 	// Setup graceful shutdown on SIGINT or SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

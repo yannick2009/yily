@@ -18,6 +18,7 @@ var (
 type PATRepository interface {
 	Create(ctx context.Context, pat *model.PersonalAccessToken) error                          // Create persists a new PAT storing only its SHA-256 hash.
 	GetByTokenHash(ctx context.Context, tokenHash string) (*model.PersonalAccessToken, error)  // GetByTokenHash retrieves a PAT by its SHA-256 hash during Bearer authentication.
+	GetByID(ctx context.Context, id uuid.UUID) (*model.PersonalAccessToken, error)             // GetByID retrieves a PAT by its ID.
 	GetAllByUserID(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error) // GetAllByUserID retrieves all PAT metadata belonging to a user.
 	RevokeByID(ctx context.Context, id uuid.UUID, userID uuid.UUID, revokedAt time.Time) error // RevokeByID marks a user's PAT as revoked by its ID.
 }
@@ -39,14 +40,26 @@ func (r *patRepository) Create(ctx context.Context, pat *model.PersonalAccessTok
 
 // GetByTokenHash retrieves a PAT by its SHA-256 token hash to verify incoming Bearer tokens.
 func (r *patRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*model.PersonalAccessToken, error) {
-	pat, err := gorm.G[model.PersonalAccessToken](r.DB).Where("token_hash = ?", tokenHash).First(ctx)
-	if err != nil {
+	pat := new(model.PersonalAccessToken)
+	if err := r.DB.WithContext(ctx).Where("token_hash = ?", tokenHash).First(pat).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrPATNotFound
 		}
 		return nil, err
 	}
-	return &pat, nil
+	return pat, nil
+}
+
+// GetByID retrieves a PAT by its ID.
+func (r *patRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.PersonalAccessToken, error) {
+	pat := new(model.PersonalAccessToken)
+	if err := r.DB.WithContext(ctx).Where("id = ?", id).First(pat).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPATNotFound
+		}
+		return nil, err
+	}
+	return pat, nil
 }
 
 // GetAllByUserID retrieves all PATs belonging to a user ordered by creation date descending.

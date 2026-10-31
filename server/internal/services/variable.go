@@ -42,14 +42,16 @@ type VariableService interface {
 type variableService struct {
 	variableRepository repository.VariableRepository
 	versionRepository  repository.VariableVersionRepository
+	audit              AuditService
 	masterKey          []byte
 }
 
-// NewVariableService creates a new variableService with the provided repositories and master key.
-func NewVariableService(variableRepository repository.VariableRepository, versionRepository repository.VariableVersionRepository, masterKey []byte) VariableService {
+// NewVariableService creates a new variableService with the provided repositories, audit service and master key.
+func NewVariableService(variableRepository repository.VariableRepository, versionRepository repository.VariableVersionRepository, audit AuditService, masterKey []byte) VariableService {
 	return &variableService{
 		variableRepository: variableRepository,
 		versionRepository:  versionRepository,
+		audit:              audit,
 		masterKey:          bytes.Clone(masterKey),
 	}
 }
@@ -74,6 +76,8 @@ func (s *variableService) Create(ctx context.Context, environmentID uuid.UUID, n
 		}
 	}
 
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceVariable, variable.ID, variable.Name)
+
 	return variable, nil
 }
 
@@ -94,17 +98,36 @@ func (s *variableService) GetByTags(ctx context.Context, environmentID uuid.UUID
 
 // SetName updates the name of a variable.
 func (s *variableService) SetName(ctx context.Context, variableID uuid.UUID, name string) error {
-	return s.variableRepository.SetName(ctx, variableID, normalizeVariableName(name))
+	normalized := normalizeVariableName(name)
+	if err := s.variableRepository.SetName(ctx, variableID, normalized); err != nil {
+		return err
+	}
+	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceVariable, variableID, normalized)
+	return nil
 }
 
 // Delete deletes a variable (and its versions via cascade).
 func (s *variableService) Delete(ctx context.Context, variableID uuid.UUID) error {
-	return s.variableRepository.Delete(ctx, variableID)
+	name := ""
+	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
+		name = variable.Name
+	}
+	if err := s.variableRepository.Delete(ctx, variableID); err != nil {
+		return err
+	}
+	if name != "" {
+		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceVariable, variableID, name)
+	}
+	return nil
 }
 
 // SetTags replaces the set of tags associated with a variable.
 func (s *variableService) SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error {
-	return s.variableRepository.SetTags(ctx, variableID, tagIDs)
+	if err := s.variableRepository.SetTags(ctx, variableID, tagIDs); err != nil {
+		return err
+	}
+	s.auditVariable(ctx, types.ActionUpdated, variableID)
+	return nil
 }
 
 // SetVersionActive activates or deactivates a version.
@@ -124,6 +147,8 @@ func (s *variableService) GetCurrentVersion(ctx context.Context, variableID uuid
 		return nil, ErrDecryptionFailed
 	}
 	version.Value = decrypted
+
+	s.auditVariable(ctx, types.ActionRevealed, variableID)
 
 	return version, nil
 }
@@ -148,12 +173,21 @@ func (s *variableService) GetAllVersions(ctx context.Context, variableID uuid.UU
 
 // AddVersion adds a new active version to a variable and returns it.
 func (s *variableService) AddVersion(ctx context.Context, variableID uuid.UUID, value string) (*model.VariableVersion, error) {
-	return s.addVersion(ctx, variableID, value)
+	version, err := s.addVersion(ctx, variableID, value)
+	if err != nil {
+		return nil, err
+	}
+	s.auditVariable(ctx, types.ActionUpdated, variableID)
+	return version, nil
 }
 
 // ClearValue clears the variable's current value by deactivating all its active versions.
 func (s *variableService) ClearValue(ctx context.Context, variableID uuid.UUID) error {
-	return s.versionRepository.DeactivateAll(ctx, variableID)
+	if err := s.versionRepository.DeactivateAll(ctx, variableID); err != nil {
+		return err
+	}
+	s.auditVariable(ctx, types.ActionUpdated, variableID)
+	return nil
 }
 
 // addVersion creates a new active encrypted version for the given variable.
@@ -220,4 +254,13 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 // normalizeVariableName returns a variable name trimmed and uppercased.
 func normalizeVariableName(name string) string {
 	return strings.ToUpper(strings.TrimSpace(name))
+}
+
+// auditVariable records an audit event for a variable, resolving its name best-effort.
+func (s *variableService) auditVariable(ctx context.Context, action types.Action, variableID uuid.UUID) {
+	name := ""
+	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
+		name = variable.Name
+	}
+	_ = s.audit.Record(ctx, action, types.ResourceVariable, variableID, name)
 }

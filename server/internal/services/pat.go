@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/crypto"
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
@@ -46,41 +47,23 @@ type PATService interface {
 	Revoke(ctx context.Context, userID uuid.UUID, patID uuid.UUID) error                                                      // Revoke marks a user's PAT as revoked by its ID.
 }
 
-// PATConfig holds optional timing parameters for PATService.
-type PATConfig struct {
-	DefaultTTL time.Duration    // DefaultTTL is the fallback lifetime used when no custom TTL is specified.
-	NowFunc    func() time.Time // NowFunc returns the current time (injectable for deterministic testing).
-}
-
 // patService implements PATService.
 type patService struct {
 	userRepository repository.UserRepository // userRepository verifies and loads the User owning a PAT.
 	patRepository  repository.PATRepository  // patRepository manages Personal Access Token persistence.
 	defaultTTL     time.Duration             // defaultTTL is the default token expiration duration.
 	nowFunc        func() time.Time          // nowFunc returns the current UTC timestamp.
+	audit          AuditService              // audit records audit events for token actions.
 }
 
-// NewPATService creates a new PATService with default token TTL settings.
-func NewPATService(userRepository repository.UserRepository, patRepository repository.PATRepository) PATService {
-	return NewPATServiceWithConfig(userRepository, patRepository, PATConfig{})
-}
-
-// NewPATServiceWithConfig creates a new PATService with custom default TTL and clock function.
-func NewPATServiceWithConfig(userRepository repository.UserRepository, patRepository repository.PATRepository, cfg PATConfig) PATService {
-	ttl := cfg.DefaultTTL
-	if ttl <= 0 {
-		ttl = DefaultPATTTL
-	}
-	nowFn := cfg.NowFunc
-	if nowFn == nil {
-		nowFn = time.Now
-	}
-
+// NewPATService creates a new PATService with the provided repositories and audit service.
+func NewPATService(userRepository repository.UserRepository, patRepository repository.PATRepository, audit AuditService) PATService {
 	return &patService{
 		userRepository: userRepository,
 		patRepository:  patRepository,
-		defaultTTL:     ttl,
-		nowFunc:        nowFn,
+		audit:          audit,
+		defaultTTL:     DefaultPATTTL,
+		nowFunc:        time.Now,
 	}
 }
 
@@ -119,6 +102,8 @@ func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, 
 	if err := s.patRepository.Create(ctx, pat); err != nil {
 		return "", nil, err
 	}
+
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, pat.ID, pat.Name)
 
 	return rawToken, pat, nil
 }
@@ -168,6 +153,18 @@ func (s *patService) GetAll(ctx context.Context, userID uuid.UUID) ([]model.Pers
 
 // Revoke marks a user's active PAT as revoked in SQLite so it can no longer authenticate API requests.
 func (s *patService) Revoke(ctx context.Context, userID uuid.UUID, patID uuid.UUID) error {
+	name := ""
+	if pat, err := s.patRepository.GetByID(ctx, patID); err == nil {
+		name = pat.Name
+	}
+
 	now := s.nowFunc().UTC()
-	return s.patRepository.RevokeByID(ctx, patID, userID, now)
+	if err := s.patRepository.RevokeByID(ctx, patID, userID, now); err != nil {
+		return err
+	}
+
+	if name != "" {
+		_ = s.audit.Record(ctx, types.ActionRevoked, types.ResourceToken, patID, name)
+	}
+	return nil
 }
