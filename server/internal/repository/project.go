@@ -53,16 +53,14 @@ func (r *projectRepository) Delete(ctx context.Context, projectID uuid.UUID) err
 
 // GetByID retrieves a project from the database by its ID.
 func (r *projectRepository) GetByID(ctx context.Context, projectID uuid.UUID) (*model.Project, error) {
-	project, err := gorm.G[model.Project](r.DB).Where("id = ?", projectID).First(ctx)
-	if err != nil {
+	project := new(model.Project)
+	if err := r.DB.WithContext(ctx).Where("id = ?", projectID).First(project).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrProjectNotFound
 		}
-
 		return nil, err
 	}
-
-	return &project, nil
+	return project, nil
 }
 
 // GetAll retrieves all projects from the database.

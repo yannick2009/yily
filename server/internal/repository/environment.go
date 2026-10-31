@@ -58,14 +58,14 @@ func (r *environmentRepository) Delete(ctx context.Context, environmentID uuid.U
 
 // GetByID retrieves an environment from the database by its ID.
 func (r *environmentRepository) GetByID(ctx context.Context, environmentID uuid.UUID) (*model.Environment, error) {
-	environment, err := gorm.G[model.Environment](r.DB).Where("id = ?", environmentID).First(ctx)
-	if err != nil {
+	environment := new(model.Environment)
+	if err := r.DB.WithContext(ctx).Where("id = ?", environmentID).First(environment).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrEnvironmentNotFound
 		}
 		return nil, err
 	}
-	return &environment, nil
+	return environment, nil
 }
 
 // GetAll retrieves all environments from the database.

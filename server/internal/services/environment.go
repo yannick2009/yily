@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
@@ -21,11 +22,12 @@ type EnvironmentService interface {
 // environmentService implements EnvironmentService.
 type environmentService struct {
 	environmentRepository repository.EnvironmentRepository
+	audit                 AuditService
 }
 
-// NewEnvironmentService creates a new environmentService with the provided EnvironmentRepository.
-func NewEnvironmentService(environmentRepository repository.EnvironmentRepository) EnvironmentService {
-	return &environmentService{environmentRepository}
+// NewEnvironmentService creates a new environmentService with the provided EnvironmentRepository and audit service.
+func NewEnvironmentService(environmentRepository repository.EnvironmentRepository, audit AuditService) EnvironmentService {
+	return &environmentService{environmentRepository, audit}
 }
 
 // Create creates a new environment.
@@ -38,6 +40,8 @@ func (s *environmentService) Create(ctx context.Context, projectID uuid.UUID, na
 	if err := s.environmentRepository.Create(ctx, environment); err != nil {
 		return nil, err
 	}
+
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceEnvironment, environment.ID, environment.Name)
 
 	return environment, nil
 }
@@ -54,15 +58,35 @@ func (s *environmentService) GetAll(ctx context.Context, projectID uuid.UUID) ([
 
 // SetName updates the name of an environment.
 func (s *environmentService) SetName(ctx context.Context, environmentID uuid.UUID, name string) error {
-	return s.environmentRepository.SetName(ctx, environmentID, name)
+	if err := s.environmentRepository.SetName(ctx, environmentID, name); err != nil {
+		return err
+	}
+	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, name)
+	return nil
 }
 
 // SetDescription updates the description of an environment.
 func (s *environmentService) SetDescription(ctx context.Context, environmentID uuid.UUID, description string) error {
-	return s.environmentRepository.SetDescription(ctx, environmentID, description)
+	if err := s.environmentRepository.SetDescription(ctx, environmentID, description); err != nil {
+		return err
+	}
+	if environment, err := s.environmentRepository.GetByID(ctx, environmentID); err == nil {
+		_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, environment.Name)
+	}
+	return nil
 }
 
 // Delete deletes an environment.
 func (s *environmentService) Delete(ctx context.Context, environmentID uuid.UUID) error {
-	return s.environmentRepository.Delete(ctx, environmentID)
+	name := ""
+	if environment, err := s.environmentRepository.GetByID(ctx, environmentID); err == nil {
+		name = environment.Name
+	}
+	if err := s.environmentRepository.Delete(ctx, environmentID); err != nil {
+		return err
+	}
+	if name != "" {
+		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceEnvironment, environmentID, name)
+	}
+	return nil
 }

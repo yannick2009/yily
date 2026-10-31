@@ -5,7 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/services"
 )
 
@@ -24,11 +26,12 @@ type AuthHandler interface {
 // authHandler handles HTTP requests for authentication and server-side sessions.
 type authHandler struct {
 	authService services.AuthService
+	audit       services.AuditService
 }
 
 // NewAuthHandler creates a new AuthHandler.
-func NewAuthHandler(authService services.AuthService) AuthHandler {
-	return &authHandler{authService: authService}
+func NewAuthHandler(authService services.AuthService, audit services.AuditService) AuthHandler {
+	return &authHandler{authService: authService, audit: audit}
 }
 
 // setupRequest represents the JSON body for creating the initial Super Admin account.
@@ -78,6 +81,9 @@ func (h *authHandler) Login(c *echo.Context) error {
 	if err != nil {
 		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
 	}
+	if user == nil {
+		return NewHTTPResponse[any](c, http.StatusInternalServerError, "login returned no user", nil)
+	}
 
 	maxAge := int(session.ExpiresAt.Sub(session.CreatedAt).Seconds())
 	if maxAge <= 0 {
@@ -94,6 +100,8 @@ func (h *authHandler) Login(c *echo.Context) error {
 		Secure:   isHTTPSRequest(c),
 		SameSite: http.SameSiteLaxMode,
 	})
+
+	_ = h.audit.RecordAs(c.Request().Context(), services.AuditActor{Type: types.ActorTypeUser, ID: user.ID}, types.ActionSignedIn, "", uuid.Nil, "")
 
 	return NewHTTPResponse(c, http.StatusOK, "Login successful", user)
 }
@@ -121,6 +129,8 @@ func (h *authHandler) Logout(c *echo.Context) error {
 	if err != nil {
 		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
 	}
+
+	_ = h.audit.Record(c.Request().Context(), types.ActionSignedOut, "", uuid.Nil, "")
 
 	return NewHTTPResponse[any](c, http.StatusOK, "Logout successful", nil)
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
@@ -25,11 +26,12 @@ type ProjectService interface {
 type projectService struct {
 	projectRepository     repository.ProjectRepository
 	environmentRepository repository.EnvironmentRepository
+	audit                 AuditService
 }
 
-// NewProjectService creates a new projectService with the provided repositories.
-func NewProjectService(projectRepository repository.ProjectRepository, environmentRepository repository.EnvironmentRepository) ProjectService {
-	return &projectService{projectRepository, environmentRepository}
+// NewProjectService creates a new projectService with the provided repositories and audit service.
+func NewProjectService(projectRepository repository.ProjectRepository, environmentRepository repository.EnvironmentRepository, audit AuditService) ProjectService {
+	return &projectService{projectRepository, environmentRepository, audit}
 }
 
 // Create creates a new project along with its "default" environment.
@@ -48,6 +50,8 @@ func (s *projectService) Create(ctx context.Context, name string) (*model.Projec
 		return nil, err
 	}
 
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceProject, project.ID, project.Name)
+
 	return project, nil
 }
 
@@ -63,12 +67,26 @@ func (s *projectService) GetAll(ctx context.Context) ([]model.Project, error) {
 
 // SetName updates the name of a project.
 func (s *projectService) SetName(ctx context.Context, projectID uuid.UUID, name string) error {
-	return s.projectRepository.SetName(ctx, projectID, name)
+	if err := s.projectRepository.SetName(ctx, projectID, name); err != nil {
+		return err
+	}
+	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceProject, projectID, name)
+	return nil
 }
 
 // Delete deletes a project.
 func (s *projectService) Delete(ctx context.Context, projectID uuid.UUID) error {
-	return s.projectRepository.Delete(ctx, projectID)
+	name := ""
+	if project, err := s.projectRepository.GetByID(ctx, projectID); err == nil {
+		name = project.Name
+	}
+	if err := s.projectRepository.Delete(ctx, projectID); err != nil {
+		return err
+	}
+	if name != "" {
+		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceProject, projectID, name)
+	}
+	return nil
 }
 
 // Clear deletes all projects.

@@ -20,6 +20,7 @@ type TagRepository interface {
 	Create(ctx context.Context, tag *model.Tag) error                     // Create creates a new tag in the database.
 	Delete(ctx context.Context, projectID, tagID uuid.UUID) error         // Delete deletes a tag from the database by its project and ID.
 	GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Tag, error) // GetAll retrieves all tags of a project from the database.
+	GetByID(ctx context.Context, tagID uuid.UUID) (*model.Tag, error)     // GetByID retrieves a tag from the database by its ID.
 }
 
 // tagRepository is a struct that implements the TagRepository interface.
@@ -62,4 +63,16 @@ func (r *tagRepository) GetAll(ctx context.Context, projectID uuid.UUID) ([]mode
 		return nil, err
 	}
 	return tags, nil
+}
+
+// GetByID retrieves a tag from the database by its ID.
+func (r *tagRepository) GetByID(ctx context.Context, tagID uuid.UUID) (*model.Tag, error) {
+	tag := new(model.Tag)
+	if err := r.DB.WithContext(ctx).Where("id = ?", tagID).First(tag).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTagNotFound
+		}
+		return nil, err
+	}
+	return tag, nil
 }

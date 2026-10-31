@@ -43,6 +43,7 @@ func NewDB() *gorm.DB {
 		&model.Variable{},            // Migrate the Variable model
 		&model.VariableVersion{},     // Migrate the VariableVersion model
 		&model.Tag{},                 // Migrate the Tag model
+		&model.AuditEvent{},          // Migrate the AuditEvent model
 	)
 	if err != nil {
 		panic("failed to migrate database schema")

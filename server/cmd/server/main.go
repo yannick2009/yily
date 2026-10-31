@@ -40,22 +40,27 @@ func main() {
 	variableRepository := repository.NewVariableRepository(db)
 	versionRepository := repository.NewVariableVersionRepository(db)
 	tagRepository := repository.NewTagRepository(db)
+	auditRepository := repository.NewAuditRepository(db)
 
 	// Services
+	auditService := services.NewAuditService(auditRepository)
 	authService := services.NewAuthService(userRepository, sessionRepository)
-	patService := services.NewPATService(userRepository, patRepository)
-	projectService := services.NewProjectService(projectRepository, environmentRepository)
-	environmentService := services.NewEnvironmentService(environmentRepository)
-	variableService := services.NewVariableService(variableRepository, versionRepository, cfg.MasterKey)
-	tagService := services.NewTagService(tagRepository)
+	patService := services.NewPATService(userRepository, patRepository, auditService)
+	projectService := services.NewProjectService(projectRepository, environmentRepository, auditService)
+	environmentService := services.NewEnvironmentService(environmentRepository, auditService)
+	variableService := services.NewVariableService(variableRepository, versionRepository, auditService, cfg.MasterKey)
+	tagService := services.NewTagService(tagRepository, auditService)
+	dashboardService := services.NewDashboardService(projectRepository, environmentRepository, variableRepository, patRepository, auditService)
 
 	// Handlers
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := handler.NewAuthHandler(authService, auditService)
 	patHandler := handler.NewPATHandler(patService)
 	projectHandler := handler.NewProjectHandler(projectService)
 	environmentHandler := handler.NewEnvironmentHandler(environmentService, variableService)
 	variableHandler := handler.NewVariableHandler(variableService)
 	tagHandler := handler.NewTagHandler(tagService)
+	dashboardHandler := handler.NewDashboardHandler(dashboardService)
+	auditHandler := handler.NewAuditHandler(auditService)
 
 	// Create a new server instance
 	server := echo.New()
@@ -64,12 +69,12 @@ func main() {
 	server.Validator = NewValidator()
 
 	// Middleware configuration
-	server.Use(echomw.RequestLogger())                                         // Log incoming requests
-	server.Use(echomw.Recover())                                               // Recover from panics and return a 500 error
-	server.Use(echomw.BodyLimit(1 << 20))                                      // 1 MB
-	server.Use(echomw.ContextTimeout(30 * time.Second))                        // Set a timeout for request context
-	server.Use(echomw.RateLimiter(echomw.NewRateLimiterMemoryStore(50.0)))     // Rate limiting 50 requests per second
-	server.Use(echomw.Secure())                                                // Enable security headers
+	server.Use(echomw.RequestLogger())                                     // Log incoming requests
+	server.Use(echomw.Recover())                                           // Recover from panics and return a 500 error
+	server.Use(echomw.BodyLimit(1 << 20))                                  // 1 MB
+	server.Use(echomw.ContextTimeout(30 * time.Second))                    // Set a timeout for request context
+	server.Use(echomw.RateLimiter(echomw.NewRateLimiterMemoryStore(50.0))) // Rate limiting 50 requests per second
+	server.Use(echomw.Secure())                                            // Enable security headers
 
 	// Authentication middleware
 	authMiddleware := middleware.RequireAuth(authService, patService)
@@ -90,6 +95,9 @@ func main() {
 	routes.POST("/tokens", patHandler.Create)
 	routes.GET("/tokens", patHandler.GetAll)
 	routes.DELETE("/tokens/:id", patHandler.Revoke)
+
+	// Dashboard
+	routes.GET("/dashboard", dashboardHandler.Get)
 
 	// Projects
 	routes.POST("/projects", projectHandler.Create)
@@ -127,6 +135,9 @@ func main() {
 	routes.POST("/projects/:projectID/tags", tagHandler.Create)
 	routes.GET("/projects/:projectID/tags", tagHandler.GetAll)
 	routes.DELETE("/projects/:projectID/tags/:tagID", tagHandler.Delete)
+
+	// Audit log
+	routes.GET("/audit", auditHandler.List)
 
 	// Setup graceful shutdown on SIGINT or SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
