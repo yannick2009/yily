@@ -35,4 +35,3 @@ func (p *PersonalAccessToken) IsRevoked() bool {
 func (p *PersonalAccessToken) IsExpired(now time.Time) bool {
 	return !p.ExpiresAt.IsZero() && !now.Before(p.ExpiresAt)
 }
-

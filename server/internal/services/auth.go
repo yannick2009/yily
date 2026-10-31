@@ -19,11 +19,11 @@ const (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")                  // ErrInvalidCredentials is returned when login email or password verification fails.
+	ErrInvalidCredentials = errors.New("invalid email or password")                    // ErrInvalidCredentials is returned when login email or password verification fails.
 	ErrWeakPassword       = errors.New("password must be at least 12 characters long") // ErrWeakPassword is returned when the provided password is shorter than MinPasswordLength.
-	ErrUnauthorized       = errors.New("unauthorized")                               // ErrUnauthorized is returned when a request lacks a valid session or PAT.
-	ErrSessionExpired     = errors.New("session expired")                            // ErrSessionExpired is returned when a session has exceeded its TTL or idle timeout.
-	ErrSessionRevoked     = errors.New("session revoked")                            // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
+	ErrUnauthorized       = errors.New("unauthorized")                                 // ErrUnauthorized is returned when a request lacks a valid session or PAT.
+	ErrSessionExpired     = errors.New("session expired")                              // ErrSessionExpired is returned when a session has exceeded its TTL or idle timeout.
+	ErrSessionRevoked     = errors.New("session revoked")                              // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
 )
 
 type authUserContextKey struct{}
@@ -58,9 +58,9 @@ type AuthService interface {
 
 // AuthConfig holds optional timing parameters for AuthService.
 type AuthConfig struct {
-	SessionTTL  time.Duration      // SessionTTL is the maximum lifetime of a session before forced expiration.
-	IdleTimeout time.Duration      // IdleTimeout is the maximum inactivity period before a session expires.
-	NowFunc     func() time.Time   // NowFunc returns the current time (injectable for deterministic testing).
+	SessionTTL  time.Duration    // SessionTTL is the maximum lifetime of a session before forced expiration.
+	IdleTimeout time.Duration    // IdleTimeout is the maximum inactivity period before a session expires.
+	NowFunc     func() time.Time // NowFunc returns the current time (injectable for deterministic testing).
 }
 
 // authService implements AuthService.

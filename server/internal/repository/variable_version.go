@@ -18,10 +18,10 @@ var (
 type VariableVersionRepository interface {
 	GetCurrentActive(ctx context.Context, variableID uuid.UUID) (*model.VariableVersion, error) // GetCurrentActive retrieves the current active version.
 	GetNextVersion(ctx context.Context, variableID uuid.UUID) (int, error)                      // GetNextVersion computes the next version number for a variable.
-	Create(ctx context.Context, variableVersion *model.VariableVersion) error                  // Create persists a variable version in the database.
-	SetActive(ctx context.Context, variableVersionID uuid.UUID, active bool) error             // SetActive updates the active status.
+	Create(ctx context.Context, variableVersion *model.VariableVersion) error                   // Create persists a variable version in the database.
+	SetActive(ctx context.Context, variableVersionID uuid.UUID, active bool) error              // SetActive updates the active status.
 	DeactivateAll(ctx context.Context, variableID uuid.UUID) error                              // DeactivateAll deactivates all versions.
-	GetAll(ctx context.Context, variableID uuid.UUID) ([]model.VariableVersion, error)         // GetAll retrieves all versions.
+	GetAll(ctx context.Context, variableID uuid.UUID) ([]model.VariableVersion, error)          // GetAll retrieves all versions.
 }
 
 // variableVersionRepository is a struct that implements the VariableVersionRepository interface.
