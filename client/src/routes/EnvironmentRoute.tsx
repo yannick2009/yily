@@ -87,9 +87,11 @@ export function EnvironmentRoute() {
   const [value, setValue] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  // Variable names are uppercase with underscores instead of spaces.
+  const normalizeVariableName = (v: string) => v.trim().toUpperCase().replace(/\s+/g, "_");
   const submitCreate = async (e: Event) => {
     e.preventDefault();
-    const n = name().trim();
+    const n = normalizeVariableName(name());
     if (!n) return;
     setBusy(true);
     setError(null);
@@ -544,7 +546,7 @@ export function EnvironmentRoute() {
             <Field label={t("common.name")}>
               <Input
                 value={name()}
-                onInput={(e) => setName(e.currentTarget.value)}
+                onInput={(e) => setName(normalizeVariableName(e.currentTarget.value))}
                 placeholder={t("env.varNamePlaceholder")}
               />
             </Field>
