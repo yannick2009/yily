@@ -19,6 +19,7 @@ type UserRepository interface {
 	Create(ctx context.Context, user *model.User) error                 // Create persists the single Super Admin user if none exists yet.
 	GetByEmail(ctx context.Context, email string) (*model.User, error)  // GetByEmail retrieves the Super Admin by normalized lowercase email during login.
 	GetByID(ctx context.Context, userID uuid.UUID) (*model.User, error) // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
+	Count(ctx context.Context) (int64, error)                           // Count returns how many Super Admin accounts exist (0 or 1 by design).
 }
 
 // userRepository implements UserRepository.
@@ -75,4 +76,13 @@ func (r *userRepository) GetByID(ctx context.Context, userID uuid.UUID) (*model.
 		return nil, err
 	}
 	return user, nil
+}
+
+// Count returns how many Super Admin accounts exist (0 or 1 by design).
+func (r *userRepository) Count(ctx context.Context) (int64, error) {
+	var count int64
+	if err := r.DB.WithContext(ctx).Model(&model.User{}).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
 }

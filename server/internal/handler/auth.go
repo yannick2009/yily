@@ -21,6 +21,7 @@ type AuthHandler interface {
 	Login(c *echo.Context) error
 	Logout(c *echo.Context) error
 	Me(c *echo.Context) error
+	Status(c *echo.Context) error
 }
 
 // authHandler handles HTTP requests for authentication and server-side sessions.
@@ -143,6 +144,18 @@ func (h *authHandler) Me(c *echo.Context) error {
 	}
 
 	return NewHTTPResponse(c, http.StatusOK, "Authenticated user retrieved successfully", user)
+}
+
+// Status handles GET /auth/status to report whether the instance has been initialized.
+func (h *authHandler) Status(c *echo.Context) error {
+	initialized, err := h.authService.IsInitialized(c.Request().Context())
+	if err != nil {
+		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+	}
+
+	return NewHTTPResponse(c, http.StatusOK, "Setup status retrieved successfully", struct {
+		Initialized bool `json:"initialized"`
+	}{Initialized: initialized})
 }
 
 // isHTTPSRequest reports whether the request uses HTTPS directly via TLS or through a reverse proxy setting X-Forwarded-Proto: https.

@@ -68,10 +68,10 @@ func (r *variableRepository) Delete(ctx context.Context, variableID uuid.UUID) e
 	return err
 }
 
-// GetByID retrieves a variable from the database by its ID.
+// GetByID retrieves a variable from the database by its ID, including its tags.
 func (r *variableRepository) GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error) {
 	variable := new(model.Variable)
-	if err := r.DB.WithContext(ctx).Where("id = ?", variableID).First(variable).Error; err != nil {
+	if err := r.DB.WithContext(ctx).Preload("Tags").Where("id = ?", variableID).First(variable).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrVariableNotFound
 		}
@@ -80,10 +80,10 @@ func (r *variableRepository) GetByID(ctx context.Context, variableID uuid.UUID) 
 	return variable, nil
 }
 
-// GetAll retrieves all variables from the database.
+// GetAll retrieves all variables from the database, including their tags.
 func (r *variableRepository) GetAll(ctx context.Context, environmentID uuid.UUID) ([]model.Variable, error) {
-	variables, err := gorm.G[model.Variable](r.DB).Where("environment_id = ?", environmentID).Find(ctx)
-	if err != nil {
+	var variables []model.Variable
+	if err := r.DB.WithContext(ctx).Preload("Tags").Where("environment_id = ?", environmentID).Find(&variables).Error; err != nil {
 		return nil, err
 	}
 	return variables, nil
@@ -111,18 +111,19 @@ func (r *variableRepository) CountByEnvironmentID(ctx context.Context, environme
 	return count, nil
 }
 
-// GetByTags retrieves all variables of the given environment that have at least one of the given tags.
-// If tagIDs is empty, all variables of the environment are returned.
+// GetByTags retrieves all variables of the given environment that have at least one of the given tags,
+// including their tags. If tagIDs is empty, all variables of the environment are returned.
 func (r *variableRepository) GetByTags(ctx context.Context, environmentID uuid.UUID, tagIDs []uuid.UUID) ([]model.Variable, error) {
 	if len(tagIDs) == 0 {
 		return r.GetAll(ctx, environmentID)
 	}
 
-	variables, err := gorm.G[model.Variable](r.DB).
+	var variables []model.Variable
+	if err := r.DB.WithContext(ctx).
+		Preload("Tags").
 		Where("environment_id = ?", environmentID).
 		Where("EXISTS (SELECT 1 FROM variable_tags WHERE variable_tags.variable_id = variables.id AND variable_tags.tag_id IN ?)", tagIDs).
-		Find(ctx)
-	if err != nil {
+		Find(&variables).Error; err != nil {
 		return nil, err
 	}
 
