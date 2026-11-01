@@ -50,6 +50,7 @@ export interface Variable {
   created_at: string;
   updated_at: string;
   tags: Tag[];
+  active: boolean;
 }
 
 // A point-in-time value; only one version is active at a time.
@@ -106,6 +107,7 @@ export interface AuditEvent {
   created_at: string;
   actor_type: ActorType;
   actor_id: string;
+  actor_name: string;
   action: string;
   resource_type: string;
   resource_id: string;
