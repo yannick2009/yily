@@ -53,8 +53,14 @@ export async function login(email: string, password: string): Promise<void> {
   setInitialized(true);
 }
 
-// logout revokes the session and clears the local user state.
+// logout revokes the server session and clears the local user state. The
+// local state is cleared even when the server call fails (e.g. the session
+// already expired), so the UI always signs out and the router guard redirects.
 export async function logout(): Promise<void> {
-  await auth.logout();
+  try {
+    await auth.logout();
+  } catch {
+    // Session is already gone (or the network failed); clear local state anyway.
+  }
   setCurrentUser(null);
 }
