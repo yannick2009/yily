@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -267,7 +268,59 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 		variables[normalized] = strings.TrimSpace(value)
 	}
 
-	return s.variableRepository.Import(ctx, environmentID, variables)
+	// Index existing variables by name so we can tell which to create and which to update.
+	existing, err := s.variableRepository.List(ctx, environmentID, repository.VariableListFilter{})
+	if err != nil {
+		return err
+	}
+	byName := make(map[string]*model.Variable, len(existing))
+	for i := range existing {
+		byName[existing[i].Name] = &existing[i]
+	}
+
+	// Deterministic order keeps the result reproducible regardless of map iteration.
+	names := make([]string, 0, len(variables))
+	for name := range variables {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		value := variables[name]
+		variable, exists := byName[name]
+		if !exists {
+			if _, err := s.Create(ctx, environmentID, name, value); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := s.applyImportValue(ctx, variable.ID, value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// applyImportValue adds a new encrypted version to an existing variable when its
+// current decrypted value differs from the imported one. An empty value is a
+// no-op, so re-importing an unchanged file does not create spurious versions.
+func (s *variableService) applyImportValue(ctx context.Context, variableID uuid.UUID, value string) error {
+	if value == "" {
+		return nil
+	}
+
+	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
+	if err == nil {
+		if current, decErr := s.decryptVersion(version); decErr == nil && current == value {
+			return nil // unchanged
+		}
+	} else if !errors.Is(err, repository.ErrVariableVersionNotFound) {
+		return err
+	}
+
+	_, err = s.AddVersion(ctx, variableID, value)
+	return err
 }
 
 // Export serializes all variables of an environment (name → current decrypted value) into the given file format.

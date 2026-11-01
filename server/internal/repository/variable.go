@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -26,7 +25,6 @@ type VariableRepository interface {
 	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error)                               // CountByProjectID counts the variables across all environments of a project.
 	CountByEnvironmentID(ctx context.Context, environmentID uuid.UUID) (int64, error)                       // CountByEnvironmentID counts the variables of an environment.
 	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                            // SetTags replaces the set of tags associated with a variable.
-	Import(ctx context.Context, environmentID uuid.UUID, variables map[string]string) error                 // Import applies the given variables (name → value), creating new ones and updating existing ones whose value changed.
 }
 
 // VariableListFilter filters the variable listing of an environment.
@@ -204,92 +202,4 @@ func (r *variableRepository) SetTags(ctx context.Context, variableID uuid.UUID, 
 	}
 
 	return r.DB.Model(&variable).Association("Tags").Replace(tags)
-}
-
-// Import applies the given variables (name → value) to the environment in a single transaction.
-// New variables are created (with their first version when a value is provided). Existing variables
-// get a new version only when their value actually changed, so re-importing the same file is a no-op.
-func (r *variableRepository) Import(ctx context.Context, environmentID uuid.UUID, variables map[string]string) error {
-	return r.DB.Transaction(func(tx *gorm.DB) error {
-		names := make([]string, 0, len(variables))
-		for name := range variables {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-
-		for _, name := range names {
-			value := variables[name]
-
-			var existing model.Variable
-			err := tx.Where("name = ? AND environment_id = ?", name, environmentID).First(&existing).Error
-			switch {
-			case errors.Is(err, gorm.ErrRecordNotFound):
-				if err := createVariable(ctx, tx, environmentID, name, value); err != nil {
-					return err
-				}
-			case err != nil:
-				return err
-			default:
-				if err := upsertValue(ctx, tx, existing.ID, value); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
-}
-
-// createVariable creates a new variable and, when a value is provided, its first version.
-func createVariable(ctx context.Context, tx *gorm.DB, environmentID uuid.UUID, name, value string) error {
-	variable := &model.Variable{Name: name, EnvironmentID: environmentID}
-	if err := gorm.G[model.Variable](tx).Create(ctx, variable); err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return ErrVariableNameAlreadyExists
-		}
-		return err
-	}
-	if value == "" {
-		return nil
-	}
-	return gorm.G[model.VariableVersion](tx).Create(ctx, &model.VariableVersion{
-		Value:      value,
-		Active:     true,
-		Version:    1,
-		VariableID: variable.ID,
-	})
-}
-
-// upsertValue adds a new version to an existing variable only when its value changed.
-func upsertValue(ctx context.Context, tx *gorm.DB, variableID uuid.UUID, value string) error {
-	// An empty value does not represent a change.
-	if value == "" {
-		return nil
-	}
-
-	// Compare against the current active value.
-	var current model.VariableVersion
-	err := tx.Where("variable_id = ? AND active = ?", variableID, true).Order("version DESC").First(&current).Error
-	if err == nil {
-		if current.Value == value {
-			return nil // Unchanged.
-		}
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
-	}
-
-	// Value changed (or the variable has no value yet): compute the next version number.
-	var maxVersion int
-	if err := tx.Model(&model.VariableVersion{}).
-		Where("variable_id = ?", variableID).
-		Select("COALESCE(MAX(version), 0)").
-		Scan(&maxVersion).Error; err != nil {
-		return err
-	}
-
-	return gorm.G[model.VariableVersion](tx).Create(ctx, &model.VariableVersion{
-		Value:      value,
-		Active:     true,
-		Version:    maxVersion + 1,
-		VariableID: variableID,
-	})
 }
