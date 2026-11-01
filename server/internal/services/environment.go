@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"errors"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
@@ -20,6 +22,14 @@ type EnvironmentDTO struct {
 	CreatedAt     time.Time `json:"created_at"`     // Timestamp when the environment was created.
 	UpdatedAt     time.Time `json:"updated_at"`     // Timestamp when the environment was last updated.
 }
+
+// MaxEnvironmentDescriptionLength is the maximum number of characters allowed
+// in an environment description.
+const MaxEnvironmentDescriptionLength = 50
+
+// ErrEnvironmentDescriptionTooLong is returned when a description exceeds the
+// maximum allowed length.
+var ErrEnvironmentDescriptionTooLong = errors.New("environment description must be at most 50 characters")
 
 // EnvironmentService defines the interface for environment business logic.
 type EnvironmentService interface {
@@ -45,6 +55,10 @@ func NewEnvironmentService(environmentRepository repository.EnvironmentRepositor
 
 // Create creates a new environment.
 func (s *environmentService) Create(ctx context.Context, projectID uuid.UUID, name, description string) (*model.Environment, error) {
+	if err := validateDescription(description); err != nil {
+		return nil, err
+	}
+
 	environment := &model.Environment{
 		ProjectID:   projectID,
 		Name:        name,
@@ -103,6 +117,10 @@ func (s *environmentService) SetName(ctx context.Context, environmentID uuid.UUI
 
 // SetDescription updates the description of an environment.
 func (s *environmentService) SetDescription(ctx context.Context, environmentID uuid.UUID, description string) error {
+	if err := validateDescription(description); err != nil {
+		return err
+	}
+
 	if err := s.environmentRepository.SetDescription(ctx, environmentID, description); err != nil {
 		return err
 	}
@@ -123,6 +141,14 @@ func (s *environmentService) Delete(ctx context.Context, environmentID uuid.UUID
 	}
 	if name != "" {
 		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceEnvironment, environmentID, name)
+	}
+	return nil
+}
+
+// validateDescription rejects a description longer than the maximum length.
+func validateDescription(description string) error {
+	if utf8.RuneCountInString(description) > MaxEnvironmentDescriptionLength {
+		return ErrEnvironmentDescriptionTooLong
 	}
 	return nil
 }

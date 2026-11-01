@@ -342,6 +342,7 @@ export function EnvironmentRoute() {
                   onBlur={commitDesc}
                   class="mt-1 max-w-xs"
                   placeholder={t("project.envDescPlaceholder")}
+                  maxLength={50}
                 />
               </Show>
             </div>

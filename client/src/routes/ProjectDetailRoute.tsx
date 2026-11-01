@@ -354,6 +354,7 @@ export function ProjectDetailRoute() {
                 value={envDesc()}
                 onInput={(e) => setEnvDesc(e.currentTarget.value)}
                 placeholder={t("project.envDescPlaceholder")}
+                maxLength={50}
               />
             </Field>
             <Show when={error()}>
