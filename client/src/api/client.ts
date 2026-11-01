@@ -41,7 +41,9 @@ async function parseEnvelope<T>(res: Response): Promise<Envelope<T> | null> {
 // Build request headers, adding a JSON content-type only when a body is set
 // and the caller did not already choose one (multipart forms must set their own).
 function buildHeaders(init: RequestInit): Record<string, string> {
-  const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
+  const headers: Record<string, string> = {
+    ...(init.headers as Record<string, string> | undefined),
+  };
   if (init.body && !headers["Content-Type"] && !(init.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }

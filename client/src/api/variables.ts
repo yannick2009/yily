@@ -59,7 +59,9 @@ export async function remove(id: string): Promise<void> {
 
 // setTags replaces the set of tags on a variable.
 export async function setTags(id: string, tagIds: string[]): Promise<void> {
-  await request<unknown>("PUT", `/variables/${id}/tags`, { body: JSON.stringify({ tag_ids: tagIds }) });
+  await request<unknown>("PUT", `/variables/${id}/tags`, {
+    body: JSON.stringify({ tag_ids: tagIds }),
+  });
 }
 
 // addVersion appends a new active version to a variable.
@@ -80,7 +82,11 @@ export async function getCurrentVersion(id: string): Promise<VariableVersion> {
 }
 
 // setVersionActive activates or deactivates a version.
-export async function setVersionActive(variableId: string, versionId: string, active: boolean): Promise<void> {
+export async function setVersionActive(
+  variableId: string,
+  versionId: string,
+  active: boolean,
+): Promise<void> {
   await request<unknown>("PATCH", `/variables/${variableId}/versions/${versionId}`, {
     body: JSON.stringify({ active }),
   });

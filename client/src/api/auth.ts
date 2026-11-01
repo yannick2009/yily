@@ -12,7 +12,11 @@ export async function status(): Promise<SetupStatus> {
 }
 
 // setup creates the initial Super Admin account.
-export async function setup(input: { name: string; email: string; password: string }): Promise<User> {
+export async function setup(input: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<User> {
   return request<User>("POST", "/auth/setup", { body: JSON.stringify(input) });
 }
 

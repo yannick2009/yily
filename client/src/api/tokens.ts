@@ -8,7 +8,10 @@ export async function list(): Promise<Token[]> {
 }
 
 // create issues a new token and returns its one-time secret.
-export async function create(input: { name: string; expiresInDays?: number }): Promise<CreatedToken> {
+export async function create(input: {
+  name: string;
+  expiresInDays?: number;
+}): Promise<CreatedToken> {
   return request<CreatedToken>("POST", "/tokens", { body: JSON.stringify(input) });
 }
 
