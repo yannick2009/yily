@@ -1,38 +1,54 @@
 // Audit log: a read-only history of actions across projects, variables and tokens.
-import { createMemo, createSignal, For, Show } from "solid-js";
-import { currentUser, db } from "../store";
+import { createResource, createSignal, For, Show, onCleanup } from "solid-js";
+import { audit } from "../api";
+import { currentUser } from "../store";
 import { locale, t } from "../lib/i18n";
 import type { AuditEvent } from "../types";
 import { Badge, Icon, Input } from "../components/ui";
 import { Dialog, EmptyState } from "../components/shared";
 
-const ACTIONS = ["created", "updated", "deleted", "revealed", "copied", "exported", "signed_in"];
+const ACTIONS = [
+  "created",
+  "updated",
+  "deleted",
+  "revealed",
+  "export",
+  "revoked",
+  "signed_in",
+  "signed_out",
+];
 
 export function AuditRoute() {
   const [query, setQuery] = createSignal("");
   const [action, setAction] = createSignal<string>("all");
   const [selected, setSelected] = createSignal<AuditEvent | null>(null);
 
-  const events = createMemo(() =>
-    [...db.auditEvents].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-  );
+  // Text search (resource/actor name), debounced and applied server-side.
+  const [debouncedQuery, setDebouncedQuery] = createSignal("");
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const filtered = createMemo(() => {
-    const q = query().trim().toLowerCase();
-    return events().filter((e) => {
-      if (action() !== "all" && e.action !== action()) return false;
-      if (!q) return true;
-      const haystack = [
-        actorName(e),
-        e.resourceName,
-        t(`audit.resource.${e.resourceType}`),
-        t(`audit.action.${e.action}`),
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(q);
-    });
-  });
+  // Handle input events on the search box, debouncing the server request.
+  const onSearchInput = (e: Event) => {
+    const value = (e.currentTarget as HTMLInputElement).value;
+    setQuery(value);
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => setDebouncedQuery(value), 250);
+  };
+
+  onCleanup(() => clearTimeout(searchTimer));
+
+  // Fetch the filtered audit events from the server. The query is debounced to avoid
+  // sending a request on every keystroke. The action filter is applied immediately.
+  const [eventsRes] = createResource(
+    () => ({ action: action(), search: debouncedQuery() }),
+    ({ action: actionFilter, search }) =>
+      audit.list({
+        action: actionFilter === "all" ? undefined : actionFilter,
+        search: search.trim() || undefined,
+        limit: 100,
+      }),
+  );
+  const events = () => eventsRes()?.events ?? [];
 
   return (
     <div>
@@ -45,7 +61,7 @@ export function AuditRoute() {
         <div class="relative w-full sm:w-72">
           <Input
             value={query()}
-            onInput={(e) => setQuery(e.currentTarget.value)}
+            onInput={onSearchInput}
             placeholder={t("audit.searchPlaceholder")}
             style={{ "padding-left": "2.5rem" }}
           />
@@ -75,66 +91,74 @@ export function AuditRoute() {
       </div>
 
       <Show
-        when={filtered().length > 0}
-        fallback={
-          <EmptyState
-            icon="clock"
-            title={t("audit.emptyTitle")}
-            description={t("audit.emptyDescription")}
-          />
-        }
+        when={!eventsRes.loading}
+        fallback={<p class="py-8 text-center text-sm text-ink-muted">{t("common.loading")}</p>}
       >
-        <div class="overflow-x-auto rounded-xl border border-line bg-surface">
-          <table class="w-full min-w-140 border-collapse text-left text-sm">
-            <thead>
-              <tr class="border-b border-line text-xs uppercase tracking-wide text-ink-faint">
-                <th class="px-4 py-3 font-medium">{t("audit.actor")}</th>
-                <th class="px-4 py-3 font-medium">{t("audit.action")}</th>
-                <th class="px-4 py-3 font-medium">{t("audit.resource")}</th>
-                <th class="px-4 py-3 text-right font-medium">{t("audit.time")}</th>
-                <th class="w-10 px-2 py-3" aria-hidden="true" />
-              </tr>
-            </thead>
-            <tbody>
-              <For each={filtered()}>
-                {(e) => (
-                  <tr class="border-t border-line first:border-t-0">
-                    <td class="py-3 pl-4 pr-4 align-top">
-                      <span class="font-medium text-ink">{actorName(e)}</span>
-                    </td>
-                    <td class="py-3 pl-4 pr-4 align-top">
-                      <Badge variant={actionVariant(e.action)}>
-                        {t(`audit.action.${e.action}`)}
-                      </Badge>
-                    </td>
-                    <td class="py-3 pl-4 pr-4 align-top">
-                      <Show when={e.resourceType} fallback={<span class="text-ink-faint">—</span>}>
-                        <p class="truncate font-medium text-ink">{e.resourceName}</p>
-                        <p class="mt-0.5 text-xs text-ink-muted">
-                          {t(`audit.resource.${e.resourceType}`)}
-                        </p>
-                      </Show>
-                    </td>
-                    <td class="py-3 pl-4 pr-2 text-right align-top text-xs text-ink-faint">
-                      <span title={formatDate(e.createdAt)}>{timeAgo(e.createdAt)}</span>
-                    </td>
-                    <td class="py-3 pl-2 pr-4 text-right align-top">
-                      <button
-                        type="button"
-                        onClick={() => setSelected(e)}
-                        class="rounded-md p-1 text-ink-faint hover:bg-surface-2 hover:text-ink"
-                        aria-label={t("audit.viewDetails")}
-                        title={t("audit.viewDetails")}
-                      >
-                        <Icon name="info" size={15} />
-                      </button>
-                    </td>
-                  </tr>
-                )}
-              </For>
-            </tbody>
-          </table>
-        </div>
+        <Show
+          when={events().length > 0}
+          fallback={
+            <EmptyState
+              icon="clock"
+              title={t("audit.emptyTitle")}
+              description={t("audit.emptyDescription")}
+            />
+          }
+        >
+          <div class="overflow-x-auto rounded-xl border border-line bg-surface">
+            <table class="w-full min-w-140 border-collapse text-left text-sm">
+              <thead>
+                <tr class="border-b border-line text-xs uppercase tracking-wide text-ink-faint">
+                  <th class="px-4 py-3 font-medium">{t("audit.actor")}</th>
+                  <th class="px-4 py-3 font-medium">{t("audit.action")}</th>
+                  <th class="px-4 py-3 font-medium">{t("audit.resource")}</th>
+                  <th class="px-4 py-3 text-right font-medium">{t("audit.time")}</th>
+                  <th class="w-10 px-2 py-3" aria-hidden="true" />
+                </tr>
+              </thead>
+              <tbody>
+                <For each={events()}>
+                  {(e) => (
+                    <tr class="border-t border-line first:border-t-0">
+                      <td class="py-3 pl-4 pr-4 align-top">
+                        <span class="font-medium text-ink">{actorName(e)}</span>
+                      </td>
+                      <td class="py-3 pl-4 pr-4 align-top">
+                        <Badge variant={actionVariant(e.action)}>
+                          {t(`audit.action.${e.action}`)}
+                        </Badge>
+                      </td>
+                      <td class="py-3 pl-4 pr-4 align-top">
+                        <Show
+                          when={e.resource_type}
+                          fallback={<span class="text-ink-faint">—</span>}
+                        >
+                          <p class="truncate font-medium text-ink">{e.resource_name}</p>
+                          <p class="mt-0.5 text-xs text-ink-muted">
+                            {t(`audit.resource.${e.resource_type}`)}
+                          </p>
+                        </Show>
+                      </td>
+                      <td class="py-3 pl-4 pr-2 text-right align-top text-xs text-ink-faint">
+                        <span title={formatDate(e.created_at)}>{timeAgo(e.created_at)}</span>
+                      </td>
+                      <td class="py-3 pl-2 pr-4 text-right align-top">
+                        <button
+                          type="button"
+                          onClick={() => setSelected(e)}
+                          class="rounded-md p-1 text-ink-faint hover:bg-surface-2 hover:text-ink"
+                          aria-label={t("audit.viewDetails")}
+                          title={t("audit.viewDetails")}
+                        >
+                          <Icon name="info" size={15} />
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+                </For>
+              </tbody>
+            </table>
+          </div>
+        </Show>
       </Show>
 
       <Show keyed when={selected()}>
@@ -160,8 +184,8 @@ export function AuditRoute() {
                   {t("audit.resource")}
                 </dt>
                 <dd class="min-w-0 text-right text-ink">
-                  {e.resourceType
-                    ? `${e.resourceName} · ${t(`audit.resource.${e.resourceType}`)}`
+                  {e.resource_type
+                    ? `${e.resource_name} · ${t(`audit.resource.${e.resource_type}`)}`
                     : "—"}
                 </dd>
               </div>
@@ -169,7 +193,7 @@ export function AuditRoute() {
                 <dt class="shrink-0 text-xs font-medium uppercase tracking-wide text-ink-faint">
                   {t("audit.time")}
                 </dt>
-                <dd class="min-w-0 text-right text-ink">{formatDate(e.createdAt)}</dd>
+                <dd class="min-w-0 text-right text-ink">{formatDate(e.created_at)}</dd>
               </div>
             </dl>
 
@@ -198,17 +222,19 @@ export function AuditRoute() {
   );
 }
 
-// Resolve a friendly actor name from the event's actor id.
+// Resolve a friendly actor name from the event. The server snapshots the actor's
+// name at record time (`actor_name`), so we only fall back to a generic label
+// for events written before that field existed.
 function actorName(e: AuditEvent): string {
-  if (e.actorType === "system") return t("audit.actor.system");
-  if (e.actorType === "token") return db.tokens.find((t) => t.id === e.actorId)?.name ?? e.actorId;
-  return currentUser().name || "Admin";
+  if (e.actor_type === "system") return t("audit.actor.system");
+  if (e.actor_name) return e.actor_name;
+  return e.actor_type === "token" ? t("audit.actor.token") : currentUser()?.name || "Admin";
 }
 
 // Color-code the action badge for quick scanning.
 function actionVariant(action: string): "neutral" | "brand" | "success" {
   if (action === "created") return "success";
-  if (action === "revealed" || action === "exported") return "brand";
+  if (action === "revealed" || action === "export") return "brand";
   return "neutral";
 }
 

@@ -1,27 +1,61 @@
 // Projects list with create and delete dialogs.
-import { createSignal, For, Show } from "solid-js";
+import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { addProject, db, removeProject } from "../store";
+import { projects } from "../api";
 import { plural, t } from "../lib/i18n";
 import { Button, Card, Icon, Input } from "../components/ui";
 import { Dialog, EmptyState, Field } from "../components/shared";
 
 export function ProjectsRoute() {
   const navigate = useNavigate();
+  const [list, { refetch }] = createResource(() => projects.list());
+
   const [createOpen, setCreateOpen] = createSignal(false);
   const [name, setName] = createSignal("");
-  const [deleting, setDeleting] = createSignal<{ id: string; name: string } | null>(null);
+  const [error, setError] = createSignal<string | null>(null);
+  const [busy, setBusy] = createSignal(false);
+  const [deleting, setDeleting] = createSignal<{
+    id: string;
+    name: string;
+  } | null>(null);
 
+  // Navigate to the project detail page when a project is clicked.
   const openProject = (id: string) => navigate(`/projects/${id}`);
 
-  const submitCreate = (e: Event) => {
+  // Create a new project and navigate to its detail page.
+  const submitCreate = async (e: Event) => {
     e.preventDefault();
     const n = name().trim();
     if (!n) return;
-    const id = addProject(n);
-    setName("");
-    setCreateOpen(false);
-    navigate(`/projects/${id}`);
+    setError(null);
+    setBusy(true);
+    try {
+      const created = await projects.create({ name: n });
+      setName("");
+      setCreateOpen(false);
+      await refetch();
+      navigate(`/projects/${created.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("common.delete"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    const d = deleting();
+    if (!d) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await projects.remove(d.id);
+      setDeleting(null);
+      await refetch();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("common.delete"));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -37,73 +71,79 @@ export function ProjectsRoute() {
       </div>
 
       <Show
-        when={db.projects.length > 0}
-        fallback={
-          <EmptyState
-            icon="folder"
-            title={t("projects.emptyTitle")}
-            description={t("projects.emptyDescription")}
-            action={
-              <Button icon="plus" onClick={() => setCreateOpen(true)}>
-                {t("projects.new")}
-              </Button>
-            }
-          />
-        }
+        when={!list.loading}
+        fallback={<p class="py-8 text-center text-sm text-ink-muted">{t("common.loading")}</p>}
       >
-        <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <For each={db.projects}>
-            {(project) => {
-              const envCount = () =>
-                db.environments.filter((e) => e.projectId === project.id).length;
-              const tagCount = () => db.tags.filter((t) => t.projectId === project.id).length;
+        <Show
+          when={(list() ?? []).length > 0}
+          fallback={
+            <EmptyState
+              icon="folder"
+              title={t("projects.emptyTitle")}
+              description={t("projects.emptyDescription")}
+              action={
+                <Button icon="plus" onClick={() => setCreateOpen(true)}>
+                  {t("projects.new")}
+                </Button>
+              }
+            />
+          }
+        >
+          <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <For each={list() ?? []}>
+              {(project) => {
+                const envCount = () => project.environment_count ?? 0;
+                const tagCount = () => project.tag_count ?? 0;
 
-              return (
-                <li>
-                  <Card
-                    class="group cursor-pointer p-5 transition-colors hover:border-brand"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openProject(project.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        openProject(project.id);
-                      }
-                    }}
-                  >
-                    <div class="flex items-start justify-between">
-                      <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-subtle text-brand">
-                        <Icon name="folder" size={18} />
+                return (
+                  <li>
+                    <Card
+                      class="group cursor-pointer p-5 transition-colors hover:border-brand"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openProject(project.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openProject(project.id);
+                        }
+                      }}
+                    >
+                      <div class="flex items-start justify-between">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-subtle text-brand">
+                          <Icon name="folder" size={18} />
+                        </div>
+                        <button
+                          type="button"
+                          class="rounded-md p-1.5 text-ink-faint opacity-0 transition-opacity hover:bg-danger-subtle hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleting({ id: project.id, name: project.name });
+                          }}
+                          aria-label={t("common.deleteAria", {
+                            name: project.name,
+                          })}
+                        >
+                          <Icon name="trash" size={15} />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        class="rounded-md p-1.5 text-ink-faint opacity-0 transition-opacity hover:bg-danger-subtle hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleting({ id: project.id, name: project.name });
-                        }}
-                        aria-label={t("common.deleteAria", { name: project.name })}
-                      >
-                        <Icon name="trash" size={15} />
-                      </button>
-                    </div>
 
-                    <h2 class="mt-4 text-base font-semibold">{project.name}</h2>
-                    <div class="mt-2 flex items-center gap-2 text-xs text-ink-muted">
-                      <span class="inline-flex items-center gap-1">
-                        <Icon name="lock" size={12} />
-                        {plural("projects.environments", envCount())}
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span>{plural("projects.tags", tagCount())}</span>
-                    </div>
-                  </Card>
-                </li>
-              );
-            }}
-          </For>
-        </ul>
+                      <h2 class="mt-4 text-base font-semibold">{project.name}</h2>
+                      <div class="mt-2 flex items-center gap-2 text-xs text-ink-muted">
+                        <span class="inline-flex items-center gap-1">
+                          <Icon name="lock" size={12} />
+                          {plural("projects.environments", envCount())}
+                        </span>
+                        <span aria-hidden="true">·</span>
+                        <span>{plural("projects.tags", tagCount())}</span>
+                      </div>
+                    </Card>
+                  </li>
+                );
+              }}
+            </For>
+          </ul>
+        </Show>
       </Show>
 
       <Dialog
@@ -115,7 +155,7 @@ export function ProjectsRoute() {
             <Button variant="secondary" onClick={() => setCreateOpen(false)}>
               {t("common.cancel")}
             </Button>
-            <Button type="submit" form="new-project-form">
+            <Button type="submit" form="new-project-form" loading={busy()}>
               {t("projects.create")}
             </Button>
           </>
@@ -129,6 +169,9 @@ export function ProjectsRoute() {
               placeholder={t("projects.namePlaceholder")}
             />
           </Field>
+          <Show when={error()}>
+            <p class="text-sm text-danger">{error()}</p>
+          </Show>
         </form>
       </Dialog>
 
@@ -141,16 +184,7 @@ export function ProjectsRoute() {
             <Button variant="secondary" onClick={() => setDeleting(null)}>
               {t("common.cancel")}
             </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                const d = deleting();
-                if (d) {
-                  removeProject(d.id);
-                  setDeleting(null);
-                }
-              }}
-            >
+            <Button variant="danger" onClick={confirmDelete} loading={busy()}>
               {t("common.delete")}
             </Button>
           </>
@@ -159,6 +193,9 @@ export function ProjectsRoute() {
         <p class="text-sm text-ink-muted">
           {t("projects.deleteConfirm", { name: deleting()?.name ?? "" })}
         </p>
+        <Show when={error()}>
+          <p class="mt-3 text-sm text-danger">{error()}</p>
+        </Show>
       </Dialog>
     </div>
   );

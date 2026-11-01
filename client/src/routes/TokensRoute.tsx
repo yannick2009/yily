@@ -1,25 +1,28 @@
-// Access tokens (mock only): create (secret shown once) and revoke.
-import { createSignal, For, Show } from "solid-js";
-import { tokenSecrets } from "../store/mock";
-import { addToken, db, removeToken } from "../store";
+import { createResource, createSignal, For, Show } from "solid-js";
+import { tokens } from "../api";
 import { locale, t } from "../lib/i18n";
 import type { Token } from "../types";
 import { Button, Card, Icon, Input } from "../components/ui";
 import { Dialog, EmptyState, Field } from "../components/shared";
 
-// TokensRoute component manages the display and interaction with API tokens. It allows users to create new tokens, view existing tokens, copy token secrets, and revoke tokens. The component uses dialogs for creating and revoking tokens, and it provides feedback to the user through messages and visual cues.
-// It also handles localization of text and formatting of dates based on the current language setting.
+// TokensRoute displays a list of all active tokens and allows creating new ones.
+// The secret value of a token is only ever shown once, at creation.
 export function TokensRoute() {
+  const [list, { refetch }] = createResource(() => tokens.list());
+
   const [createOpen, setCreateOpen] = createSignal(false);
   const [name, setName] = createSignal("");
   const [created, setCreated] = createSignal<string | null>(null);
   const [copied, setCopied] = createSignal(false);
   const [deleting, setDeleting] = createSignal<Token | null>(null);
+  const [busy, setBusy] = createSignal(false);
+  const [error, setError] = createSignal<string | null>(null);
 
   const openCreate = () => {
     setName("");
     setCreated(null);
     setCopied(false);
+    setError(null);
     setCreateOpen(true);
   };
 
@@ -27,15 +30,25 @@ export function TokensRoute() {
     setCreateOpen(false);
     setCreated(null);
     setCopied(false);
+    setError(null);
   };
 
-  const submitCreate = (e: Event) => {
+  const submitCreate = async (e: Event) => {
     e.preventDefault();
     const n = name().trim();
     if (!n) return;
-    const id = addToken(n);
-    setCreated(tokenSecrets[id] ?? "");
-    setName("");
+    setBusy(true);
+    setError(null);
+    try {
+      const createdToken = await tokens.create({ name: n });
+      setCreated(createdToken.token);
+      setName("");
+      await refetch();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("common.save"));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const copySecret = async () => {
@@ -46,6 +59,22 @@ export function TokensRoute() {
       setCopied(true);
     } catch {
       /* clipboard unavailable */
+    }
+  };
+
+  const confirmRevoke = async () => {
+    const d = deleting();
+    if (!d) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await tokens.revoke(d.id);
+      setDeleting(null);
+      await refetch();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("common.delete"));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -84,58 +113,67 @@ export function TokensRoute() {
       </div>
 
       <Show
-        when={db.tokens.length > 0}
-        fallback={
-          <EmptyState
-            icon="key"
-            title={t("tokens.emptyTitle")}
-            description={t("tokens.emptyDescription")}
-            action={
-              <Button icon="plus" onClick={openCreate}>
-                {t("tokens.create")}
-              </Button>
-            }
-          />
-        }
+        when={!list.loading}
+        fallback={<p class="py-8 text-center text-sm text-ink-muted">{t("common.loading")}</p>}
       >
-        <Card class="divide-y divide-line">
-          <For each={db.tokens}>
-            {(token) => {
-              return (
-                <div class="flex items-center gap-4 px-4 py-3.5">
-                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-ink-muted">
-                    <Icon name="key" size={16} />
+        <Show
+          when={(list() ?? []).length > 0}
+          fallback={
+            <EmptyState
+              icon="key"
+              title={t("tokens.emptyTitle")}
+              description={t("tokens.emptyDescription")}
+              action={
+                <Button icon="plus" onClick={openCreate}>
+                  {t("tokens.create")}
+                </Button>
+              }
+            />
+          }
+        >
+          <Card class="divide-y divide-line">
+            <For each={list() ?? []}>
+              {(token) => {
+                const revoked = () => token.revoked_at != null;
+                return (
+                  <div class="flex items-center gap-4 px-4 py-3.5">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-ink-muted">
+                      <Icon name="key" size={16} />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-medium text-ink">{token.name}</p>
+                      <p class="truncate text-xs text-ink-muted">
+                        {revoked()
+                          ? t("tokens.revoked")
+                          : t("tokens.expires", { date: formatDate(token.expires_at) })}
+                      </p>
+                    </div>
+                    <div class="hidden shrink-0 text-right text-xs text-ink-muted sm:block">
+                      <p>{t("tokens.created", { date: formatDate(token.created_at) })}</p>
+                    </div>
+                    <Show
+                      when={!revoked()}
+                      fallback={
+                        <span class="shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 text-xs font-medium text-ink-muted">
+                          {t("tokens.revoked")}
+                        </span>
+                      }
+                    >
+                      <button
+                        type="button"
+                        class="rounded-md p-1.5 text-ink-faint hover:bg-danger-subtle hover:text-danger"
+                        onClick={() => setDeleting(token)}
+                        aria-label={t("tokens.revokeAria", { name: token.name })}
+                      >
+                        <Icon name="x-circle" size={15} />
+                      </button>
+                    </Show>
                   </div>
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-medium text-ink">{token.name}</p>
-                    <p class="truncate text-xs text-ink-muted">
-                      {token.lastUsedAt
-                        ? t("tokens.lastUsed", {
-                            when: timeAgo(token.lastUsedAt),
-                          })
-                        : t("tokens.neverUsed")}
-                    </p>
-                  </div>
-                  <div class="hidden shrink-0 text-right text-xs text-ink-muted sm:block">
-                    <p>
-                      {t("tokens.created", {
-                        date: formatDate(token.createdAt),
-                      })}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    class="rounded-md p-1.5 text-ink-faint hover:bg-danger-subtle hover:text-danger"
-                    onClick={() => setDeleting(token)}
-                    aria-label={t("tokens.revokeAria", { name: token.name })}
-                  >
-                    <Icon name="x-circle" size={15} />
-                  </button>
-                </div>
-              );
-            }}
-          </For>
-        </Card>
+                );
+              }}
+            </For>
+          </Card>
+        </Show>
       </Show>
 
       {/* Dialog for creating a new token */}
@@ -149,7 +187,7 @@ export function TokensRoute() {
               <Button variant="secondary" onClick={closeCreate}>
                 {t("common.cancel")}
               </Button>
-              <Button type="submit" form="create-token-form">
+              <Button type="submit" form="create-token-form" loading={busy()}>
                 {t("tokens.create")}
               </Button>
             </>
@@ -191,6 +229,9 @@ export function TokensRoute() {
               />
             </Field>
             <p class="text-sm text-ink-muted">{t("tokens.accessHint")}</p>
+            <Show when={error()}>
+              <p class="text-sm text-danger">{error()}</p>
+            </Show>
           </form>
         </Show>
       </Dialog>
@@ -205,16 +246,7 @@ export function TokensRoute() {
             <Button variant="secondary" onClick={() => setDeleting(null)}>
               {t("common.cancel")}
             </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                const d = deleting();
-                if (d) {
-                  removeToken(d.id);
-                  setDeleting(null);
-                }
-              }}
-            >
+            <Button variant="danger" onClick={confirmRevoke} loading={busy()}>
               {t("tokens.revoke")}
             </Button>
           </>
@@ -223,29 +255,19 @@ export function TokensRoute() {
         <p class="text-sm text-ink-muted">
           {t("tokens.revokeConfirm", { name: deleting()?.name ?? "" })}
         </p>
+        <Show when={error()}>
+          <p class="mt-3 text-sm text-danger">{error()}</p>
+        </Show>
       </Dialog>
     </div>
   );
 }
 
-// Formats an ISO date string into a human-readable date format based on the current locale. It uses the `toLocaleDateString` method to format the date with short month, numeric day, and numeric year.
+// Formats an ISO date using the current locale.
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(locale(), {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
-}
-
-// Returns a human-readable string representing the time elapsed since the given ISO date string. It calculates the difference in minutes, hours, and days, and returns a localized string indicating how long ago the event occurred. If the event was more than 30 days ago, it falls back to formatting the date.
-function timeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(ms / 60000);
-  if (m < 1) return t("time.justNow");
-  if (m < 60) return t("time.minutesAgo", { n: m });
-  const h = Math.floor(m / 60);
-  if (h < 24) return t("time.hoursAgo", { n: h });
-  const d = Math.floor(h / 24);
-  if (d < 30) return t("time.daysAgo", { n: d });
-  return formatDate(iso);
 }

@@ -1,11 +1,12 @@
-// Mock login page (email + password) that routes into the app on submit.
 import { createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Button, Icon, Input } from "../components/ui";
 import { Field } from "../components/shared";
 import { t } from "../lib/i18n";
 import { cycleTheme, theme } from "../lib/theme";
+import { login } from "../store";
 
+// LoginRoute displays the login form and handles authentication.
 export function LoginRoute() {
   const navigate = useNavigate();
   const [email, setEmail] = createSignal("");
@@ -14,7 +15,7 @@ export function LoginRoute() {
   const [error, setError] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(false);
 
-  const submit = (e: Event) => {
+  const submit = async (e: Event) => {
     e.preventDefault();
     const em = email().trim();
     if (!em.includes("@") || !password()) {
@@ -23,8 +24,14 @@ export function LoginRoute() {
     }
     setError(null);
     setLoading(true);
-    // Mock auth — no backend yet, so route into the app after a beat.
-    setTimeout(() => navigate("/projects"), 400);
+    try {
+      await login(em, password());
+      navigate("/", { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("login.error"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

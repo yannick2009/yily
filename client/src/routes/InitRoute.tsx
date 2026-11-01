@@ -5,7 +5,7 @@ import { Button, Icon, Input } from "../components/ui";
 import { Field } from "../components/shared";
 import { t } from "../lib/i18n";
 import { cycleTheme, theme } from "../lib/theme";
-import { initAccount } from "../store";
+import { setup } from "../store";
 
 export function InitRoute() {
   const navigate = useNavigate();
@@ -14,8 +14,9 @@ export function InitRoute() {
   const [password, setPassword] = createSignal("");
   const [confirm, setConfirm] = createSignal("");
   const [error, setError] = createSignal<string | null>(null);
+  const [loading, setLoading] = createSignal(false);
 
-  const submit = (e: Event) => {
+  const submit = async (e: Event) => {
     e.preventDefault();
     if (!name().trim() || !email().trim().includes("@") || !password()) {
       setError(t("login.error"));
@@ -25,8 +26,16 @@ export function InitRoute() {
       setError(t("settings.passwordMismatch"));
       return;
     }
-    initAccount(name(), email(), password());
-    navigate("/login");
+    setError(null);
+    setLoading(true);
+    try {
+      await setup(name().trim(), email().trim(), password());
+      navigate("/login", { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("login.error"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -95,7 +104,7 @@ export function InitRoute() {
               <p class="text-sm text-danger">{error()}</p>
             </Show>
 
-            <Button type="submit" class="w-full">
+            <Button type="submit" loading={loading()} class="w-full">
               {t("init.submit")}
             </Button>
           </form>

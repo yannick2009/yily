@@ -1,44 +1,26 @@
-// Dedicated profile page: account identity (name) and password change.
-import { createSignal, Show } from "solid-js";
-import { A } from "@solidjs/router";
-import { Button, Icon, Input } from "../components/ui";
-import { Field } from "../components/shared";
+// Dedicated profile page: account identity and sign-out.
+import { useNavigate } from "@solidjs/router";
+import { Button } from "../components/ui";
 import { t } from "../lib/i18n";
-import { currentUser, updateCurrentUser, updatePassword } from "../store";
+import { currentUser, logout } from "../store";
 
 export function ProfileRoute() {
-  const [name, setName] = createSignal(currentUser().name);
-
-  const [currentPw, setCurrentPw] = createSignal("");
-  const [newPw, setNewPw] = createSignal("");
-  const [confirmPw, setConfirmPw] = createSignal("");
-  const [passwordError, setPasswordError] = createSignal<string | null>(null);
-  const [passwordMessage, setPasswordMessage] = createSignal<string | null>(null);
+  const navigate = useNavigate();
 
   const initials = () =>
-    currentUser()
-      .name.split(" ")
+    (currentUser()?.name ?? "")
+      .split(" ")
       .map((part) => part[0] ?? "")
       .join("")
       .toUpperCase();
 
-  const saveProfile = () => updateCurrentUser({ name: name().trim() });
-
-  const changePassword = () => {
-    setPasswordError(null);
-    setPasswordMessage(null);
-    if (newPw() !== confirmPw()) {
-      setPasswordError(t("settings.passwordMismatch"));
-      return;
+  const signOut = async () => {
+    try {
+      await logout();
+    } catch {
+      /* ignore; the boot gate will still clear the session on the next check */
     }
-    if (!updatePassword(currentPw(), newPw())) {
-      setPasswordError(t("settings.passwordWrong"));
-      return;
-    }
-    setCurrentPw("");
-    setNewPw("");
-    setConfirmPw("");
-    setPasswordMessage(t("settings.passwordChanged"));
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -51,85 +33,33 @@ export function ProfileRoute() {
           {initials()}
         </span>
         <div class="min-w-0 flex-1">
-          <h1 class="truncate text-xl font-semibold text-ink">{currentUser().name}</h1>
-          <p class="truncate text-sm text-ink-muted">{currentUser().email}</p>
+          <h1 class="truncate text-xl font-semibold text-ink">{currentUser()?.name ?? ""}</h1>
+          <p class="truncate text-sm text-ink-muted">{currentUser()?.email ?? ""}</p>
         </div>
       </div>
 
       <section class="rounded-xl border border-line bg-surface p-4">
         <h2 class="text-sm font-semibold text-ink">{t("settings.profile")}</h2>
-        <form
-          class="mt-4 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            saveProfile();
-          }}
-        >
-          <Field label={t("common.name")}>
-            <Input
-              value={name()}
-              onInput={(e) => setName(e.currentTarget.value)}
-              autocomplete="name"
-            />
-          </Field>
-          <Field label={t("login.email")}>
-            <p class="text-sm text-ink-muted">{currentUser().email}</p>
-          </Field>
-          <Button type="submit">{t("common.save")}</Button>
-        </form>
-      </section>
-
-      <section class="rounded-xl border border-line bg-surface p-4">
-        <h2 class="text-sm font-semibold text-ink">{t("settings.password")}</h2>
-        <form
-          class="mt-4 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            changePassword();
-          }}
-        >
-          <Field label={t("settings.currentPassword")}>
-            <Input
-              type="password"
-              value={currentPw()}
-              onInput={(e) => setCurrentPw(e.currentTarget.value)}
-              autocomplete="current-password"
-            />
-          </Field>
-          <Field label={t("settings.newPassword")}>
-            <Input
-              type="password"
-              value={newPw()}
-              onInput={(e) => setNewPw(e.currentTarget.value)}
-              autocomplete="new-password"
-            />
-          </Field>
-          <Field label={t("settings.confirmPassword")}>
-            <Input
-              type="password"
-              value={confirmPw()}
-              onInput={(e) => setConfirmPw(e.currentTarget.value)}
-              autocomplete="new-password"
-            />
-          </Field>
-          <Show when={passwordError()}>
-            <p class="text-sm text-danger">{passwordError()}</p>
-          </Show>
-          <Show when={passwordMessage()}>
-            <p class="text-sm text-success">{passwordMessage()}</p>
-          </Show>
-          <Button type="submit">{t("common.save")}</Button>
-        </form>
+        <dl class="mt-4 space-y-3 text-sm">
+          <div class="flex items-start justify-between gap-4">
+            <dt class="shrink-0 text-xs font-medium uppercase tracking-wide text-ink-faint">
+              {t("common.name")}
+            </dt>
+            <dd class="min-w-0 text-right text-ink">{currentUser()?.name ?? ""}</dd>
+          </div>
+          <div class="flex items-start justify-between gap-4">
+            <dt class="shrink-0 text-xs font-medium uppercase tracking-wide text-ink-faint">
+              {t("login.email")}
+            </dt>
+            <dd class="min-w-0 text-right text-ink">{currentUser()?.email ?? ""}</dd>
+          </div>
+        </dl>
       </section>
 
       <div class="flex justify-end">
-        <A
-          href="/login"
-          class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface-2 hover:text-ink"
-        >
-          <Icon name="logout" size={15} />
+        <Button variant="secondary" icon="logout" onClick={signOut}>
           {t("nav.signOut")}
-        </A>
+        </Button>
       </div>
     </div>
   );

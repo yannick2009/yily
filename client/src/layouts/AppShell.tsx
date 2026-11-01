@@ -4,14 +4,13 @@ import { A, type RouteSectionProps } from "@solidjs/router";
 import { t } from "../lib/i18n";
 import { cycleTheme, theme } from "../lib/theme";
 import { Icon, type IconName } from "../components/ui/Icon";
-import { currentUser } from "../store";
+import { currentUser, logout } from "../store";
 
-// AppShell component provides the main layout for the application, including a sidebar with navigation links and a content area for rendering route-specific components. It handles theme switching and displays the current theme in the sidebar.
-// The sidebar includes links to the projects, tokens, and settings pages, and it highlights the active route. The content area is scrollable and centered within the layout.
 export function AppShell(props: RouteSectionProps) {
+  // Avatar initials from the user's name ("Jane Doe" → "JD").
   const initials = createMemo(() =>
-    currentUser()
-      .name.split(" ")
+    (currentUser()?.name ?? "")
+      .split(" ")
       .map((part) => part[0] ?? "")
       .join("")
       .toUpperCase(),
@@ -103,18 +102,19 @@ export function AppShell(props: RouteSectionProps) {
                 {initials()}
               </span>
               <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium text-ink">{currentUser().name}</p>
-                <p class="truncate text-xs text-ink-muted">{currentUser().email}</p>
+                <p class="truncate text-sm font-medium text-ink">{currentUser()?.name}</p>
+                <p class="truncate text-xs text-ink-muted">{currentUser()?.email}</p>
               </div>
             </A>
-            <A
-              href="/login"
+            <button
+              type="button"
+              onClick={() => void logout()}
               class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink"
               title={t("nav.signOut")}
               aria-label={t("nav.signOut")}
             >
               <Icon name="logout" size={15} />
-            </A>
+            </button>
           </div>
         </div>
       </aside>
@@ -126,6 +126,6 @@ export function AppShell(props: RouteSectionProps) {
   );
 }
 
-// Function to determine the appropriate icon for the current theme. It returns a sun icon for light theme, a moon icon for dark theme, and a computer desktop icon for system theme.
+// Theme icon: sun for light, moon for dark, desktop for system.
 const themeIcon = (): IconName =>
   theme() === "light" ? "sun" : theme() === "dark" ? "moon" : "computer-desktop";

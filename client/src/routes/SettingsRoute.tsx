@@ -1,12 +1,33 @@
 // Settings: language picker, about section, and the danger zone (delete everything).
-import { createSignal, For } from "solid-js";
+import { createResource, createSignal, For, Show } from "solid-js";
+import { projects } from "../api";
 import { Button, Icon } from "../components/ui";
 import { Dialog } from "../components/shared";
 import { LANGUAGES, applyLang, lang, t, type LangCode } from "../lib/i18n";
-import { clearAllProjects, db } from "../store";
 
 export function SettingsRoute() {
   const [clearAllOpen, setClearAllOpen] = createSignal(false);
+  const [busy, setBusy] = createSignal(false);
+  const [error, setError] = createSignal<string | null>(null);
+  const [projectsRes, { refetch }] = createResource(() => projects.list());
+
+  // Whether there are any projects to delete; used to disable the "Delete All" button.
+  const hasProjects = () => (projectsRes() ?? []).length > 0;
+
+  // Clear all projects and their variables, after confirmation.
+  const clearAll = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await projects.clear();
+      setClearAllOpen(false);
+      await refetch();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("common.delete"));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div class="mx-auto max-w-xl space-y-6">
@@ -62,7 +83,7 @@ export function SettingsRoute() {
         <div class="mt-3">
           <button
             type="button"
-            disabled={db.projects.length === 0}
+            disabled={!hasProjects()}
             onClick={() => setClearAllOpen(true)}
             class="inline-flex h-9 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-line px-3.5 text-sm font-medium text-ink-muted transition-colors hover:border-danger-subtle hover:bg-danger-subtle hover:text-danger disabled:pointer-events-none disabled:opacity-60"
           >
@@ -81,19 +102,16 @@ export function SettingsRoute() {
             <Button variant="secondary" onClick={() => setClearAllOpen(false)}>
               {t("common.cancel")}
             </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                clearAllProjects();
-                setClearAllOpen(false);
-              }}
-            >
+            <Button variant="danger" onClick={clearAll} loading={busy()}>
               {t("projects.deleteAll")}
             </Button>
           </>
         }
       >
         <p class="text-sm text-ink-muted">{t("projects.deleteAllConfirm")}</p>
+        <Show when={error()}>
+          <p class="mt-3 text-sm text-danger">{error()}</p>
+        </Show>
       </Dialog>
     </div>
   );
