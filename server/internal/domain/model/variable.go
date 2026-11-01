@@ -16,6 +16,7 @@ type Variable struct {
 	EnvironmentID uuid.UUID         `gorm:"not null;index;uniqueIndex:idx_variable_environment_name" json:"environment_id"`    // Foreign key referencing the associated environment
 	Versions      []VariableVersion `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"versions"`                     // List of variable versions associated with the variable
 	Tags          []Tag             `gorm:"many2many:variable_tags;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"tags"` // List of tags associated with the variable
+	Active        bool              `gorm:"-" json:"active"`                                                                   // Whether the variable has a current (active) value; computed on read, never persisted
 }
 
 // BeforeCreate is a GORM hook that is triggered before creating a new Variable record.

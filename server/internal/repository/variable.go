@@ -80,10 +80,14 @@ func (r *variableRepository) GetByID(ctx context.Context, variableID uuid.UUID) 
 	return variable, nil
 }
 
-// GetAll retrieves all variables from the database, including their tags.
+// GetAll retrieves all variables from the database, including their tags and
+// their active-value status.
 func (r *variableRepository) GetAll(ctx context.Context, environmentID uuid.UUID) ([]model.Variable, error) {
 	var variables []model.Variable
 	if err := r.DB.WithContext(ctx).Preload("Tags").Where("environment_id = ?", environmentID).Find(&variables).Error; err != nil {
+		return nil, err
+	}
+	if err := r.markActive(ctx, variables); err != nil {
 		return nil, err
 	}
 	return variables, nil
@@ -127,7 +131,44 @@ func (r *variableRepository) GetByTags(ctx context.Context, environmentID uuid.U
 		return nil, err
 	}
 
+	if err := r.markActive(ctx, variables); err != nil {
+		return nil, err
+	}
+
 	return variables, nil
+}
+
+// markActive sets each variable's Active flag to whether it has an active
+// version, using a single query for the whole batch (without loading the
+// encrypted version values).
+func (r *variableRepository) markActive(ctx context.Context, variables []model.Variable) error {
+	if len(variables) == 0 {
+		return nil
+	}
+
+	ids := make([]uuid.UUID, 0, len(variables))
+	for _, v := range variables {
+		ids = append(ids, v.ID)
+	}
+
+	var activeIDs []uuid.UUID
+	if err := r.DB.WithContext(ctx).
+		Model(&model.VariableVersion{}).
+		Where("variable_id IN ? AND active = ?", ids, true).
+		Distinct("variable_id").
+		Pluck("variable_id", &activeIDs).Error; err != nil {
+		return err
+	}
+
+	active := make(map[uuid.UUID]bool, len(activeIDs))
+	for _, id := range activeIDs {
+		active[id] = true
+	}
+	for i := range variables {
+		variables[i].Active = active[variables[i].ID]
+	}
+
+	return nil
 }
 
 // SetTags replaces the set of tags associated with a variable.
