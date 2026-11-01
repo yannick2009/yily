@@ -102,7 +102,7 @@ func (h *authHandler) Login(c *echo.Context) error {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	_ = h.audit.RecordAs(c.Request().Context(), services.AuditActor{Type: types.ActorTypeUser, ID: user.ID}, types.ActionSignedIn, "", uuid.Nil, "")
+	_ = h.audit.RecordAs(c.Request().Context(), services.AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}, types.ActionSignedIn, "", uuid.Nil, "")
 
 	return NewHTTPResponse(c, http.StatusOK, "Login successful", user)
 }
