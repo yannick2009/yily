@@ -2,11 +2,27 @@
 import { request } from "./client";
 import type { Variable, VariableVersion } from "../types";
 
-// list returns the variables of an environment, optionally filtered by tags.
-export async function list(environmentId: string, tagIds: string[] = []): Promise<Variable[]> {
-  const query = tagIds.length ? `?tag_ids=${tagIds.join(",")}` : "";
+// Options for listing variables: both filters are applied server-side.
+export interface ListVariablesOptions {
+  tagIds?: string[];
+  search?: string;
+}
+
+// list returns the variables of an environment, optionally filtered by tags
+// and/or a case-insensitive substring match on the name (both server-side).
+export async function list(
+  environmentId: string,
+  options: ListVariablesOptions = {},
+): Promise<Variable[]> {
+  const params = new URLSearchParams();
+  if (options.tagIds?.length) params.set("tag_ids", options.tagIds.join(","));
+  if (options.search?.trim()) params.set("search", options.search.trim());
+  const query = params.toString();
   return (
-    (await request<Variable[]>("GET", `/environments/${environmentId}/variables${query}`)) ?? []
+    (await request<Variable[]>(
+      "GET",
+      `/environments/${environmentId}/variables${query ? `?${query}` : ""}`,
+    )) ?? []
   );
 }
 
