@@ -30,7 +30,7 @@ func ActorFromContext(ctx context.Context) AuditActor {
 
 // AuditFilter filters the audit log listing.
 type AuditFilter struct {
-	Search    string // Search matches resource names (empty for no filter).
+	Search    string // Search matches resource and actor names (empty for no filter).
 	ActorType string // ActorType filters by actor type (empty for no filter).
 	Action    string // Action filters by action (empty for no filter).
 	Limit     int    // Limit caps the number of returned events.
