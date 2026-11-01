@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -87,7 +88,8 @@ func (h *variableHandler) Create(c *echo.Context) error {
 }
 
 // List handles GET /environments/:environmentID/variables.
-// An optional "tag_ids" query parameter (comma-separated UUIDs) filters by tags.
+// Optional "search" (case-insensitive substring on name) and "tag_ids"
+// (comma-separated UUIDs) query parameters filter the result.
 func (h *variableHandler) List(c *echo.Context) error {
 	environmentID, ok := uuidParam(c, "environmentID")
 	if !ok {
@@ -99,19 +101,14 @@ func (h *variableHandler) List(c *echo.Context) error {
 		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid tag_ids", nil)
 	}
 
-	if len(tagIDs) == 0 {
-		variables, err := h.variableService.GetAll(c.Request().Context(), environmentID)
-		if err != nil {
-			return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
-		}
-		return NewHTTPResponse(c, http.StatusOK, "Variables retrieved successfully", variables)
-	}
-
-	variables, err := h.variableService.GetByTags(c.Request().Context(), environmentID, tagIDs)
+	variables, err := h.variableService.List(c.Request().Context(), environmentID, services.VariableListFilter{
+		Search: strings.TrimSpace(c.QueryParam("search")),
+		TagIDs: tagIDs,
+	})
 	if err != nil {
 		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
 	}
-	return NewHTTPResponse(c, http.StatusOK, "Variables retrieved successfully with tags", variables)
+	return NewHTTPResponse(c, http.StatusOK, "Variables retrieved successfully", variables)
 }
 
 // GetByID handles GET /variables/:id.

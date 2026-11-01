@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
@@ -17,16 +18,21 @@ var (
 
 // VariableRepository defines the interface for interacting with variable data in the database.
 type VariableRepository interface {
-	Create(ctx context.Context, variable *model.Variable) error                                           // Create creates a new variable in the database.
-	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                 // SetName updates the name of an existing variable in the database.
-	Delete(ctx context.Context, variableID uuid.UUID) error                                               // Delete deletes a variable from the database by its ID.
-	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                           // GetByID retrieves a variable from the database by its ID.
-	GetAll(ctx context.Context, environmentID uuid.UUID) ([]model.Variable, error)                        // GetAll retrieves all variables from the database.
-	GetByTags(ctx context.Context, environmentID uuid.UUID, tagIDs []uuid.UUID) ([]model.Variable, error) // GetByTags retrieves all variables that have at least one of the given tags.
-	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error)                             // CountByProjectID counts the variables across all environments of a project.
-	CountByEnvironmentID(ctx context.Context, environmentID uuid.UUID) (int64, error)                     // CountByEnvironmentID counts the variables of an environment.
-	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                          // SetTags replaces the set of tags associated with a variable.
-	Import(ctx context.Context, environmentID uuid.UUID, variables map[string]string) error               // Import applies the given variables (name → value), creating new ones and updating existing ones whose value changed.
+	Create(ctx context.Context, variable *model.Variable) error                                             // Create creates a new variable in the database.
+	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                   // SetName updates the name of an existing variable in the database.
+	Delete(ctx context.Context, variableID uuid.UUID) error                                                 // Delete deletes a variable from the database by its ID.
+	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                             // GetByID retrieves a variable from the database by its ID.
+	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) // List retrieves all variables of an environment matching the given filter.
+	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error)                               // CountByProjectID counts the variables across all environments of a project.
+	CountByEnvironmentID(ctx context.Context, environmentID uuid.UUID) (int64, error)                       // CountByEnvironmentID counts the variables of an environment.
+	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                            // SetTags replaces the set of tags associated with a variable.
+	Import(ctx context.Context, environmentID uuid.UUID, variables map[string]string) error                 // Import applies the given variables (name → value), creating new ones and updating existing ones whose value changed.
+}
+
+// VariableListFilter filters the variable listing of an environment.
+type VariableListFilter struct {
+	Search string      // Search matches variable names case-insensitively (empty for no filter).
+	TagIDs []uuid.UUID // TagIDs filters to variables that have at least one of these tags (empty for no filter).
 }
 
 // variableRepository is a struct that implements the VariableRepository interface.
@@ -80,19 +86,6 @@ func (r *variableRepository) GetByID(ctx context.Context, variableID uuid.UUID) 
 	return variable, nil
 }
 
-// GetAll retrieves all variables from the database, including their tags and
-// their active-value status.
-func (r *variableRepository) GetAll(ctx context.Context, environmentID uuid.UUID) ([]model.Variable, error) {
-	var variables []model.Variable
-	if err := r.DB.WithContext(ctx).Preload("Tags").Where("environment_id = ?", environmentID).Find(&variables).Error; err != nil {
-		return nil, err
-	}
-	if err := r.markActive(ctx, variables); err != nil {
-		return nil, err
-	}
-	return variables, nil
-}
-
 // CountByProjectID counts the variables across all environments of a project.
 func (r *variableRepository) CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error) {
 	var count int64
@@ -115,19 +108,21 @@ func (r *variableRepository) CountByEnvironmentID(ctx context.Context, environme
 	return count, nil
 }
 
-// GetByTags retrieves all variables of the given environment that have at least one of the given tags,
-// including their tags. If tagIDs is empty, all variables of the environment are returned.
-func (r *variableRepository) GetByTags(ctx context.Context, environmentID uuid.UUID, tagIDs []uuid.UUID) ([]model.Variable, error) {
-	if len(tagIDs) == 0 {
-		return r.GetAll(ctx, environmentID)
+// List retrieves all variables of the given environment matching the filter,
+// including their tags and active-value status. Variable names are stored
+// uppercase, so the search term is normalized to match them.
+func (r *variableRepository) List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) {
+	query := r.DB.WithContext(ctx).Preload("Tags").Where("environment_id = ?", environmentID)
+
+	if search := strings.ToUpper(strings.TrimSpace(filter.Search)); search != "" {
+		query = query.Where("name LIKE ?", "%"+search+"%")
+	}
+	if len(filter.TagIDs) > 0 {
+		query = query.Where("EXISTS (SELECT 1 FROM variable_tags WHERE variable_tags.variable_id = variables.id AND variable_tags.tag_id IN ?)", filter.TagIDs)
 	}
 
 	var variables []model.Variable
-	if err := r.DB.WithContext(ctx).
-		Preload("Tags").
-		Where("environment_id = ?", environmentID).
-		Where("EXISTS (SELECT 1 FROM variable_tags WHERE variable_tags.variable_id = variables.id AND variable_tags.tag_id IN ?)", tagIDs).
-		Find(&variables).Error; err != nil {
+	if err := query.Find(&variables).Error; err != nil {
 		return nil, err
 	}
 
