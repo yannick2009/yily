@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
-	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
@@ -17,16 +17,20 @@ var (
 
 // VariableRepository defines the interface for interacting with variable data in the database.
 type VariableRepository interface {
-	Create(ctx context.Context, variable *model.Variable) error                                           // Create creates a new variable in the database.
-	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                 // SetName updates the name of an existing variable in the database.
-	Delete(ctx context.Context, variableID uuid.UUID) error                                               // Delete deletes a variable from the database by its ID.
-	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                           // GetByID retrieves a variable from the database by its ID.
-	GetAll(ctx context.Context, environmentID uuid.UUID) ([]model.Variable, error)                        // GetAll retrieves all variables from the database.
-	GetByTags(ctx context.Context, environmentID uuid.UUID, tagIDs []uuid.UUID) ([]model.Variable, error) // GetByTags retrieves all variables that have at least one of the given tags.
-	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error)                             // CountByProjectID counts the variables across all environments of a project.
-	CountByEnvironmentID(ctx context.Context, environmentID uuid.UUID) (int64, error)                     // CountByEnvironmentID counts the variables of an environment.
-	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                          // SetTags replaces the set of tags associated with a variable.
-	Import(ctx context.Context, environmentID uuid.UUID, variables map[string]string) error               // Import applies the given variables (name → value), creating new ones and updating existing ones whose value changed.
+	Create(ctx context.Context, variable *model.Variable) error                                             // Create creates a new variable in the database.
+	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                   // SetName updates the name of an existing variable in the database.
+	Delete(ctx context.Context, variableID uuid.UUID) error                                                 // Delete deletes a variable from the database by its ID.
+	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                             // GetByID retrieves a variable from the database by its ID.
+	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) // List retrieves all variables of an environment matching the given filter.
+	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error)                               // CountByProjectID counts the variables across all environments of a project.
+	CountByEnvironmentID(ctx context.Context, environmentID uuid.UUID) (int64, error)                       // CountByEnvironmentID counts the variables of an environment.
+	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                            // SetTags replaces the set of tags associated with a variable.
+}
+
+// VariableListFilter filters the variable listing of an environment.
+type VariableListFilter struct {
+	Search string      // Search matches variable names case-insensitively (empty for no filter).
+	TagIDs []uuid.UUID // TagIDs filters to variables that have at least one of these tags (empty for no filter).
 }
 
 // variableRepository is a struct that implements the VariableRepository interface.
@@ -68,25 +72,16 @@ func (r *variableRepository) Delete(ctx context.Context, variableID uuid.UUID) e
 	return err
 }
 
-// GetByID retrieves a variable from the database by its ID.
+// GetByID retrieves a variable from the database by its ID, including its tags.
 func (r *variableRepository) GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error) {
 	variable := new(model.Variable)
-	if err := r.DB.WithContext(ctx).Where("id = ?", variableID).First(variable).Error; err != nil {
+	if err := r.DB.WithContext(ctx).Preload("Tags").Where("id = ?", variableID).First(variable).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrVariableNotFound
 		}
 		return nil, err
 	}
 	return variable, nil
-}
-
-// GetAll retrieves all variables from the database.
-func (r *variableRepository) GetAll(ctx context.Context, environmentID uuid.UUID) ([]model.Variable, error) {
-	variables, err := gorm.G[model.Variable](r.DB).Where("environment_id = ?", environmentID).Find(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return variables, nil
 }
 
 // CountByProjectID counts the variables across all environments of a project.
@@ -111,22 +106,62 @@ func (r *variableRepository) CountByEnvironmentID(ctx context.Context, environme
 	return count, nil
 }
 
-// GetByTags retrieves all variables of the given environment that have at least one of the given tags.
-// If tagIDs is empty, all variables of the environment are returned.
-func (r *variableRepository) GetByTags(ctx context.Context, environmentID uuid.UUID, tagIDs []uuid.UUID) ([]model.Variable, error) {
-	if len(tagIDs) == 0 {
-		return r.GetAll(ctx, environmentID)
+// List retrieves all variables of the given environment matching the filter,
+// including their tags and active-value status. Variable names are stored
+// uppercase, so the search term is normalized to match them.
+func (r *variableRepository) List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) {
+	query := r.DB.WithContext(ctx).Preload("Tags").Where("environment_id = ?", environmentID)
+
+	if search := strings.ToUpper(strings.TrimSpace(filter.Search)); search != "" {
+		query = query.Where("name LIKE ?", "%"+search+"%")
+	}
+	if len(filter.TagIDs) > 0 {
+		query = query.Where("EXISTS (SELECT 1 FROM variable_tags WHERE variable_tags.variable_id = variables.id AND variable_tags.tag_id IN ?)", filter.TagIDs)
 	}
 
-	variables, err := gorm.G[model.Variable](r.DB).
-		Where("environment_id = ?", environmentID).
-		Where("EXISTS (SELECT 1 FROM variable_tags WHERE variable_tags.variable_id = variables.id AND variable_tags.tag_id IN ?)", tagIDs).
-		Find(ctx)
-	if err != nil {
+	var variables []model.Variable
+	if err := query.Find(&variables).Error; err != nil {
+		return nil, err
+	}
+
+	if err := r.markActive(ctx, variables); err != nil {
 		return nil, err
 	}
 
 	return variables, nil
+}
+
+// markActive sets each variable's Active flag to whether it has an active
+// version, using a single query for the whole batch (without loading the
+// encrypted version values).
+func (r *variableRepository) markActive(ctx context.Context, variables []model.Variable) error {
+	if len(variables) == 0 {
+		return nil
+	}
+
+	ids := make([]uuid.UUID, 0, len(variables))
+	for _, v := range variables {
+		ids = append(ids, v.ID)
+	}
+
+	var activeIDs []uuid.UUID
+	if err := r.DB.WithContext(ctx).
+		Model(&model.VariableVersion{}).
+		Where("variable_id IN ? AND active = ?", ids, true).
+		Distinct("variable_id").
+		Pluck("variable_id", &activeIDs).Error; err != nil {
+		return err
+	}
+
+	active := make(map[uuid.UUID]bool, len(activeIDs))
+	for _, id := range activeIDs {
+		active[id] = true
+	}
+	for i := range variables {
+		variables[i].Active = active[variables[i].ID]
+	}
+
+	return nil
 }
 
 // SetTags replaces the set of tags associated with a variable.
@@ -167,92 +202,4 @@ func (r *variableRepository) SetTags(ctx context.Context, variableID uuid.UUID, 
 	}
 
 	return r.DB.Model(&variable).Association("Tags").Replace(tags)
-}
-
-// Import applies the given variables (name → value) to the environment in a single transaction.
-// New variables are created (with their first version when a value is provided). Existing variables
-// get a new version only when their value actually changed, so re-importing the same file is a no-op.
-func (r *variableRepository) Import(ctx context.Context, environmentID uuid.UUID, variables map[string]string) error {
-	return r.DB.Transaction(func(tx *gorm.DB) error {
-		names := make([]string, 0, len(variables))
-		for name := range variables {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-
-		for _, name := range names {
-			value := variables[name]
-
-			var existing model.Variable
-			err := tx.Where("name = ? AND environment_id = ?", name, environmentID).First(&existing).Error
-			switch {
-			case errors.Is(err, gorm.ErrRecordNotFound):
-				if err := createVariable(ctx, tx, environmentID, name, value); err != nil {
-					return err
-				}
-			case err != nil:
-				return err
-			default:
-				if err := upsertValue(ctx, tx, existing.ID, value); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
-}
-
-// createVariable creates a new variable and, when a value is provided, its first version.
-func createVariable(ctx context.Context, tx *gorm.DB, environmentID uuid.UUID, name, value string) error {
-	variable := &model.Variable{Name: name, EnvironmentID: environmentID}
-	if err := gorm.G[model.Variable](tx).Create(ctx, variable); err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return ErrVariableNameAlreadyExists
-		}
-		return err
-	}
-	if value == "" {
-		return nil
-	}
-	return gorm.G[model.VariableVersion](tx).Create(ctx, &model.VariableVersion{
-		Value:      value,
-		Active:     true,
-		Version:    1,
-		VariableID: variable.ID,
-	})
-}
-
-// upsertValue adds a new version to an existing variable only when its value changed.
-func upsertValue(ctx context.Context, tx *gorm.DB, variableID uuid.UUID, value string) error {
-	// An empty value does not represent a change.
-	if value == "" {
-		return nil
-	}
-
-	// Compare against the current active value.
-	var current model.VariableVersion
-	err := tx.Where("variable_id = ? AND active = ?", variableID, true).Order("version DESC").First(&current).Error
-	if err == nil {
-		if current.Value == value {
-			return nil // Unchanged.
-		}
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
-	}
-
-	// Value changed (or the variable has no value yet): compute the next version number.
-	var maxVersion int
-	if err := tx.Model(&model.VariableVersion{}).
-		Where("variable_id = ?", variableID).
-		Select("COALESCE(MAX(version), 0)").
-		Scan(&maxVersion).Error; err != nil {
-		return err
-	}
-
-	return gorm.G[model.VariableVersion](tx).Create(ctx, &model.VariableVersion{
-		Value:      value,
-		Active:     true,
-		Version:    maxVersion + 1,
-		VariableID: variableID,
-	})
 }

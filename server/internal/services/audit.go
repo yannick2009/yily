@@ -13,23 +13,24 @@ import (
 type AuditActor struct {
 	Type types.ActorType // Type is the kind of actor (user, token or system).
 	ID   uuid.UUID       // ID is the actor's UUID (uuid.Nil for "system").
+	Name string          // Name is the actor's display name (empty for "system").
 }
 
 // ActorFromContext resolves the authenticated actor from the request context.
 // A Bearer PAT takes precedence over a session user, so token activity is attributed to the token.
 func ActorFromContext(ctx context.Context) AuditActor {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
-		return AuditActor{Type: types.ActorTypeToken, ID: pat.ID}
+		return AuditActor{Type: types.ActorTypeToken, ID: pat.ID, Name: pat.Name}
 	}
 	if user, ok := AuthenticatedUserFromContext(ctx); ok {
-		return AuditActor{Type: types.ActorTypeUser, ID: user.ID}
+		return AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}
 	}
 	return AuditActor{Type: types.ActorTypeSystem}
 }
 
 // AuditFilter filters the audit log listing.
 type AuditFilter struct {
-	Search    string // Search matches resource names (empty for no filter).
+	Search    string // Search matches resource and actor names (empty for no filter).
 	ActorType string // ActorType filters by actor type (empty for no filter).
 	Action    string // Action filters by action (empty for no filter).
 	Limit     int    // Limit caps the number of returned events.
@@ -69,6 +70,7 @@ func (s *auditService) RecordAs(ctx context.Context, actor AuditActor, action ty
 	return s.auditRepository.Create(ctx, &model.AuditEvent{
 		ActorType:    string(actor.Type),
 		ActorID:      actor.ID,
+		ActorName:    actor.Name,
 		Action:       string(action),
 		ResourceType: string(resourceType),
 		ResourceID:   resourceID,

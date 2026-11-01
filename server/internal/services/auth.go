@@ -54,6 +54,7 @@ type AuthService interface {
 	Login(ctx context.Context, email, password, existingRawToken string) (string, *model.Session, *model.User, error) // Login verifies credentials, rotates any prior session, and issues a new session.
 	ValidateSession(ctx context.Context, rawToken string) (*model.User, *model.Session, error)                        // ValidateSession verifies a raw session token against its stored SHA-256 hash and loads the owning user.
 	Logout(ctx context.Context, rawToken string) error                                                                // Logout revokes a server-side session by hashing its raw token.
+	IsInitialized(ctx context.Context) (bool, error)                                                                  // IsInitialized reports whether the Super Admin account has been created.
 }
 
 // AuthConfig holds optional timing parameters for AuthService.
@@ -253,4 +254,13 @@ func (s *authService) Logout(ctx context.Context, rawToken string) error {
 // normalizeEmail trims leading/trailing whitespace and converts an email address to lowercase.
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// IsInitialized reports whether the Super Admin account has been created.
+func (s *authService) IsInitialized(ctx context.Context) (bool, error) {
+	count, err := s.userRepository.Count(ctx)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

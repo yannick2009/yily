@@ -12,7 +12,8 @@ start:
 
 # format & lint the server code
 lint:
-    cd server && go fmt ./... && golangci-lint run ./... && nilaway ./...
+    (cd client && vp check --fix) && \
+    (cd server && go fmt ./... && golangci-lint run ./... && nilaway ./...)
 
 # format and check the server code
 test:

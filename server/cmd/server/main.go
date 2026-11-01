@@ -83,6 +83,7 @@ func main() {
 	api := server.Group("/api/v1")
 
 	// Public authentication routes
+	api.GET("/auth/status", authHandler.Status)
 	api.POST("/auth/setup", authHandler.Setup)
 	api.POST("/auth/login", authHandler.Login)
 

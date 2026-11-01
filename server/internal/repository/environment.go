@@ -69,10 +69,10 @@ func (r *environmentRepository) GetByID(ctx context.Context, environmentID uuid.
 	return environment, nil
 }
 
-// GetAll retrieves all environments from the database.
+// GetAll retrieves all environments from the database, including their variables.
 func (r *environmentRepository) GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Environment, error) {
-	environments, err := gorm.G[model.Environment](r.DB).Where("project_id = ?", projectID).Find(ctx)
-	if err != nil {
+	var environments []model.Environment
+	if err := r.DB.WithContext(ctx).Preload("Variables").Where("project_id = ?", projectID).Find(&environments).Error; err != nil {
 		return nil, err
 	}
 	return environments, nil

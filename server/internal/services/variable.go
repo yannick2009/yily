@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -21,15 +22,14 @@ var (
 // VariableService defines the interface for variable business logic, including its versions.
 type VariableService interface {
 	// variables
-	Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error)     // Create creates a new variable with its first version.
-	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                           // GetByID retrieves a variable by its ID.
-	GetAll(ctx context.Context, environmentID uuid.UUID) ([]model.Variable, error)                        // GetAll retrieves all variables of an environment.
-	GetByTags(ctx context.Context, environmentID uuid.UUID, tagIDs []uuid.UUID) ([]model.Variable, error) // GetByTags retrieves variables that have at least one of the given tags.
-	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                 // SetName updates the name of a variable.
-	Delete(ctx context.Context, variableID uuid.UUID) error                                               // Delete deletes a variable (and its versions via cascade).
-	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                          // SetTags replaces the set of tags associated with a variable.
-	Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType) error      // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
-	Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error)         // Export serializes all variables of an environment into the given file format.
+	Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error)       // Create creates a new variable with its first version.
+	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                             // GetByID retrieves a variable by its ID.
+	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) // List retrieves the variables of an environment matching the given filter.
+	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                   // SetName updates the name of a variable.
+	Delete(ctx context.Context, variableID uuid.UUID) error                                                 // Delete deletes a variable (and its versions via cascade).
+	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                            // SetTags replaces the set of tags associated with a variable.
+	Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType) error        // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
+	Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error)           // Export serializes all variables of an environment into the given file format.
 
 	// versions
 	AddVersion(ctx context.Context, variableID uuid.UUID, value string) (*model.VariableVersion, error) // AddVersion adds a new active version to a variable.
@@ -38,6 +38,12 @@ type VariableService interface {
 	GetCurrentVersion(ctx context.Context, variableID uuid.UUID) (*model.VariableVersion, error)        // GetCurrentVersion returns the current active version of a variable.
 	GetValue(ctx context.Context, variableID uuid.UUID) (string, error)                                 // GetValue returns the current decrypted value of a variable.
 	GetAllVersions(ctx context.Context, variableID uuid.UUID) ([]model.VariableVersion, error)          // GetAllVersions returns all versions of a variable, newest first.
+}
+
+// VariableListFilter filters the variable listing of an environment.
+type VariableListFilter struct {
+	Search string      // Search matches variable names case-insensitively (empty for no filter).
+	TagIDs []uuid.UUID // TagIDs filters to variables that have at least one of these tags (empty for no filter).
 }
 
 // variableService implements VariableService.
@@ -90,14 +96,12 @@ func (s *variableService) GetByID(ctx context.Context, variableID uuid.UUID) (*m
 	return s.variableRepository.GetByID(ctx, variableID)
 }
 
-// GetAll retrieves all variables of an environment.
-func (s *variableService) GetAll(ctx context.Context, environmentID uuid.UUID) ([]model.Variable, error) {
-	return s.variableRepository.GetAll(ctx, environmentID)
-}
-
-// GetByTags retrieves the variables of an environment that have at least one of the given tags.
-func (s *variableService) GetByTags(ctx context.Context, environmentID uuid.UUID, tagIDs []uuid.UUID) ([]model.Variable, error) {
-	return s.variableRepository.GetByTags(ctx, environmentID, tagIDs)
+// List retrieves the variables of an environment matching the given filter.
+func (s *variableService) List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) {
+	return s.variableRepository.List(ctx, environmentID, repository.VariableListFilter{
+		Search: filter.Search,
+		TagIDs: filter.TagIDs,
+	})
 }
 
 // SetName updates the name of a variable.
@@ -144,6 +148,9 @@ func (s *variableService) GetCurrentVersion(ctx context.Context, variableID uuid
 	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
 	if err != nil {
 		return nil, err
+	}
+	if version == nil {
+		return nil, repository.ErrVariableVersionNotFound
 	}
 
 	// Never expose the value here; use GetValue.
@@ -261,12 +268,64 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 		variables[normalized] = strings.TrimSpace(value)
 	}
 
-	return s.variableRepository.Import(ctx, environmentID, variables)
+	// Index existing variables by name so we can tell which to create and which to update.
+	existing, err := s.variableRepository.List(ctx, environmentID, repository.VariableListFilter{})
+	if err != nil {
+		return err
+	}
+	byName := make(map[string]*model.Variable, len(existing))
+	for i := range existing {
+		byName[existing[i].Name] = &existing[i]
+	}
+
+	// Deterministic order keeps the result reproducible regardless of map iteration.
+	names := make([]string, 0, len(variables))
+	for name := range variables {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		value := variables[name]
+		variable, exists := byName[name]
+		if !exists {
+			if _, err := s.Create(ctx, environmentID, name, value); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := s.applyImportValue(ctx, variable.ID, value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// applyImportValue adds a new encrypted version to an existing variable when its
+// current decrypted value differs from the imported one. An empty value is a
+// no-op, so re-importing an unchanged file does not create spurious versions.
+func (s *variableService) applyImportValue(ctx context.Context, variableID uuid.UUID, value string) error {
+	if value == "" {
+		return nil
+	}
+
+	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
+	if err == nil {
+		if current, decErr := s.decryptVersion(version); decErr == nil && current == value {
+			return nil // unchanged
+		}
+	} else if !errors.Is(err, repository.ErrVariableVersionNotFound) {
+		return err
+	}
+
+	_, err = s.AddVersion(ctx, variableID, value)
+	return err
 }
 
 // Export serializes all variables of an environment (name → current decrypted value) into the given file format.
 func (s *variableService) Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error) {
-	variables, err := s.variableRepository.GetAll(ctx, environmentID)
+	variables, err := s.variableRepository.List(ctx, environmentID, repository.VariableListFilter{})
 	if err != nil {
 		return nil, err
 	}

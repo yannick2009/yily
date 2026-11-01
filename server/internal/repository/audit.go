@@ -9,7 +9,7 @@ import (
 
 // AuditListFilter filters the audit log listing.
 type AuditListFilter struct {
-	Search    string // Search matches resource names case-insensitively (empty for no filter).
+	Search    string // Search matches resource and actor names case-insensitively (empty for no filter).
 	ActorType string // ActorType filters by actor type (empty for no filter).
 	Action    string // Action filters by action (empty for no filter).
 	Limit     int    // Limit caps the number of returned events.
@@ -42,7 +42,7 @@ func (r *auditRepository) List(ctx context.Context, filter AuditListFilter) ([]m
 	query := r.DB.WithContext(ctx).Model(&model.AuditEvent{})
 
 	if filter.Search != "" {
-		query = query.Where("resource_name LIKE ?", "%"+filter.Search+"%")
+		query = query.Where("(resource_name LIKE ? OR actor_name LIKE ?)", "%"+filter.Search+"%", "%"+filter.Search+"%")
 	}
 	if filter.ActorType != "" {
 		query = query.Where("actor_type = ?", filter.ActorType)
