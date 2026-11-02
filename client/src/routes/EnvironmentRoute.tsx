@@ -4,6 +4,7 @@ import { A, useParams } from "@solidjs/router";
 import { environments, projects, tags, variables } from "../api";
 import { t } from "../lib/i18n";
 import { createRevealController } from "../lib/reveal";
+import { normalizeVariableName } from "../lib/variable";
 import { Badge, Button, Icon, Input, Textarea } from "../components/ui";
 import { Dialog, EmptyState, Field, RevealCountdown, ValueGenerator } from "../components/shared";
 
@@ -89,7 +90,7 @@ export function EnvironmentRoute() {
   const [error, setError] = createSignal<string | null>(null);
   const submitCreate = async (e: Event) => {
     e.preventDefault();
-    const n = name().trim();
+    const n = normalizeVariableName(name());
     if (!n) return;
     setBusy(true);
     setError(null);
@@ -544,7 +545,7 @@ export function EnvironmentRoute() {
             <Field label={t("common.name")}>
               <Input
                 value={name()}
-                onInput={(e) => setName(e.currentTarget.value)}
+                onInput={(e) => setName(normalizeVariableName(e.currentTarget.value))}
                 placeholder={t("env.varNamePlaceholder")}
               />
             </Field>

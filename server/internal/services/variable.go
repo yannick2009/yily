@@ -373,9 +373,10 @@ func (s *variableService) Export(ctx context.Context, environmentID uuid.UUID, f
 	return content, nil
 }
 
-// normalizeVariableName returns a variable name trimmed and uppercased.
+// normalizeVariableName uppercases a variable name and replaces whitespace
+// runs with a single underscore.
 func normalizeVariableName(name string) string {
-	return strings.ToUpper(strings.TrimSpace(name))
+	return strings.Join(strings.Fields(strings.ToUpper(name)), "_")
 }
 
 // decryptVersion returns the decrypted value of a version.
