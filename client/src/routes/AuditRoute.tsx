@@ -14,6 +14,7 @@ const ACTIONS = [
   "revealed",
   "export",
   "revoked",
+  "rotated",
   "signed_in",
   "signed_out",
 ];
@@ -234,7 +235,7 @@ function actorName(e: AuditEvent): string {
 // Color-code the action badge for quick scanning.
 function actionVariant(action: string): "neutral" | "brand" | "success" {
   if (action === "created") return "success";
-  if (action === "revealed" || action === "export") return "brand";
+  if (action === "revealed" || action === "export" || action === "rotated") return "brand";
   return "neutral";
 }
 

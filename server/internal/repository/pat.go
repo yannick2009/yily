@@ -22,6 +22,7 @@ type PATRepository interface {
 	GetAllByUserID(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error) // GetAllByUserID retrieves all PAT metadata belonging to a user.
 	CountByUserID(ctx context.Context, userID uuid.UUID) (int64, error)                        // CountByUserID counts the PATs belonging to a user.
 	RevokeByID(ctx context.Context, id uuid.UUID, userID uuid.UUID, revokedAt time.Time) error // RevokeByID marks a user's PAT as revoked by its ID.
+	TouchLastUsed(ctx context.Context, id uuid.UUID, lastUsedAt time.Time) error               // TouchLastUsed updates the LastUsedAt timestamp of a PAT after a successful authentication.
 }
 
 // patRepository implements PATRepository.
@@ -75,6 +76,14 @@ func (r *patRepository) CountByUserID(ctx context.Context, userID uuid.UUID) (in
 		return 0, err
 	}
 	return count, nil
+}
+
+// TouchLastUsed records a successful authentication by setting last_used_at on the PAT.
+func (r *patRepository) TouchLastUsed(ctx context.Context, id uuid.UUID, lastUsedAt time.Time) error {
+	return r.DB.WithContext(ctx).
+		Model(&model.PersonalAccessToken{}).
+		Where("id = ?", id).
+		Update("last_used_at", lastUsedAt).Error
 }
 
 // RevokeByID sets revoked_at on an active PAT owned by the user, or returns ErrPATNotFound if the ID does not belong to them.

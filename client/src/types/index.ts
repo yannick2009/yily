@@ -75,6 +75,7 @@ export interface Token {
   created_at: string;
   expires_at: string;
   revoked_at: string | null;
+  last_used_at: string | null;
 }
 
 // The one-time creation response that includes the raw "yily_…" token value.

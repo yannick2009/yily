@@ -9,13 +9,14 @@ import (
 
 // PersonalAccessToken represents a programmatic API token owned by the Super Admin.
 type PersonalAccessToken struct {
-	ID        uuid.UUID  `gorm:"primaryKey" json:"id"`                           // Unique identifier for the PAT
-	UserID    uuid.UUID  `gorm:"not null;index" json:"user_id"`                  // Foreign key referencing the associated user
-	Name      string     `gorm:"type:varchar(255);not null" json:"name"`         // Human-readable name for the PAT
-	TokenHash string     `gorm:"type:varchar(64);not null;uniqueIndex" json:"-"` // SHA-256 hex digest of the full yily_<token> (never serialized)
-	CreatedAt time.Time  `gorm:"autoCreateTime" json:"created_at"`               // Timestamp when the PAT was created
-	ExpiresAt time.Time  `gorm:"not null;index" json:"expires_at"`               // Timestamp when the PAT expires
-	RevokedAt *time.Time `gorm:"index" json:"revoked_at,omitempty"`              // Timestamp when the PAT was revoked (nil if active)
+	ID         uuid.UUID  `gorm:"primaryKey" json:"id"`                           // Unique identifier for the PAT
+	UserID     uuid.UUID  `gorm:"not null;index" json:"user_id"`                  // Foreign key referencing the associated user
+	Name       string     `gorm:"type:varchar(255);not null" json:"name"`         // Human-readable name for the PAT
+	TokenHash  string     `gorm:"type:varchar(64);not null;uniqueIndex" json:"-"` // SHA-256 hex digest of the full yily_<token> (never serialized)
+	CreatedAt  time.Time  `gorm:"autoCreateTime" json:"created_at"`               // Timestamp when the PAT was created
+	ExpiresAt  time.Time  `gorm:"not null;index" json:"expires_at"`               // Timestamp when the PAT expires
+	RevokedAt  *time.Time `gorm:"index" json:"revoked_at,omitempty"`              // Timestamp when the PAT was revoked (nil if active)
+	LastUsedAt *time.Time `gorm:"index" json:"last_used_at,omitempty"`            // Timestamp of the most recent successful authentication with this PAT
 }
 
 // BeforeCreate is a GORM hook that assigns a UUID before creating a new PersonalAccessToken record.

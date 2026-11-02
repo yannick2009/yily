@@ -95,6 +95,7 @@ func main() {
 	routes.GET("/auth/me", authHandler.Me)
 	routes.POST("/tokens", patHandler.Create)
 	routes.GET("/tokens", patHandler.GetAll)
+	routes.POST("/tokens/:id/rotate", patHandler.Rotate)
 	routes.DELETE("/tokens/:id", patHandler.Revoke)
 
 	// Dashboard

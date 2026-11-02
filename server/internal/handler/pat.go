@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +15,7 @@ type PATHandler interface {
 	Create(c *echo.Context) error // Create handles POST /tokens to issue a new PAT.
 	GetAll(c *echo.Context) error // GetAll handles GET /tokens to list PAT metadata.
 	Revoke(c *echo.Context) error // Revoke handles DELETE /tokens/:id to revoke a PAT.
+	Rotate(c *echo.Context) error // Rotate handles POST /tokens/:id/rotate to replace an existing PAT.
 }
 
 // patHandler handles HTTP requests for Personal Access Tokens.
@@ -30,6 +32,11 @@ func NewPATHandler(patService services.PATService) PATHandler {
 type createPATRequest struct {
 	Name          string `json:"name" validate:"required"`
 	ExpiresInDays *int   `json:"expires_in_days,omitempty"`
+}
+
+// rotatePATRequest represents the JSON body for rotating an existing PAT.
+type rotatePATRequest struct {
+	ExpiresInDays *int `json:"expires_in_days,omitempty"`
 }
 
 // CreatePATResponse represents the one-time creation response that includes the raw "yily_<token>" value.
@@ -54,12 +61,9 @@ func (h *patHandler) Create(c *echo.Context) error {
 		return nil
 	}
 
-	var ttl time.Duration
-	if req.ExpiresInDays != nil {
-		if *req.ExpiresInDays <= 0 {
-			return respondError(c, services.ErrInvalidPATExpiration)
-		}
-		ttl = time.Duration(*req.ExpiresInDays) * 24 * time.Hour
+	ttl, err := resolvePATTTL(req.ExpiresInDays)
+	if err != nil {
+		return respondError(c, err)
 	}
 
 	rawToken, pat, err := h.patService.Create(c.Request().Context(), user.ID, req.Name, ttl)
@@ -111,4 +115,55 @@ func (h *patHandler) Revoke(c *echo.Context) error {
 	}
 
 	return NewHTTPResponse[any](c, http.StatusOK, "Personal access token revoked successfully", nil)
+}
+
+// Rotate handles POST /tokens/:id/rotate to revoke an existing PAT and issue a replacement under the same name, returning the raw replacement token once.
+func (h *patHandler) Rotate(c *echo.Context) error {
+	user, ok := services.AuthenticatedUserFromContext(c.Request().Context())
+	if !ok {
+		return NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+	}
+
+	id, ok := uuidParam(c, "id")
+	if !ok {
+		return nil
+	}
+
+	var req rotatePATRequest
+	if c.Request().ContentLength > 0 && !bindAndValidate(c, &req) {
+		return nil
+	}
+
+	ttl, err := resolvePATTTL(req.ExpiresInDays)
+	if err != nil {
+		return NewHTTPResponse[any](c, http.StatusBadRequest, err.Error(), nil)
+	}
+
+	rawToken, pat, err := h.patService.Rotate(c.Request().Context(), user.ID, id, ttl)
+	if err != nil {
+		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+	}
+
+	resp := CreatePATResponse{
+		ID:        pat.ID,
+		UserID:    pat.UserID,
+		Name:      pat.Name,
+		Token:     rawToken,
+		CreatedAt: pat.CreatedAt,
+		ExpiresAt: pat.ExpiresAt,
+	}
+
+	return NewHTTPResponse(c, http.StatusCreated, "Personal access token rotated successfully", resp)
+}
+
+// resolvePATTTL converts an optional expires_in_days value to a time.Duration, enforcing the fixed preset list (7, 30, 60, 90). A nil value means "use the service default".
+func resolvePATTTL(expiresInDays *int) (time.Duration, error) {
+	if expiresInDays == nil {
+		return 0, nil
+	}
+	days := *expiresInDays
+	if slices.Contains(services.AllowedPATTTLDays, days) {
+		return time.Duration(days) * 24 * time.Hour, nil
+	}
+	return 0, services.ErrInvalidPATExpiration
 }
