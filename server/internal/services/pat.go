@@ -15,13 +15,17 @@ import (
 
 const (
 	DefaultPATTTL = 30 * 24 * time.Hour // DefaultPATTTL is the default Personal Access Token lifetime.
+	MaxPATTTL     = 90 * 24 * time.Hour // MaxPATTTL caps the lifetime of a Personal Access Token to limit exposure in case of leak.
 )
+
+// AllowedPATTTLDays enumerates the fixed set of PAT lifetimes accepted at creation and rotation.
+var AllowedPATTTLDays = []int{7, 30, 60, 90}
 
 var (
 	ErrPATExpired           = errors.New("personal access token expired")            // ErrPATExpired is returned when a PAT has reached or passed its expiration date.
 	ErrPATRevoked           = errors.New("personal access token revoked")            // ErrPATRevoked is returned when a PAT has been explicitly revoked.
 	ErrInvalidPATName       = errors.New("invalid personal access token name")       // ErrInvalidPATName is returned when a PAT name is empty or whitespace-only.
-	ErrInvalidPATExpiration = errors.New("invalid personal access token expiration") // ErrInvalidPATExpiration is returned when a PAT expiration duration is negative or invalid.
+	ErrInvalidPATExpiration = errors.New("invalid personal access token expiration") // ErrInvalidPATExpiration is returned when a PAT expiration duration is negative, zero, or above the 90-day cap.
 )
 
 type authPATContextKey struct{}
@@ -39,12 +43,13 @@ func AuthenticatedPATFromContext(ctx context.Context) (*model.PersonalAccessToke
 	return pat, ok && pat != nil
 }
 
-// PATService defines the interface for Personal Access Token creation, validation, listing, and revocation.
+// PATService defines the interface for Personal Access Token creation, validation, listing, rotation, and revocation.
 type PATService interface {
-	Create(ctx context.Context, userID uuid.UUID, name string, ttl time.Duration) (string, *model.PersonalAccessToken, error) // Create generates a new PAT, stores only its SHA-256 hash, and returns the raw token once.
-	Validate(ctx context.Context, rawToken string) (*model.User, *model.PersonalAccessToken, error)                           // Validate verifies a raw PAT against its stored SHA-256 hash and loads the owning user.
-	GetAll(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error)                                        // GetAll lists all PATs belonging to a user without exposing raw tokens or hashes.
-	Revoke(ctx context.Context, userID uuid.UUID, patID uuid.UUID) error                                                      // Revoke marks a user's PAT as revoked by its ID.
+	Create(ctx context.Context, userID uuid.UUID, name string, ttl time.Duration) (string, *model.PersonalAccessToken, error)     // Create generates a new PAT, stores only its SHA-256 hash, and returns the raw token once.
+	Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UUID, ttl time.Duration) (string, *model.PersonalAccessToken, error) // Rotate revokes an existing PAT and issues a new one under the same name, returning the raw replacement token once.
+	Validate(ctx context.Context, rawToken string) (*model.User, *model.PersonalAccessToken, error)                               // Validate verifies a raw PAT against its stored SHA-256 hash and loads the owning user.
+	GetAll(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error)                                            // GetAll lists all PATs belonging to a user without exposing raw tokens or hashes.
+	Revoke(ctx context.Context, userID uuid.UUID, patID uuid.UUID) error                                                          // Revoke marks a user's PAT as revoked by its ID.
 }
 
 // patService implements PATService.
@@ -74,11 +79,11 @@ func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, 
 		return "", nil, ErrInvalidPATName
 	}
 
-	if ttl < 0 {
-		return "", nil, ErrInvalidPATExpiration
-	}
 	if ttl == 0 {
 		ttl = s.defaultTTL
+	}
+	if ttl < 0 || ttl > MaxPATTTL {
+		return "", nil, ErrInvalidPATExpiration
 	}
 
 	if _, err := s.userRepository.GetByID(ctx, userID); err != nil {
@@ -106,6 +111,53 @@ func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, 
 	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, pat.ID, pat.Name)
 
 	return rawToken, pat, nil
+}
+
+// Rotate revokes an existing PAT belonging to the user and issues a replacement under the same name with a fresh TTL. The raw token is returned exactly once.
+func (s *patService) Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UUID, ttl time.Duration) (string, *model.PersonalAccessToken, error) {
+	if ttl == 0 {
+		ttl = s.defaultTTL
+	}
+	if ttl < 0 || ttl > MaxPATTTL {
+		return "", nil, ErrInvalidPATExpiration
+	}
+
+	existing, err := s.patRepository.GetByID(ctx, patID)
+	if err != nil {
+		return "", nil, err
+	}
+	if existing.UserID != userID {
+		return "", nil, repository.ErrPATNotFound
+	}
+
+	rawToken, tokenHash, err := crypto.GeneratePAT()
+	if err != nil {
+		return "", nil, err
+	}
+
+	now := s.nowFunc().UTC()
+	replacement := &model.PersonalAccessToken{
+		UserID:    userID,
+		Name:      existing.Name,
+		TokenHash: tokenHash,
+		CreatedAt: now,
+		ExpiresAt: now.Add(ttl),
+	}
+	if err := s.patRepository.Create(ctx, replacement); err != nil {
+		return "", nil, err
+	}
+
+	// Revoke the old PAT immediately so the leaked secret stops working.
+	if !existing.IsRevoked() {
+		if err := s.patRepository.RevokeByID(ctx, existing.ID, userID, now); err != nil {
+			return "", nil, err
+		}
+	}
+
+	_ = s.audit.Record(ctx, types.ActionRotated, types.ResourceToken, existing.ID, existing.Name)
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, replacement.ID, replacement.Name)
+
+	return rawToken, replacement, nil
 }
 
 // Validate checks the "yily_" prefix, looks up the SHA-256 hash in SQLite, verifies the PAT is neither revoked nor expired, and loads its owning User.
@@ -141,6 +193,11 @@ func (s *patService) Validate(ctx context.Context, rawToken string) (*model.User
 			return nil, nil, ErrUnauthorized
 		}
 		return nil, nil, err
+	}
+
+	// Record this successful authentication. A failure here must not block the request.
+	if err := s.patRepository.TouchLastUsed(ctx, pat.ID, now); err == nil {
+		pat.LastUsedAt = &now
 	}
 
 	return user, pat, nil
