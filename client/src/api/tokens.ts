@@ -10,9 +10,22 @@ export async function list(): Promise<Token[]> {
 // create issues a new token and returns its one-time secret.
 export async function create(input: {
   name: string;
-  expiresInDays?: number;
+  expires_in_days?: number;
 }): Promise<CreatedToken> {
-  return request<CreatedToken>("POST", "/tokens", { body: JSON.stringify(input) });
+  return request<CreatedToken>("POST", "/tokens", {
+    body: JSON.stringify(input),
+  });
+}
+
+// rotate revokes an existing token and issues a replacement under the same name.
+// The new raw secret is returned exactly once.
+export async function rotate(
+  id: string,
+  input: { expires_in_days?: number },
+): Promise<CreatedToken> {
+  return request<CreatedToken>("POST", `/tokens/${id}/rotate`, {
+    body: JSON.stringify(input),
+  });
 }
 
 // revoke invalidates a token immediately.
