@@ -4,6 +4,7 @@ import { A, useParams } from "@solidjs/router";
 import { environments, projects, tags, variables } from "../api";
 import { t } from "../lib/i18n";
 import { createRevealController } from "../lib/reveal";
+import { normalizeVariableName } from "../lib/variable";
 import { Badge, Button, Icon, Input, Textarea } from "../components/ui";
 import { Dialog, EmptyState, Field, RevealCountdown, ValueGenerator } from "../components/shared";
 
@@ -87,8 +88,6 @@ export function EnvironmentRoute() {
   const [value, setValue] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
-  // Variable names are uppercase with underscores instead of spaces.
-  const normalizeVariableName = (v: string) => v.trim().toUpperCase().replace(/\s+/g, "_");
   const submitCreate = async (e: Event) => {
     e.preventDefault();
     const n = normalizeVariableName(name());

@@ -4,6 +4,7 @@ import { A, useParams } from "@solidjs/router";
 import { environments, tags, variables } from "../api";
 import { locale, t } from "../lib/i18n";
 import { createRevealController } from "../lib/reveal";
+import { normalizeVariableName } from "../lib/variable";
 import { Badge, Button, Card, Icon, Input, Textarea } from "../components/ui";
 import { Dialog, EmptyState, Field, RevealCountdown, ValueGenerator } from "../components/shared";
 
@@ -104,7 +105,7 @@ export function VariableDetailRoute() {
     setRenaming(true);
   };
   const commitRename = async () => {
-    const n = draft().trim();
+    const n = normalizeVariableName(draft());
     if (n && variable()) {
       try {
         await variables.rename(variableId(), n);
@@ -224,7 +225,7 @@ export function VariableDetailRoute() {
                 <Input
                   ref={(el) => (renameInput = el)}
                   value={draft()}
-                  onInput={(e) => setDraft(e.currentTarget.value)}
+                  onInput={(e) => setDraft(normalizeVariableName(e.currentTarget.value))}
                   onKeyDown={onRenameKey}
                   onBlur={commitRename}
                   class="max-w-xs font-mono"
