@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/services"
@@ -41,10 +42,21 @@ func (h *auditHandler) List(c *echo.Context) error {
 	}
 	offset := max(parseIntParam(c, "offset", 0), 0)
 
+	from, err := parseAuditBoundary(c.QueryParam("from"), false)
+	if err != nil {
+		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid from", nil)
+	}
+	to, err := parseAuditBoundary(c.QueryParam("to"), true)
+	if err != nil {
+		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid to", nil)
+	}
+
 	filter := services.AuditFilter{
 		Search:    c.QueryParam("search"),
 		ActorType: c.QueryParam("actor_type"),
 		Action:    c.QueryParam("action"),
+		From:      from,
+		To:        to,
 		Limit:     limit,
 		Offset:    offset,
 	}
@@ -68,4 +80,25 @@ func parseIntParam(c *echo.Context, name string, def int) int {
 		return def
 	}
 	return n
+}
+
+// parseAuditBoundary parses an audit log date boundary. Accepts a date-only
+// value (YYYY-MM-DD) in UTC or a full RFC3339 timestamp. An empty value returns
+// (nil, nil). For a date-only upper bound, inclusiveDay shifts the result to
+// the next midnight so the whole day is covered by the exclusive upper bound.
+func parseAuditBoundary(raw string, inclusiveDay bool) (*time.Time, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	if t, err := time.ParseInLocation("2006-01-02", raw, time.UTC); err == nil {
+		if inclusiveDay {
+			t = t.Add(24 * time.Hour)
+		}
+		return &t, nil
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
 }

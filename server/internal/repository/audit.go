@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/yannick2009/yily/internal/domain/model"
 	"gorm.io/gorm"
@@ -9,11 +10,13 @@ import (
 
 // AuditListFilter filters the audit log listing.
 type AuditListFilter struct {
-	Search    string // Search matches resource and actor names case-insensitively (empty for no filter).
-	ActorType string // ActorType filters by actor type (empty for no filter).
-	Action    string // Action filters by action (empty for no filter).
-	Limit     int    // Limit caps the number of returned events.
-	Offset    int    // Offset skips this many events before returning results.
+	Search    string     // Search matches resource and actor names case-insensitively (empty for no filter).
+	ActorType string     // ActorType filters by actor type (empty for no filter).
+	Action    string     // Action filters by action (empty for no filter).
+	From      *time.Time // From is an inclusive lower bound on created_at (nil for no lower bound).
+	To        *time.Time // To is an exclusive upper bound on created_at (nil for no upper bound).
+	Limit     int        // Limit caps the number of returned events.
+	Offset    int        // Offset skips this many events before returning results.
 }
 
 // AuditRepository defines the interface for persisting and querying audit events.
@@ -49,6 +52,12 @@ func (r *auditRepository) List(ctx context.Context, filter AuditListFilter) ([]m
 	}
 	if filter.Action != "" {
 		query = query.Where("action = ?", filter.Action)
+	}
+	if filter.From != nil {
+		query = query.Where("created_at >= ?", filter.From.UTC())
+	}
+	if filter.To != nil {
+		query = query.Where("created_at < ?", filter.To.UTC())
 	}
 
 	var total int64
