@@ -72,7 +72,7 @@ func (r *environmentRepository) GetByID(ctx context.Context, environmentID uuid.
 // GetAll retrieves all environments from the database, including their variables.
 func (r *environmentRepository) GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Environment, error) {
 	var environments []model.Environment
-	if err := r.DB.WithContext(ctx).Preload("Variables").Where("project_id = ?", projectID).Find(&environments).Error; err != nil {
+	if err := r.DB.WithContext(ctx).Preload("Variables").Where("project_id = ?", projectID).Order("created_at DESC").Find(&environments).Error; err != nil {
 		return nil, err
 	}
 	return environments, nil
