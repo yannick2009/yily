@@ -59,7 +59,7 @@ func (r *tagRepository) Delete(ctx context.Context, projectID, tagID uuid.UUID) 
 
 // GetAll retrieves all tags of a project from the database.
 func (r *tagRepository) GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Tag, error) {
-	tags, err := gorm.G[model.Tag](r.DB).Where("project_id = ?", projectID).Find(ctx)
+	tags, err := gorm.G[model.Tag](r.DB).Where("project_id = ?", projectID).Order("created_at DESC").Find(ctx)
 	if err != nil {
 		return nil, err
 	}

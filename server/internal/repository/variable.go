@@ -110,7 +110,7 @@ func (r *variableRepository) CountByEnvironmentID(ctx context.Context, environme
 // including their tags and active-value status. Variable names are stored
 // uppercase, so the search term is normalized to match them.
 func (r *variableRepository) List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) {
-	query := r.DB.WithContext(ctx).Preload("Tags").Where("environment_id = ?", environmentID)
+	query := r.DB.WithContext(ctx).Preload("Tags").Where("environment_id = ?", environmentID).Order("created_at DESC")
 
 	if search := strings.ToUpper(strings.TrimSpace(filter.Search)); search != "" {
 		query = query.Where("name LIKE ?", "%"+search+"%")

@@ -65,7 +65,7 @@ func (r *projectRepository) GetByID(ctx context.Context, projectID uuid.UUID) (*
 
 // GetAll retrieves all projects from the database.
 func (r *projectRepository) GetAll(ctx context.Context) ([]model.Project, error) {
-	projects, err := gorm.G[model.Project](r.DB).Find(ctx)
+	projects, err := gorm.G[model.Project](r.DB).Order("created_at DESC").Find(ctx)
 	if err != nil {
 		return nil, err
 	}
