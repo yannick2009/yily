@@ -57,7 +57,7 @@ func (h *authHandler) Setup(c *echo.Context) error {
 
 	user, err := h.authService.Setup(c.Request().Context(), req.Name, req.Email, req.Password)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusCreated, "Super Admin created successfully", user)
@@ -67,10 +67,10 @@ func (h *authHandler) Setup(c *echo.Context) error {
 func (h *authHandler) Login(c *echo.Context) error {
 	var req loginRequest
 	if err := c.Bind(&req); err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid request body", nil)
+		return respondErrorCode(c, http.StatusBadRequest, CodeInvalidRequestBody, "invalid request body")
 	}
 	if strings.TrimSpace(req.Email) == "" || req.Password == "" {
-		return NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrInvalidCredentials.Error(), nil)
+		return respondError(c, services.ErrInvalidCredentials)
 	}
 
 	var existingToken string
@@ -80,10 +80,10 @@ func (h *authHandler) Login(c *echo.Context) error {
 
 	rawToken, session, user, err := h.authService.Login(c.Request().Context(), req.Email, req.Password, existingToken)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	if user == nil {
-		return NewHTTPResponse[any](c, http.StatusInternalServerError, "login returned no user", nil)
+		return respondErrorCode(c, http.StatusInternalServerError, CodeInternal, "login returned no user")
 	}
 
 	maxAge := int(session.ExpiresAt.Sub(session.CreatedAt).Seconds())
@@ -128,7 +128,7 @@ func (h *authHandler) Logout(c *echo.Context) error {
 	})
 
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	_ = h.audit.Record(c.Request().Context(), types.ActionSignedOut, "", uuid.Nil, "")
@@ -140,7 +140,7 @@ func (h *authHandler) Logout(c *echo.Context) error {
 func (h *authHandler) Me(c *echo.Context) error {
 	user, ok := services.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
-		return NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+		return respondError(c, services.ErrUnauthorized)
 	}
 
 	return NewHTTPResponse(c, http.StatusOK, "Authenticated user retrieved successfully", user)
@@ -150,7 +150,7 @@ func (h *authHandler) Me(c *echo.Context) error {
 func (h *authHandler) Status(c *echo.Context) error {
 	initialized, err := h.authService.IsInitialized(c.Request().Context())
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusOK, "Setup status retrieved successfully", struct {

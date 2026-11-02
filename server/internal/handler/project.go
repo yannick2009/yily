@@ -41,7 +41,7 @@ func (h *projectHandler) Create(c *echo.Context) error {
 
 	project, err := h.projectService.Create(c.Request().Context(), req.Name)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusCreated, "Project created successfully", project)
@@ -51,7 +51,7 @@ func (h *projectHandler) Create(c *echo.Context) error {
 func (h *projectHandler) GetAll(c *echo.Context) error {
 	projects, err := h.projectService.GetAll(c.Request().Context())
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusOK, "Projects retrieved successfully", projects)
@@ -66,7 +66,7 @@ func (h *projectHandler) GetByID(c *echo.Context) error {
 
 	project, err := h.projectService.GetByID(c.Request().Context(), id)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusOK, "Project retrieved successfully", project)
@@ -85,7 +85,7 @@ func (h *projectHandler) SetName(c *echo.Context) error {
 	}
 
 	if err := h.projectService.SetName(c.Request().Context(), id, req.Name); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse[any](c, http.StatusOK, "Project name updated successfully", nil)
@@ -99,7 +99,7 @@ func (h *projectHandler) Delete(c *echo.Context) error {
 	}
 
 	if err := h.projectService.Delete(c.Request().Context(), id); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse[any](c, http.StatusOK, "Project deleted successfully", nil)
@@ -108,7 +108,7 @@ func (h *projectHandler) Delete(c *echo.Context) error {
 // Clear handles DELETE /projects.
 func (h *projectHandler) Clear(c *echo.Context) error {
 	if err := h.projectService.Clear(c.Request().Context()); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse[any](c, http.StatusOK, "All projects deleted successfully", nil)

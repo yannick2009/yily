@@ -26,12 +26,12 @@ func NewDashboardHandler(dashboardService services.DashboardService) DashboardHa
 func (h *dashboardHandler) Get(c *echo.Context) error {
 	user, ok := services.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
-		return NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+		return respondError(c, services.ErrUnauthorized)
 	}
 
 	dashboard, err := h.dashboardService.GetDashboard(c.Request().Context(), user.ID)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusOK, "Dashboard retrieved successfully", dashboard)

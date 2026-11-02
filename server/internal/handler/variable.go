@@ -81,7 +81,7 @@ func (h *variableHandler) Create(c *echo.Context) error {
 
 	variable, err := h.variableService.Create(c.Request().Context(), environmentID, req.Name, req.Value)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusCreated, "Variable created successfully", variable)
@@ -98,7 +98,7 @@ func (h *variableHandler) List(c *echo.Context) error {
 
 	tagIDs, err := parseTagIDs(c)
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid tag_ids", nil)
+		return respondErrorCode(c, http.StatusBadRequest, CodeInvalidUUID, "invalid tag_ids")
 	}
 
 	variables, err := h.variableService.List(c.Request().Context(), environmentID, services.VariableListFilter{
@@ -106,7 +106,7 @@ func (h *variableHandler) List(c *echo.Context) error {
 		TagIDs: tagIDs,
 	})
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse(c, http.StatusOK, "Variables retrieved successfully", variables)
 }
@@ -120,7 +120,7 @@ func (h *variableHandler) GetByID(c *echo.Context) error {
 
 	variable, err := h.variableService.GetByID(c.Request().Context(), id)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse(c, http.StatusOK, "Variable retrieved successfully", variable)
 }
@@ -134,7 +134,7 @@ func (h *variableHandler) GetValue(c *echo.Context) error {
 
 	value, err := h.variableService.GetValue(c.Request().Context(), id)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse(c, http.StatusOK, "Variable value retrieved successfully", variableValueResponse{Value: value})
 }
@@ -152,7 +152,7 @@ func (h *variableHandler) SetName(c *echo.Context) error {
 	}
 
 	if err := h.variableService.SetName(c.Request().Context(), id, req.Name); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse[any](c, http.StatusOK, "Variable name updated successfully", nil)
 }
@@ -165,7 +165,7 @@ func (h *variableHandler) Delete(c *echo.Context) error {
 	}
 
 	if err := h.variableService.Delete(c.Request().Context(), id); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse[any](c, http.StatusOK, "Variable deleted successfully", nil)
 }
@@ -183,7 +183,7 @@ func (h *variableHandler) SetTags(c *echo.Context) error {
 	}
 
 	if err := h.variableService.SetTags(c.Request().Context(), id, req.TagIDs); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse[any](c, http.StatusOK, "Variable tags updated successfully", nil)
 }
@@ -202,7 +202,7 @@ func (h *variableHandler) AddVersion(c *echo.Context) error {
 
 	version, err := h.variableService.AddVersion(c.Request().Context(), id, req.Value)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse(c, http.StatusCreated, "Created", version)
 }
@@ -216,7 +216,7 @@ func (h *variableHandler) GetAllVersions(c *echo.Context) error {
 
 	versions, err := h.variableService.GetAllVersions(c.Request().Context(), id)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse(c, http.StatusOK, "OK", versions)
 }
@@ -230,7 +230,7 @@ func (h *variableHandler) GetCurrentVersion(c *echo.Context) error {
 
 	version, err := h.variableService.GetCurrentVersion(c.Request().Context(), id)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse(c, http.StatusOK, "OK", version)
 }
@@ -248,7 +248,7 @@ func (h *variableHandler) SetVersionActive(c *echo.Context) error {
 	}
 
 	if err := h.variableService.SetVersionActive(c.Request().Context(), versionID, req.Active); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse[any](c, http.StatusOK, "Variable version active status updated successfully", nil)
 }
@@ -261,7 +261,7 @@ func (h *variableHandler) ClearValue(c *echo.Context) error {
 	}
 
 	if err := h.variableService.ClearValue(c.Request().Context(), id); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse[any](c, http.StatusOK, "Variable value cleared successfully", nil)
 }

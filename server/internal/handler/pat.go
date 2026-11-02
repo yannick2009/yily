@@ -46,7 +46,7 @@ type CreatePATResponse struct {
 func (h *patHandler) Create(c *echo.Context) error {
 	user, ok := services.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
-		return NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+		return respondError(c, services.ErrUnauthorized)
 	}
 
 	var req createPATRequest
@@ -57,14 +57,14 @@ func (h *patHandler) Create(c *echo.Context) error {
 	var ttl time.Duration
 	if req.ExpiresInDays != nil {
 		if *req.ExpiresInDays <= 0 {
-			return NewHTTPResponse[any](c, http.StatusBadRequest, services.ErrInvalidPATExpiration.Error(), nil)
+			return respondError(c, services.ErrInvalidPATExpiration)
 		}
 		ttl = time.Duration(*req.ExpiresInDays) * 24 * time.Hour
 	}
 
 	rawToken, pat, err := h.patService.Create(c.Request().Context(), user.ID, req.Name, ttl)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	resp := CreatePATResponse{
@@ -83,12 +83,12 @@ func (h *patHandler) Create(c *echo.Context) error {
 func (h *patHandler) GetAll(c *echo.Context) error {
 	user, ok := services.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
-		return NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+		return respondError(c, services.ErrUnauthorized)
 	}
 
 	pats, err := h.patService.GetAll(c.Request().Context(), user.ID)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusOK, "Personal access tokens retrieved successfully", pats)
@@ -98,7 +98,7 @@ func (h *patHandler) GetAll(c *echo.Context) error {
 func (h *patHandler) Revoke(c *echo.Context) error {
 	user, ok := services.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
-		return NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+		return respondError(c, services.ErrUnauthorized)
 	}
 
 	id, ok := uuidParam(c, "id")
@@ -107,7 +107,7 @@ func (h *patHandler) Revoke(c *echo.Context) error {
 	}
 
 	if err := h.patService.Revoke(c.Request().Context(), user.ID, id); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse[any](c, http.StatusOK, "Personal access token revoked successfully", nil)

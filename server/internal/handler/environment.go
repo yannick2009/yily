@@ -64,7 +64,7 @@ func (h *environmentHandler) Create(c *echo.Context) error {
 
 	environment, err := h.environmentService.Create(c.Request().Context(), projectID, req.Name, req.Description)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusCreated, "Environment created successfully", environment)
@@ -79,7 +79,7 @@ func (h *environmentHandler) GetAll(c *echo.Context) error {
 
 	environments, err := h.environmentService.GetAll(c.Request().Context(), projectID)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusOK, "Environments retrieved successfully", environments)
@@ -94,7 +94,7 @@ func (h *environmentHandler) GetByID(c *echo.Context) error {
 
 	environment, err := h.environmentService.GetByID(c.Request().Context(), id)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusOK, "Environment retrieved successfully", environment)
@@ -113,7 +113,7 @@ func (h *environmentHandler) SetName(c *echo.Context) error {
 	}
 
 	if err := h.environmentService.SetName(c.Request().Context(), id, req.Name); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse[any](c, http.StatusOK, "Environment name updated successfully", nil)
@@ -132,7 +132,7 @@ func (h *environmentHandler) SetDescription(c *echo.Context) error {
 	}
 
 	if err := h.environmentService.SetDescription(c.Request().Context(), id, req.Description); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse[any](c, http.StatusOK, "Environment description updated successfully", nil)
@@ -146,7 +146,7 @@ func (h *environmentHandler) Delete(c *echo.Context) error {
 	}
 
 	if err := h.environmentService.Delete(c.Request().Context(), id); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse[any](c, http.StatusOK, "Environment deleted successfully", nil)
@@ -162,30 +162,30 @@ func (h *environmentHandler) Import(c *echo.Context) error {
 	// Parse the multipart form data
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, "Failed to parse multipart form data", nil)
+		return respondErrorCode(c, http.StatusBadRequest, CodeFileParseFailed, "Failed to parse multipart form data")
 	}
 
 	// Check the file extension
 	fileType, err := types.FromFilename(fileHeader.Filename)
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	// Get the file from the form data
 	file, err := fileHeader.Open()
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusInternalServerError, "Failed to open uploaded file", nil)
+		return respondErrorCode(c, http.StatusInternalServerError, CodeFileOpenFailed, "Failed to open uploaded file")
 	}
 	defer func() { _ = file.Close() }()
 
 	contentByte, err := io.ReadAll(file)
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusInternalServerError, "Failed to read uploaded file", nil)
+		return respondErrorCode(c, http.StatusInternalServerError, CodeFileReadFailed, "Failed to read uploaded file")
 	}
 
 	// Call the variableService to import variables from the uploaded file
 	if err := h.variableService.Import(c.Request().Context(), id, contentByte, fileType); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse[any](c, http.StatusOK, "Variables imported successfully", nil)
@@ -200,17 +200,17 @@ func (h *environmentHandler) Export(c *echo.Context) error {
 
 	fileType, err := types.FromString(c.QueryParam("format"))
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, "unsupported or missing format", nil)
+		return respondErrorCode(c, http.StatusBadRequest, CodeFileUnsupportedType, "unsupported or missing format")
 	}
 
 	environment, err := h.environmentService.GetByID(c.Request().Context(), id)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	content, err := h.variableService.Export(c.Request().Context(), id, fileType)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	filename := exportFilename(environment.Name, fileType)
