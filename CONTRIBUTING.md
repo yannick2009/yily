@@ -46,6 +46,12 @@ Start the client and server from the repository root:
 just start
 ```
 
+Run the linters often while you work, and always before pushing. This formats the client, formats and vets the server, and catches most issues before CI does:
+
+```bash
+just lint   # or the alias: just l
+```
+
 Before opening a pull request, run the server checks:
 
 ```bash

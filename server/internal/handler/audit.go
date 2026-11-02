@@ -51,7 +51,7 @@ func (h *auditHandler) List(c *echo.Context) error {
 
 	list, err := h.auditService.List(c.Request().Context(), filter)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	return NewHTTPResponse(c, http.StatusOK, "Audit log retrieved successfully", list)

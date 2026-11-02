@@ -1,6 +1,7 @@
 import { createResource, createSignal, For, Show } from "solid-js";
 import { tokens } from "../api";
 import { locale, t } from "../lib/i18n";
+import { errorMessage } from "../lib/errors";
 import type { Token } from "../types";
 import { Button, Card, Icon, Input } from "../components/ui";
 import { Dialog, EmptyState, Field } from "../components/shared";
@@ -45,7 +46,7 @@ export function TokensRoute() {
       setName("");
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.save"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -72,7 +73,7 @@ export function TokensRoute() {
       setDeleting(null);
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.delete"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }

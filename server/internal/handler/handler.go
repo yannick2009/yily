@@ -14,10 +14,13 @@ import (
 )
 
 // HTTPResponse is the standard JSON envelope used for every API response.
+// On errors, `Code` carries a stable machine-readable identifier so clients
+// can localise the message; it stays empty on successful responses.
 type HTTPResponse[T any] struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-	Data    T      `json:"data,omitempty"`
+	Status  int       `json:"status"`
+	Code    ErrorCode `json:"code,omitempty"`
+	Message string    `json:"message"`
+	Data    T         `json:"data,omitempty"`
 }
 
 // NewHTTPResponse sends a standardized JSON response.
@@ -25,15 +28,36 @@ func NewHTTPResponse[T any](c *echo.Context, status int, message string, data T)
 	return c.JSON(status, HTTPResponse[T]{Status: status, Message: message, Data: data})
 }
 
+// respondError sends a standardized error response, pairing a stable code
+// (looked up from the sentinel error) with the original English message.
+func respondError(c *echo.Context, err error) error {
+	status := httpStatus(err)
+	return c.JSON(status, HTTPResponse[any]{
+		Status:  status,
+		Code:    codeFor(err),
+		Message: err.Error(),
+	})
+}
+
+// respondErrorCode is for non-sentinel error paths where we want a stable code
+// anyway (parsing a multipart form, parsing a UUID path param, …).
+func respondErrorCode(c *echo.Context, status int, code ErrorCode, message string) error {
+	return c.JSON(status, HTTPResponse[any]{
+		Status:  status,
+		Code:    code,
+		Message: message,
+	})
+}
+
 // bindAndValidate binds the request body into req, then validates it using the
 // registered validator. On failure it replies 400 and returns false.
 func bindAndValidate(c *echo.Context, req any) bool {
 	if err := c.Bind(req); err != nil {
-		_ = NewHTTPResponse[any](c, http.StatusBadRequest, "invalid request body", nil)
+		_ = respondErrorCode(c, http.StatusBadRequest, CodeInvalidRequestBody, "invalid request body")
 		return false
 	}
 	if err := c.Validate(req); err != nil {
-		_ = NewHTTPResponse[any](c, http.StatusBadRequest, err.Error(), nil)
+		_ = respondErrorCode(c, http.StatusBadRequest, CodeValidationFailed, err.Error())
 		return false
 	}
 	return true
@@ -84,7 +108,7 @@ func httpStatus(err error) int {
 func uuidParam(c *echo.Context, name string) (uuid.UUID, bool) {
 	id, err := uuid.Parse(c.Param(name))
 	if err != nil {
-		_ = NewHTTPResponse[any](c, http.StatusBadRequest, "invalid "+name, nil)
+		_ = respondErrorCode(c, http.StatusBadRequest, CodeInvalidUUID, "invalid "+name)
 		return uuid.Nil, false
 	}
 	return id, true

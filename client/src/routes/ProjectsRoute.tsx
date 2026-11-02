@@ -3,6 +3,7 @@ import { createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { projects } from "../api";
 import { plural, t } from "../lib/i18n";
+import { errorMessage } from "../lib/errors";
 import { Button, Card, Icon, Input } from "../components/ui";
 import { Dialog, EmptyState, Field } from "../components/shared";
 
@@ -36,7 +37,7 @@ export function ProjectsRoute() {
       await refetch();
       navigate(`/projects/${created.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.delete"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -52,7 +53,7 @@ export function ProjectsRoute() {
       setDeleting(null);
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.delete"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }

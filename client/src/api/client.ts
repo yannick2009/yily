@@ -10,20 +10,25 @@
 // /api → http://localhost:16529 in development.
 const BASE_URL = "/api/v1";
 
-// ApiError is thrown for any non-2xx response.
-class ApiError extends Error {
+// ApiError is thrown for any non-2xx response. `code` is a stable
+// server-side identifier (e.g. "AUTH_INVALID_CREDENTIALS") used by the UI to
+// translate the error; it may be undefined for unknown or legacy errors.
+export class ApiError extends Error {
   readonly status: number;
+  readonly code: string | undefined;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
 // Envelope is the shape of every JSON response from the server.
 interface Envelope<T> {
   status: number;
+  code?: string;
   message: string;
   data: T;
 }
@@ -63,7 +68,11 @@ export async function request<T>(method: string, path: string, init: RequestInit
   const envelope = await parseEnvelope<T>(res);
 
   if (!res.ok) {
-    throw new ApiError(res.status, envelope?.message ?? `Request failed (${res.status})`);
+    throw new ApiError(
+      res.status,
+      envelope?.message ?? `Request failed (${res.status})`,
+      envelope?.code,
+    );
   }
 
   return envelope?.data as T;
@@ -80,7 +89,11 @@ export async function requestRaw(path: string, init: RequestInit = {}): Promise<
 
   if (!res.ok) {
     const envelope = await parseEnvelope<unknown>(res);
-    throw new ApiError(res.status, envelope?.message ?? `Request failed (${res.status})`);
+    throw new ApiError(
+      res.status,
+      envelope?.message ?? `Request failed (${res.status})`,
+      envelope?.code,
+    );
   }
 
   return res;

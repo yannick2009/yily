@@ -43,7 +43,7 @@ func (h *tagHandler) Create(c *echo.Context) error {
 
 	tag, err := h.tagService.Create(c.Request().Context(), projectID, req.Name)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse(c, http.StatusCreated, "Created", tag)
 }
@@ -57,7 +57,7 @@ func (h *tagHandler) GetAll(c *echo.Context) error {
 
 	tags, err := h.tagService.GetAll(c.Request().Context(), projectID)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse(c, http.StatusOK, "Tags retrieved successfully", tags)
 }
@@ -74,7 +74,7 @@ func (h *tagHandler) Delete(c *echo.Context) error {
 	}
 
 	if err := h.tagService.Delete(c.Request().Context(), projectID, tagID); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 	return NewHTTPResponse[any](c, http.StatusOK, "Tag deleted successfully", nil)
 }
