@@ -3,6 +3,7 @@ import { createEffect, createMemo, createResource, createSignal, For, Show } fro
 import { A, useParams } from "@solidjs/router";
 import { environments, tags, variables } from "../api";
 import { locale, t } from "../lib/i18n";
+import { errorMessage } from "../lib/errors";
 import { createRevealController } from "../lib/reveal";
 import { normalizeVariableName } from "../lib/variable";
 import { Badge, Button, Card, Icon, Input, Textarea } from "../components/ui";
@@ -85,7 +86,7 @@ export function VariableDetailRoute() {
       reveal.hide("current");
       await refetchVersions();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.save"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -111,7 +112,7 @@ export function VariableDetailRoute() {
         await variables.rename(variableId(), n);
         await refetchVariable();
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("common.save"));
+        setError(errorMessage(err));
       }
     }
     setRenaming(false);
@@ -138,7 +139,7 @@ export function VariableDetailRoute() {
       setTagsOpen(false);
       await refetchVariable();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.save"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -156,7 +157,7 @@ export function VariableDetailRoute() {
       reveal.hide("current");
       await refetchVersions();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.delete"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -169,7 +170,7 @@ export function VariableDetailRoute() {
       await variables.setVersionActive(variableId(), versionId, active);
       await refetchVersions();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.save"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }

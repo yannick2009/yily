@@ -3,6 +3,7 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { A, useNavigate, useParams } from "@solidjs/router";
 import { environments, projects, tags } from "../api";
 import { plural, t } from "../lib/i18n";
+import { errorMessage } from "../lib/errors";
 import { Button, Icon, Input, Textarea } from "../components/ui";
 import { Dialog, EmptyState, Field } from "../components/shared";
 
@@ -42,7 +43,7 @@ export function ProjectDetailRoute() {
         await projects.rename(projectId(), n);
         await refetchProject();
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("common.save"));
+        setError(errorMessage(err));
       }
     }
     setRenaming(false);
@@ -72,7 +73,7 @@ export function ProjectDetailRoute() {
       setEnvOpen(false);
       await refetchEnvs();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.save"));
+      setError(errorMessage(err));
     } finally {
       setEnvBusy(false);
     }
@@ -93,7 +94,7 @@ export function ProjectDetailRoute() {
       setTagOpen(false);
       await refetchTags();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.save"));
+      setError(errorMessage(err));
     } finally {
       setTagBusy(false);
     }
@@ -119,7 +120,7 @@ export function ProjectDetailRoute() {
       setDeletingEnv(null);
       await refetchEnvs();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.delete"));
+      setError(errorMessage(err));
     } finally {
       setDeleteBusy(false);
     }
@@ -134,7 +135,7 @@ export function ProjectDetailRoute() {
       setDeletingTag(null);
       await refetchTags();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.delete"));
+      setError(errorMessage(err));
     } finally {
       setDeleteBusy(false);
     }

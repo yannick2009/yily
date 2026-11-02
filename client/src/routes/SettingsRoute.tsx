@@ -4,6 +4,7 @@ import { projects } from "../api";
 import { Button, Icon } from "../components/ui";
 import { Dialog } from "../components/shared";
 import { LANGUAGES, applyLang, lang, t, type LangCode } from "../lib/i18n";
+import { errorMessage } from "../lib/errors";
 
 export function SettingsRoute() {
   const [clearAllOpen, setClearAllOpen] = createSignal(false);
@@ -23,7 +24,7 @@ export function SettingsRoute() {
       setClearAllOpen(false);
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.delete"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }

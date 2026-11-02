@@ -3,6 +3,7 @@ import { createEffect, createResource, createSignal, For, Show, onCleanup } from
 import { A, useParams } from "@solidjs/router";
 import { environments, projects, tags, variables } from "../api";
 import { t } from "../lib/i18n";
+import { errorMessage } from "../lib/errors";
 import { createRevealController } from "../lib/reveal";
 import { normalizeVariableName } from "../lib/variable";
 import { Badge, Button, Icon, Input, Textarea } from "../components/ui";
@@ -101,7 +102,7 @@ export function EnvironmentRoute() {
       setCreateOpen(false);
       await refetchVars();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.save"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -119,7 +120,7 @@ export function EnvironmentRoute() {
       setDeleting(null);
       await refetchVars();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.delete"));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -145,7 +146,7 @@ export function EnvironmentRoute() {
         await environments.rename(envId(), n);
         await refetchEnv();
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("common.save"));
+        setError(errorMessage(err));
       }
     }
     setRenaming(false);
@@ -175,7 +176,7 @@ export function EnvironmentRoute() {
         await environments.setDescription(envId(), d);
         await refetchEnv();
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("common.save"));
+        setError(errorMessage(err));
       }
     }
     setEditingDesc(false);
@@ -219,7 +220,7 @@ export function EnvironmentRoute() {
       setImportOpen(false);
       await refetchVars();
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : t("env.importInvalid"));
+      setImportError(errorMessage(err));
     } finally {
       setImportBusy(false);
     }
@@ -256,7 +257,7 @@ export function EnvironmentRoute() {
       downloadBlob(blob, filename);
       setExportOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.save"));
+      setError(errorMessage(err));
     } finally {
       setExportBusy(false);
     }

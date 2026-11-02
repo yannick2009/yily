@@ -3,6 +3,7 @@ import { useNavigate } from "@solidjs/router";
 import { Button, Icon, Input } from "../components/ui";
 import { Field } from "../components/shared";
 import { t } from "../lib/i18n";
+import { errorMessage } from "../lib/errors";
 import { cycleTheme, theme } from "../lib/theme";
 import { login } from "../store";
 
@@ -28,7 +29,7 @@ export function LoginRoute() {
       await login(em, password());
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("login.error"));
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
