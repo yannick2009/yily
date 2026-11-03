@@ -31,11 +31,33 @@ export function EnvironmentRoute() {
   };
   onCleanup(() => clearTimeout(searchTimer));
 
+  // Server-side sort: two independent axes (column + direction). Clicking the
+  // active pill toggles the direction; clicking the inactive one switches the
+  // column while preserving the direction.
+  type SortField = "name" | "created_at";
+  type SortOrder = "asc" | "desc";
+  const [sortField, setSortField] = createSignal<SortField>("name");
+  const [sortOrder, setSortOrder] = createSignal<SortOrder>("asc");
+  const onSortClick = (field: SortField) => {
+    if (sortField() === field) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+    }
+  };
+
   const [envRes, { refetch: refetchEnv }] = createResource(() => environments.get(envId()));
   const [projectRes] = createResource(() => projects.get(projectId()));
   const [varsRes, { refetch: refetchVars }] = createResource(
-    () => ({ envId: envId(), tagIds: selectedTags(), search: debouncedQuery() }),
-    ({ envId, tagIds, search }) => variables.list(envId, { tagIds, search }),
+    () => ({
+      envId: envId(),
+      tagIds: selectedTags(),
+      search: debouncedQuery(),
+      sort: sortField(),
+      order: sortOrder(),
+    }),
+    ({ envId, tagIds, search, sort, order }) =>
+      variables.list(envId, { tagIds, search, sort, order }),
   );
   const [tagsRes] = createResource(() => tags.list(projectId()));
 
@@ -363,16 +385,37 @@ export function EnvironmentRoute() {
 
           <Show when={hasVariables()}>
             <div class="mb-4 space-y-3">
-              <div class="relative w-full sm:w-72">
-                <Input
-                  value={query()}
-                  onInput={onSearchInput}
-                  placeholder={t("env.searchPlaceholder")}
-                  style={{ "padding-left": "2.5rem" }}
-                />
-                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-ink-faint">
-                  <Icon name="search" size={16} />
-                </span>
+              <div class="flex flex-wrap items-center gap-3">
+                <div class="relative w-full sm:w-72">
+                  <Input
+                    value={query()}
+                    onInput={onSearchInput}
+                    placeholder={t("env.searchPlaceholder")}
+                    style={{ "padding-left": "2.5rem" }}
+                  />
+                  <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-ink-faint">
+                    <Icon name="search" size={16} />
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-medium uppercase tracking-wide text-ink-faint">
+                    {t("env.sortBy")}
+                  </span>
+                  <div class="flex items-center gap-2" role="group" aria-label={t("env.sortBy")}>
+                    <SortPill
+                      label={t("env.sortName")}
+                      active={sortField() === "name"}
+                      order={sortOrder()}
+                      onClick={() => onSortClick("name")}
+                    />
+                    <SortPill
+                      label={t("env.sortDate")}
+                      active={sortField() === "created_at"}
+                      order={sortOrder()}
+                      onClick={() => onSortClick("created_at")}
+                    />
+                  </div>
+                </div>
               </div>
               <Show when={tagList().length > 0}>
                 <div class="flex flex-wrap items-center gap-2">
@@ -446,12 +489,19 @@ export function EnvironmentRoute() {
                         return (
                           <tr class="border-t border-line first:border-t-0">
                             <td class="py-3 pl-4 pr-4 align-top">
-                              <A
-                                href={`/projects/${projectId()}/environments/${envId()}/variables/${v.id}`}
-                                class="font-mono text-sm text-ink hover:text-brand hover:underline"
-                              >
-                                {v.name}
-                              </A>
+                              <div class="flex items-center gap-2">
+                                <A
+                                  href={`/projects/${projectId()}/environments/${envId()}/variables/${v.id}`}
+                                  class="font-mono text-sm text-ink hover:text-brand hover:underline"
+                                >
+                                  {v.name}
+                                </A>
+                                <Show when={!v.active}>
+                                  <span class="shrink-0 rounded-md bg-warning-subtle px-1.5 py-0.5 text-xs font-medium text-warning">
+                                    {t("variable.needsValue")}
+                                  </span>
+                                </Show>
+                              </div>
                             </td>
                             <td class="py-3 pl-4 pr-4 text-center align-top">
                               <span
@@ -465,12 +515,17 @@ export function EnvironmentRoute() {
                             <td class="py-3 pr-4 align-top">
                               <div class="flex items-center gap-2">
                                 <code
-                                  class="min-w-0 flex-1 truncate font-mono text-sm text-ink-muted"
+                                  class={[
+                                    "min-w-0 flex-1 truncate font-mono text-sm",
+                                    v.active ? "text-ink-muted" : "text-ink-faint",
+                                  ].join(" ")}
                                   title={revealed() ? currentValue() || undefined : undefined}
                                 >
-                                  {revealed()
-                                    ? truncateMiddle(currentValue() || t("env.noValue"))
-                                    : "••••••••••"}
+                                  {!v.active
+                                    ? "– – – – –"
+                                    : revealed()
+                                      ? truncateMiddle(currentValue() || t("env.noValue"))
+                                      : "••••••••••"}
                                 </code>
                                 <Show when={revealed() && remaining() > 0}>
                                   <RevealCountdown seconds={remaining()} />
@@ -489,20 +544,24 @@ export function EnvironmentRoute() {
                                 <button
                                   type="button"
                                   onClick={() => toggleReveal(v.id)}
-                                  class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink"
+                                  disabled={!v.active}
+                                  class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-muted"
                                   aria-label={
                                     revealed()
                                       ? t("env.hideAria", { name: v.name })
                                       : t("env.revealAria", { name: v.name })
                                   }
+                                  title={!v.active ? t("variable.needsValue") : undefined}
                                 >
                                   <Icon name={revealed() ? "eye-off" : "eye"} size={15} />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => copy(v.id)}
-                                  class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink"
+                                  disabled={!v.active}
+                                  class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-muted"
                                   aria-label={t("env.copyAria", { name: v.name })}
+                                  title={!v.active ? t("variable.needsValue") : undefined}
                                 >
                                   <Icon name={copiedId() === v.id ? "check" : "copy"} size={15} />
                                 </button>
@@ -707,4 +766,33 @@ function downloadBlob(blob: Blob, filename: string): void {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+// SortPill renders one column of the sort control. Clicking the active pill
+// toggles the direction (indicated by the arrow); clicking the inactive one
+// switches the sort column while preserving the current direction.
+function SortPill(props: {
+  label: string;
+  active: boolean;
+  order: "asc" | "desc";
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      aria-pressed={props.active}
+      class={[
+        "inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+        props.active
+          ? "border-brand bg-brand-subtle text-brand"
+          : "border-line bg-surface text-ink-muted hover:border-ink-faint hover:text-ink",
+      ].join(" ")}
+    >
+      {props.label}
+      <Show when={props.active}>
+        <span aria-hidden="true">{props.order === "asc" ? "↑" : "↓"}</span>
+      </Show>
+    </button>
+  );
 }

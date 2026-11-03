@@ -2,14 +2,22 @@
 import { request } from "./client";
 import type { Variable, VariableVersion } from "../types";
 
-// Options for listing variables: both filters are applied server-side.
+// VariableSortField is a server-accepted sort column; mirrors the backend whitelist.
+export type VariableSortField = "name" | "created_at";
+// VariableSortOrder is a server-accepted sort direction.
+export type VariableSortOrder = "asc" | "desc";
+
+// Options for listing variables: filters and sort are applied server-side.
 export interface ListVariablesOptions {
   tagIds?: string[];
   search?: string;
+  sort?: VariableSortField;
+  order?: VariableSortOrder;
 }
 
 // list returns the variables of an environment, optionally filtered by tags
-// and/or a case-insensitive substring match on the name (both server-side).
+// and/or a case-insensitive substring match on the name, and sorted by the
+// requested column and direction (defaults to name ascending server-side).
 export async function list(
   environmentId: string,
   options: ListVariablesOptions = {},
@@ -17,6 +25,8 @@ export async function list(
   const params = new URLSearchParams();
   if (options.tagIds?.length) params.set("tag_ids", options.tagIds.join(","));
   if (options.search?.trim()) params.set("search", options.search.trim());
+  if (options.sort) params.set("sort", options.sort);
+  if (options.order) params.set("order", options.order);
   const query = params.toString();
   return (
     (await request<Variable[]>(
