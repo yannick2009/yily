@@ -34,6 +34,7 @@ var ErrEnvironmentDescriptionTooLong = errors.New("environment description must 
 // EnvironmentService defines the interface for environment business logic.
 type EnvironmentService interface {
 	Create(ctx context.Context, projectID uuid.UUID, name, description string) (*model.Environment, error) // Create creates a new environment.
+	Clone(ctx context.Context, sourceEnvironmentID uuid.UUID, newName string, copyTags bool) error         // Clone creates a new environment in the same project with the source's variable names (and optionally tags) but no values; audit entries are recorded for the new environment and each copied variable.
 	GetByID(ctx context.Context, environmentID uuid.UUID) (*model.Environment, error)                      // GetByID retrieves an environment by its ID.
 	GetAll(ctx context.Context, projectID uuid.UUID) ([]EnvironmentDTO, error)                             // GetAll retrieves all environments of a project with their variable counts.
 	SetName(ctx context.Context, environmentID uuid.UUID, name string) error                               // SetName updates the name of an environment.
@@ -71,6 +72,48 @@ func (s *environmentService) Create(ctx context.Context, projectID uuid.UUID, na
 	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceEnvironment, environment.ID, environment.Name)
 
 	return environment, nil
+}
+
+// Clone creates a new environment in the same project as the source and copies every variable structure (name, and optionally tags). Values are not copied; cloned variables have no versions and therefore show Active=false until a value is set.
+func (s *environmentService) Clone(ctx context.Context, sourceEnvironmentID uuid.UUID, newName string, copyTags bool) error {
+	source, err := s.environmentRepository.GetByID(ctx, sourceEnvironmentID)
+	if err != nil {
+		return err
+	}
+
+	target, err := s.Create(ctx, source.ProjectID, newName, source.Description)
+	if err != nil {
+		return err
+	}
+
+	variables, err := s.variableRepository.List(ctx, source.ID, repository.VariableListFilter{})
+	if err != nil {
+		return err
+	}
+
+	for _, src := range variables {
+		clone := &model.Variable{
+			Name:          src.Name,
+			EnvironmentID: target.ID,
+		}
+		if err := s.variableRepository.Create(ctx, clone); err != nil {
+			return err
+		}
+
+		if copyTags && len(src.Tags) > 0 {
+			tagIDs := make([]uuid.UUID, 0, len(src.Tags))
+			for _, tag := range src.Tags {
+				tagIDs = append(tagIDs, tag.ID)
+			}
+			if err := s.variableRepository.SetTags(ctx, clone.ID, tagIDs); err != nil {
+				return err
+			}
+		}
+
+		_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceVariable, clone.ID, clone.Name)
+	}
+
+	return nil
 }
 
 // GetByID retrieves an environment by its ID.

@@ -13,6 +13,7 @@ import (
 // EnvironmentHandler defines the interface for handling HTTP requests related to environments.
 type EnvironmentHandler interface {
 	Create(c *echo.Context) error
+	Clone(c *echo.Context) error
 	GetAll(c *echo.Context) error
 	GetByID(c *echo.Context) error
 	SetName(c *echo.Context) error
@@ -48,6 +49,31 @@ type updateEnvironmentNameRequest struct {
 // The description may be empty, which clears it.
 type updateEnvironmentDescriptionRequest struct {
 	Description string `json:"description"`
+}
+
+// cloneEnvironmentRequest represents the expected JSON body for cloning an environment.
+type cloneEnvironmentRequest struct {
+	Name     string `json:"name" validate:"required"`
+	CopyTags bool   `json:"copy_tags"`
+}
+
+// Clone handles POST /environments/:id/clone. The new environment lives in the same project; variables are duplicated by name only (no values).
+func (h *environmentHandler) Clone(c *echo.Context) error {
+	id, ok := uuidParam(c, "id")
+	if !ok {
+		return nil
+	}
+
+	var req cloneEnvironmentRequest
+	if !bindAndValidate(c, &req) {
+		return nil
+	}
+
+	if err := h.environmentService.Clone(c.Request().Context(), id, req.Name, req.CopyTags); err != nil {
+		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+	}
+
+	return NewHTTPResponse[any](c, http.StatusCreated, "Environment cloned successfully", nil)
 }
 
 // Create handles POST /projects/:projectID/environments.

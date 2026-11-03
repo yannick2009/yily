@@ -116,6 +116,7 @@ func main() {
 	routes.PATCH("/environments/:id/name", environmentHandler.SetName)
 	routes.PATCH("/environments/:id/description", environmentHandler.SetDescription)
 	routes.DELETE("/environments/:id", environmentHandler.Delete)
+	routes.POST("/environments/:id/clone", environmentHandler.Clone)
 	routes.POST("/environments/:id/imports", environmentHandler.Import)
 	routes.GET("/environments/:id/export", environmentHandler.Export)
 
