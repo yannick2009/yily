@@ -1,5 +1,5 @@
 // Projects list with create and delete dialogs.
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { projects } from "../api";
 import { plural, t } from "../lib/i18n";
@@ -19,6 +19,12 @@ export function ProjectsRoute() {
     id: string;
     name: string;
   } | null>(null);
+  // Confirmation text for the delete dialog; reset whenever it opens or closes.
+  const [confirmText, setConfirmText] = createSignal("");
+  createEffect(() => {
+    deleting();
+    setConfirmText("");
+  });
 
   // Navigate to the project detail page when a project is clicked.
   const openProject = (id: string) => navigate(`/projects/${id}`);
@@ -46,6 +52,7 @@ export function ProjectsRoute() {
   const confirmDelete = async () => {
     const d = deleting();
     if (!d) return;
+    if (confirmText().trim() !== d.name) return;
     setBusy(true);
     setError(null);
     try {
@@ -185,7 +192,12 @@ export function ProjectsRoute() {
             <Button variant="secondary" onClick={() => setDeleting(null)}>
               {t("common.cancel")}
             </Button>
-            <Button variant="danger" onClick={confirmDelete} loading={busy()}>
+            <Button
+              variant="danger"
+              onClick={confirmDelete}
+              loading={busy()}
+              disabled={confirmText().trim() !== (deleting()?.name ?? "")}
+            >
               {t("common.delete")}
             </Button>
           </>
@@ -194,6 +206,13 @@ export function ProjectsRoute() {
         <p class="text-sm text-ink-muted">
           {t("projects.deleteConfirm", { name: deleting()?.name ?? "" })}
         </p>
+        <div class="mt-4 space-y-1.5">
+          <span class="block text-sm font-medium text-ink">{t("common.confirmTypeName")}</span>
+          <code class="inline-block rounded-md bg-brand-subtle px-2 py-1 font-mono text-sm text-brand">
+            {deleting()?.name ?? ""}
+          </code>
+          <Input value={confirmText()} onInput={(e) => setConfirmText(e.currentTarget.value)} />
+        </div>
         <Show when={error()}>
           <p class="mt-3 text-sm text-danger">{error()}</p>
         </Show>

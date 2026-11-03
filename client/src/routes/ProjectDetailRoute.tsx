@@ -145,10 +145,17 @@ export function ProjectDetailRoute() {
     name: string;
   } | null>(null);
   const [deleteBusy, setDeleteBusy] = createSignal(false);
+  // Confirmation text for the environment delete dialog; reset on open/close.
+  const [confirmEnvText, setConfirmEnvText] = createSignal("");
+  createEffect(() => {
+    deletingEnv();
+    setConfirmEnvText("");
+  });
 
   const confirmDeleteEnv = async () => {
     const d = deletingEnv();
     if (!d) return;
+    if (confirmEnvText().trim() !== d.name) return;
     setDeleteBusy(true);
     try {
       await environments.remove(d.id);
@@ -496,7 +503,12 @@ export function ProjectDetailRoute() {
               <Button variant="secondary" onClick={() => setDeletingEnv(null)}>
                 {t("common.cancel")}
               </Button>
-              <Button variant="danger" onClick={confirmDeleteEnv} loading={deleteBusy()}>
+              <Button
+                variant="danger"
+                onClick={confirmDeleteEnv}
+                loading={deleteBusy()}
+                disabled={confirmEnvText().trim() !== (deletingEnv()?.name ?? "")}
+              >
                 {t("common.delete")}
               </Button>
             </>
@@ -507,6 +519,16 @@ export function ProjectDetailRoute() {
               name: deletingEnv()?.name ?? "",
             })}
           </p>
+          <div class="mt-4 space-y-1.5">
+            <span class="block text-sm font-medium text-ink">{t("common.confirmTypeName")}</span>
+            <code class="inline-block rounded-md bg-brand-subtle px-2 py-1 font-mono text-sm text-brand">
+              {deletingEnv()?.name ?? ""}
+            </code>
+            <Input
+              value={confirmEnvText()}
+              onInput={(e) => setConfirmEnvText(e.currentTarget.value)}
+            />
+          </div>
           <Show when={error()}>
             <p class="mt-3 text-sm text-danger">{error()}</p>
           </Show>
