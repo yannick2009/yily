@@ -14,6 +14,7 @@ export type IconName =
   | "download"
   | "x"
   | "chevron-right"
+  | "chevron-left"
   | "arrow-left"
   | "check"
   | "refresh"
@@ -71,6 +72,7 @@ const icons: Record<IconName, readonly string[]> = {
   ],
   x: ["M6 18 18 6M6 6l12 12"],
   "chevron-right": ["m8.25 4.5 7.5 7.5-7.5 7.5"],
+  "chevron-left": ["m15.75 19.5-7.5-7.5 7.5-7.5"],
   "arrow-left": ["M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"],
   check: ["m4.5 12.75 6 6 9-13.5"],
   refresh: [

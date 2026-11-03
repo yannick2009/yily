@@ -1,10 +1,10 @@
 // Audit log: a read-only history of actions across projects, variables and tokens.
-import { createResource, createSignal, For, Show, onCleanup } from "solid-js";
+import { createEffect, createResource, createSignal, For, Show, onCleanup } from "solid-js";
 import { audit } from "../api";
 import { currentUser } from "../store";
 import { locale, t } from "../lib/i18n";
 import type { AuditEvent } from "../types";
-import { Badge, Icon, Input } from "../components/ui";
+import { Badge, Button, Icon, Input } from "../components/ui";
 import { Dialog, EmptyState } from "../components/shared";
 
 const ACTIONS = [
@@ -18,6 +18,10 @@ const ACTIONS = [
   "signed_in",
   "signed_out",
 ];
+
+// Page size for the audit log listing. It matches the server's default page
+// size so a "page" means the same thing on both sides.
+const PAGE_SIZE = 50;
 
 export function AuditRoute() {
   const [query, setQuery] = createSignal("");
@@ -40,20 +44,42 @@ export function AuditRoute() {
 
   onCleanup(() => clearTimeout(searchTimer));
 
+  // Pagination state. Any change to a filter returns the list to the first page
+  // before the next fetch, so a stale page number never produces an empty view.
+  const [page, setPage] = createSignal(1);
+  createEffect(() => {
+    action();
+    debouncedQuery();
+    from();
+    to();
+    setPage(1);
+  });
+
   // Fetch the filtered audit events from the server. The query is debounced to avoid
   // sending a request on every keystroke. The action filter is applied immediately.
   const [eventsRes] = createResource(
-    () => ({ action: action(), search: debouncedQuery(), from: from(), to: to() }),
-    ({ action: actionFilter, search, from: fromDate, to: toDate }) =>
+    () => ({
+      action: action(),
+      search: debouncedQuery(),
+      from: from(),
+      to: to(),
+      page: page(),
+    }),
+    ({ action: actionFilter, search, from: fromDate, to: toDate, page: p }) =>
       audit.list({
         action: actionFilter === "all" ? undefined : actionFilter,
         search: search.trim() || undefined,
         from: fromDate || undefined,
         to: toDate || undefined,
-        limit: 100,
+        limit: PAGE_SIZE,
+        offset: (p - 1) * PAGE_SIZE,
       }),
   );
   const events = () => eventsRes()?.events ?? [];
+  const total = () => eventsRes()?.total ?? 0;
+  const totalPages = () => Math.max(1, Math.ceil(total() / PAGE_SIZE));
+  const showingFrom = () => (total() === 0 ? 0 : (page() - 1) * PAGE_SIZE + 1);
+  const showingTo = () => Math.min(page() * PAGE_SIZE, total());
 
   return (
     <div>
@@ -200,6 +226,37 @@ export function AuditRoute() {
                 </For>
               </tbody>
             </table>
+          </div>
+
+          <div class="mt-3 flex items-center justify-between gap-4">
+            <p class="text-sm text-ink-muted">
+              {t("audit.showing", { from: showingFrom(), to: showingTo(), total: total() })}
+            </p>
+            <Show when={totalPages() > 1}>
+              <div class="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon="chevron-left"
+                  disabled={page() <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  {t("audit.prevPage")}
+                </Button>
+                <span class="text-sm text-ink-muted">
+                  {t("audit.pageOf", { page: page(), total: totalPages() })}
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  iconRight="chevron-right"
+                  disabled={page() >= totalPages()}
+                  onClick={() => setPage((p) => Math.min(totalPages(), p + 1))}
+                >
+                  {t("audit.nextPage")}
+                </Button>
+              </div>
+            </Show>
           </div>
         </Show>
       </Show>
