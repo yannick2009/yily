@@ -533,11 +533,7 @@ export function EnvironmentRoute() {
                               </div>
                             </td>
                             <td class="py-3 pr-4 align-top">
-                              <div class="flex flex-wrap gap-1">
-                                <For each={variableTags()}>
-                                  {(tag) => <Badge variant="brand">{tag.name}</Badge>}
-                                </For>
-                              </div>
+                              <TagList tags={variableTags()} max={3} />
                             </td>
                             <td class="py-3 pr-4 text-right align-top">
                               <div class="flex items-center justify-end gap-1">
@@ -766,6 +762,36 @@ function downloadBlob(blob: Blob, filename: string): void {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+// TagList displays a variable's tags on a single row, truncating to `max`
+// items. Any overflow collapses into a "+N" chip whose title lists the
+// hidden names, so no information is lost — just visual noise.
+function TagList(props: { tags: { id: string; name: string }[]; max: number }) {
+  const visible = () => props.tags.slice(0, props.max);
+  const hidden = () => props.tags.slice(props.max);
+  return (
+    <div class="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
+      <For each={visible()}>
+        {(tag) => (
+          <Badge variant="brand" class="shrink-0 max-w-32 truncate" title={tag.name}>
+            {tag.name}
+          </Badge>
+        )}
+      </For>
+      <Show when={hidden().length > 0}>
+        <Badge
+          variant="neutral"
+          class="shrink-0"
+          title={hidden()
+            .map((t) => t.name)
+            .join(", ")}
+        >
+          +{hidden().length}
+        </Badge>
+      </Show>
+    </div>
+  );
 }
 
 // SortPill renders one column of the sort control. Clicking the active pill

@@ -40,6 +40,13 @@ export interface Tag {
   name: string;
 }
 
+// Payload returned by POST /projects/:id/tags. `created` lists tags freshly
+// persisted; `skipped` lists names already present in the project.
+export interface CreateTagsResult {
+  created: Tag[];
+  skipped: string[];
+}
+
 // A key inside an environment; its plaintext value lives separately and is
 // revealed on demand via GET /variables/:id/value. The server returns the full
 // tag objects under `tags`.
