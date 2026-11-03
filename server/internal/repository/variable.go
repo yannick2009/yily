@@ -27,10 +27,28 @@ type VariableRepository interface {
 	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                            // SetTags replaces the set of tags associated with a variable.
 }
 
+// VariableSortField identifies a supported sort column for variable listing.
+type VariableSortField string
+
+const (
+	VariableSortByName      VariableSortField = "name"       // VariableSortByName sorts variables alphabetically by name.
+	VariableSortByCreatedAt VariableSortField = "created_at" // VariableSortByCreatedAt sorts variables by creation date.
+)
+
+// VariableSortOrder identifies a sort direction for variable listing.
+type VariableSortOrder string
+
+const (
+	VariableSortAsc  VariableSortOrder = "asc"  // VariableSortAsc orders results in ascending order.
+	VariableSortDesc VariableSortOrder = "desc" // VariableSortDesc orders results in descending order.
+)
+
 // VariableListFilter filters the variable listing of an environment.
 type VariableListFilter struct {
-	Search string      // Search matches variable names case-insensitively (empty for no filter).
-	TagIDs []uuid.UUID // TagIDs filters to variables that have at least one of these tags (empty for no filter).
+	Search string            // Search matches variable names case-insensitively (empty for no filter).
+	TagIDs []uuid.UUID       // TagIDs filters to variables that have at least one of these tags (empty for no filter).
+	Sort   VariableSortField // Sort column; defaults to name when empty.
+	Order  VariableSortOrder // Order direction; defaults to ascending when empty.
 }
 
 // variableRepository is a struct that implements the VariableRepository interface.
@@ -110,7 +128,7 @@ func (r *variableRepository) CountByEnvironmentID(ctx context.Context, environme
 // including their tags and active-value status. Variable names are stored
 // uppercase, so the search term is normalized to match them.
 func (r *variableRepository) List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) {
-	query := r.DB.WithContext(ctx).Preload("Tags").Where("environment_id = ?", environmentID).Order("created_at DESC")
+	query := r.DB.WithContext(ctx).Preload("Tags").Where("environment_id = ?", environmentID).Order(variableSortClause(filter.Sort, filter.Order))
 
 	if search := strings.ToUpper(strings.TrimSpace(filter.Search)); search != "" {
 		query = query.Where("name LIKE ?", "%"+search+"%")
@@ -202,4 +220,17 @@ func (r *variableRepository) SetTags(ctx context.Context, variableID uuid.UUID, 
 	}
 
 	return r.DB.Model(&variable).Association("Tags").Replace(tags)
+}
+
+// variableSortClause maps a sort field + order to a SQL ORDER BY clause. Unknown values fall back to name ascending to keep listings deterministic.
+func variableSortClause(sort VariableSortField, order VariableSortOrder) string {
+	column := "name"
+	if sort == VariableSortByCreatedAt {
+		column = "created_at"
+	}
+	direction := "ASC"
+	if order == VariableSortDesc {
+		direction = "DESC"
+	}
+	return column + " " + direction
 }

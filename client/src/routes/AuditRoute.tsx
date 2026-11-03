@@ -226,12 +226,22 @@ export function AuditRoute() {
                 <dt class="shrink-0 text-xs font-medium uppercase tracking-wide text-ink-faint">
                   {t("audit.resource")}
                 </dt>
-                <dd class="min-w-0 text-right text-ink">
-                  {e.resource_type
-                    ? `${e.resource_name} · ${t(`audit.resource.${e.resource_type}`)}`
-                    : "—"}
+                <dd class="min-w-0 truncate text-right text-ink">
+                  <Show when={e.resource_type} fallback={<span class="text-ink-faint">—</span>}>
+                    {e.resource_name || "—"}
+                  </Show>
                 </dd>
               </div>
+              <Show when={e.resource_type}>
+                <div class="flex items-start justify-between gap-4">
+                  <dt class="shrink-0 text-xs font-medium uppercase tracking-wide text-ink-faint">
+                    {t("audit.resourceType")}
+                  </dt>
+                  <dd class="min-w-0 text-right text-ink">
+                    {t(`audit.resource.${e.resource_type}`)}
+                  </dd>
+                </div>
+              </Show>
               <div class="flex items-start justify-between gap-4">
                 <dt class="shrink-0 text-xs font-medium uppercase tracking-wide text-ink-faint">
                   {t("audit.time")}

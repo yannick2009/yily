@@ -42,8 +42,10 @@ type VariableService interface {
 
 // VariableListFilter filters the variable listing of an environment.
 type VariableListFilter struct {
-	Search string      // Search matches variable names case-insensitively (empty for no filter).
-	TagIDs []uuid.UUID // TagIDs filters to variables that have at least one of these tags (empty for no filter).
+	Search string                       // Search matches variable names case-insensitively (empty for no filter).
+	TagIDs []uuid.UUID                  // TagIDs filters to variables that have at least one of these tags (empty for no filter).
+	Sort   repository.VariableSortField // Sort column; empty means default (name).
+	Order  repository.VariableSortOrder // Order direction; empty means default (ascending).
 }
 
 // variableService implements VariableService.
@@ -101,6 +103,8 @@ func (s *variableService) List(ctx context.Context, environmentID uuid.UUID, fil
 	return s.variableRepository.List(ctx, environmentID, repository.VariableListFilter{
 		Search: filter.Search,
 		TagIDs: filter.TagIDs,
+		Sort:   filter.Sort,
+		Order:  filter.Order,
 	})
 }
 

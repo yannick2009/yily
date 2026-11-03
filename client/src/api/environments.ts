@@ -17,6 +17,17 @@ export async function create(
   });
 }
 
+// clone creates a new environment in the same project as `id`, duplicating
+// variable names (and optionally tags) with no values.
+export async function clone(
+  id: string,
+  input: { name: string; copy_tags: boolean },
+): Promise<void> {
+  await request<unknown>("POST", `/environments/${id}/clone`, {
+    body: JSON.stringify(input),
+  });
+}
+
 // get returns a single environment by id.
 export async function get(id: string): Promise<Environment> {
   return request<Environment>("GET", `/environments/${id}`);

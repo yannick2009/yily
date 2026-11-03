@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/repository"
 	"github.com/yannick2009/yily/internal/services"
 )
 
@@ -104,6 +105,8 @@ func (h *variableHandler) List(c *echo.Context) error {
 	variables, err := h.variableService.List(c.Request().Context(), environmentID, services.VariableListFilter{
 		Search: strings.TrimSpace(c.QueryParam("search")),
 		TagIDs: tagIDs,
+		Sort:   parseVariableSort(c.QueryParam("sort")),
+		Order:  parseVariableOrder(c.QueryParam("order")),
 	})
 	if err != nil {
 		return respondError(c, err)
@@ -264,4 +267,24 @@ func (h *variableHandler) ClearValue(c *echo.Context) error {
 		return respondError(c, err)
 	}
 	return NewHTTPResponse[any](c, http.StatusOK, "Variable value cleared successfully", nil)
+}
+
+// parseVariableSort whitelists the accepted sort columns. Unknown or empty values fall back to the default (name).
+func parseVariableSort(raw string) repository.VariableSortField {
+	switch raw {
+	case string(repository.VariableSortByCreatedAt):
+		return repository.VariableSortByCreatedAt
+	default:
+		return repository.VariableSortByName
+	}
+}
+
+// parseVariableOrder whitelists the accepted sort directions. Unknown or empty values fall back to ascending.
+func parseVariableOrder(raw string) repository.VariableSortOrder {
+	switch raw {
+	case string(repository.VariableSortDesc):
+		return repository.VariableSortDesc
+	default:
+		return repository.VariableSortAsc
+	}
 }
