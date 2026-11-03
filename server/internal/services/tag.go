@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
@@ -9,11 +11,18 @@ import (
 	"github.com/yannick2009/yily/internal/repository"
 )
 
+// TagBatchResult reports the outcome of a batch tag creation. Both lists are returned so the client can tell apart freshly-created tags from names that already existed.
+type TagBatchResult struct {
+	Created []model.Tag // Created lists the tags that were persisted during this call.
+	Skipped []string    // Skipped lists the input names that were ignored because a tag with that name already existed in the project.
+}
+
 // TagService defines the interface for tag business logic.
 type TagService interface {
-	Create(ctx context.Context, projectID uuid.UUID, name string) (*model.Tag, error) // Create creates a new tag for a project.
-	Delete(ctx context.Context, projectID, tagID uuid.UUID) error                     // Delete deletes a tag of a project.
-	GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Tag, error)             // GetAll retrieves all tags of a project.
+	Create(ctx context.Context, projectID uuid.UUID, name string) (*model.Tag, error)              // Create creates a single tag for a project. Returns ErrTagNameAlreadyExists if the name is taken.
+	CreateBatch(ctx context.Context, projectID uuid.UUID, names []string) (*TagBatchResult, error) // CreateBatch creates several tags in one call, skipping names that already exist in the project.
+	Delete(ctx context.Context, projectID, tagID uuid.UUID) error                                  // Delete deletes a tag of a project.
+	GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Tag, error)                          // GetAll retrieves all tags of a project.
 }
 
 // tagService implements TagService.
@@ -37,6 +46,43 @@ func (s *tagService) Create(ctx context.Context, projectID uuid.UUID, name strin
 	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceTag, tag.ID, tag.Name)
 
 	return tag, nil
+}
+
+// CreateBatch creates several tags for a project in one call. The input is trimmed and deduplicated case-sensitively; names that already exist in the project are reported in Skipped instead of returning an error. Any other persistence error aborts the batch and returns what was created so far along with the error.
+func (s *tagService) CreateBatch(ctx context.Context, projectID uuid.UUID, names []string) (*TagBatchResult, error) {
+	// Clean up the input: trim whitespace, drop empties, deduplicate while
+	// preserving first-seen order so audit entries follow user intent.
+	seen := make(map[string]struct{}, len(names))
+	cleaned := make([]string, 0, len(names))
+	for _, raw := range names {
+		n := strings.TrimSpace(raw)
+		if n == "" {
+			continue
+		}
+		if _, dup := seen[n]; dup {
+			continue
+		}
+		seen[n] = struct{}{}
+		cleaned = append(cleaned, n)
+	}
+
+	result := &TagBatchResult{
+		Created: make([]model.Tag, 0, len(cleaned)),
+		Skipped: make([]string, 0),
+	}
+	for _, name := range cleaned {
+		tag := &model.Tag{Name: name, ProjectID: projectID}
+		if err := s.tagRepository.Create(ctx, tag); err != nil {
+			if errors.Is(err, repository.ErrTagNameAlreadyExists) {
+				result.Skipped = append(result.Skipped, name)
+				continue
+			}
+			return result, err
+		}
+		_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceTag, tag.ID, tag.Name)
+		result.Created = append(result.Created, *tag)
+	}
+	return result, nil
 }
 
 // Delete deletes a tag of a project.

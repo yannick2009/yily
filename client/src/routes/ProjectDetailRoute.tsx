@@ -85,14 +85,19 @@ export function ProjectDetailRoute() {
   const [tagBusy, setTagBusy] = createSignal(false);
   const submitTag = async (e: Event) => {
     e.preventDefault();
-    const n = tagName().trim();
-    if (!n) return;
+    // Split locally only to short-circuit obviously empty submissions; the
+    // backend does its own trimming and deduplication authoritatively.
+    const names = tagName()
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (names.length === 0) return;
     setTagBusy(true);
     try {
-      await tags.create(projectId(), n);
+      await tags.create(projectId(), names);
+      await refetchTags();
       setTagName("");
       setTagOpen(false);
-      await refetchTags();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -424,7 +429,7 @@ export function ProjectDetailRoute() {
           }
         >
           <form id="new-tag-form" onSubmit={submitTag} class="space-y-4">
-            <Field label={t("common.name")}>
+            <Field label={t("common.name")} hint={t("project.tagNameHint")}>
               <Input
                 value={tagName()}
                 onInput={(e) => setTagName(e.currentTarget.value)}

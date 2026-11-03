@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/services"
 )
 
@@ -24,12 +25,19 @@ func NewTagHandler(tagService services.TagService) TagHandler {
 	return &tagHandler{tagService}
 }
 
-// createTagRequest represents the expected JSON body for creating a tag.
+// createTagRequest represents the expected JSON body for creating one or several tags. "name" is accepted for backward compatibility with earlier clients; new callers should prefer "names" to create several tags in one round-trip.
 type createTagRequest struct {
-	Name string `json:"name" validate:"required"`
+	Name  string   `json:"name,omitempty"`
+	Names []string `json:"names,omitempty"`
 }
 
-// Create handles POST /projects/:projectID/tags.
+// createTagResponse is the shape returned by POST /projects/:projectID/tags. Created lists tags persisted during this call; Skipped lists names that already existed in the project.
+type createTagResponse struct {
+	Created []model.Tag `json:"created"`
+	Skipped []string    `json:"skipped"`
+}
+
+// Create handles POST /projects/:projectID/tags. The body may carry either a single "name" (legacy) or a "names" array; empty values and duplicates are ignored. Existing names are reported in `skipped` and never surface as errors.
 func (h *tagHandler) Create(c *echo.Context) error {
 	projectID, ok := uuidParam(c, "projectID")
 	if !ok {
@@ -37,15 +45,26 @@ func (h *tagHandler) Create(c *echo.Context) error {
 	}
 
 	var req createTagRequest
-	if !bindAndValidate(c, &req) {
-		return nil
+	if err := c.Bind(&req); err != nil {
+		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid request body", nil)
 	}
 
-	tag, err := h.tagService.Create(c.Request().Context(), projectID, req.Name)
+	names := req.Names
+	if len(names) == 0 && req.Name != "" {
+		names = []string{req.Name}
+	}
+	if len(names) == 0 {
+		return NewHTTPResponse[any](c, http.StatusBadRequest, "name or names is required", nil)
+	}
+
+	result, err := h.tagService.CreateBatch(c.Request().Context(), projectID, names)
 	if err != nil {
 		return respondError(c, err)
 	}
-	return NewHTTPResponse(c, http.StatusCreated, "Created", tag)
+	return NewHTTPResponse(c, http.StatusCreated, "Created", createTagResponse{
+		Created: result.Created,
+		Skipped: result.Skipped,
+	})
 }
 
 // GetAll handles GET /projects/:projectID/tags.
