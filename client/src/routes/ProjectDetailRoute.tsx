@@ -100,6 +100,36 @@ export function ProjectDetailRoute() {
     }
   };
 
+  // Clone environment.
+  const [cloning, setCloning] = createSignal<{ id: string; name: string } | null>(null);
+  const [cloneName, setCloneName] = createSignal("");
+  const [cloneCopyTags, setCloneCopyTags] = createSignal(true);
+  const [cloneBusy, setCloneBusy] = createSignal(false);
+
+  const openClone = (env: { id: string; name: string }) => {
+    setCloning(env);
+    setCloneName(`${env.name} copy`);
+    setCloneCopyTags(true);
+  };
+  const closeClone = () => setCloning(null);
+
+  const submitClone = async (e: Event) => {
+    e.preventDefault();
+    const source = cloning();
+    const name = cloneName().trim();
+    if (!source || !name) return;
+    setCloneBusy(true);
+    try {
+      await environments.clone(source.id, { name, copy_tags: cloneCopyTags() });
+      setCloning(null);
+      await refetchEnvs();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setCloneBusy(false);
+    }
+  };
+
   // Deletions.
   const [deletingEnv, setDeletingEnv] = createSignal<{
     id: string;
@@ -253,6 +283,20 @@ export function ProjectDetailRoute() {
                               </span>
                               <button
                                 type="button"
+                                class="rounded-md p-1.5 text-ink-faint opacity-0 transition-opacity hover:bg-brand-subtle hover:text-brand focus-visible:opacity-100 group-hover:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openClone({ id: env.id, name: env.name });
+                                }}
+                                aria-label={t("env.duplicateAria", {
+                                  name: env.name,
+                                })}
+                                title={t("env.duplicate")}
+                              >
+                                <Icon name="duplicate" size={15} />
+                              </button>
+                              <button
+                                type="button"
                                 class="rounded-md p-1.5 text-ink-faint opacity-0 transition-opacity hover:bg-danger-subtle hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -387,6 +431,51 @@ export function ProjectDetailRoute() {
                 placeholder={t("project.tagNamePlaceholder")}
               />
             </Field>
+            <Show when={error()}>
+              <p class="text-sm text-danger">{error()}</p>
+            </Show>
+          </form>
+        </Dialog>
+
+        <Dialog
+          open={!!cloning()}
+          onClose={closeClone}
+          title={t("env.duplicateTitle")}
+          footer={
+            <>
+              <Button variant="secondary" onClick={closeClone}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" form="clone-env-form" loading={cloneBusy()}>
+                {t("env.duplicate")}
+              </Button>
+            </>
+          }
+        >
+          <form id="clone-env-form" onSubmit={submitClone} class="space-y-4">
+            <p class="text-sm text-ink-muted">
+              {t("env.duplicateHelp", { name: cloning()?.name ?? "" })}
+            </p>
+            <Field label={t("env.duplicateNameLabel")}>
+              <Input
+                value={cloneName()}
+                onInput={(e) => setCloneName(e.currentTarget.value)}
+                placeholder={t("project.environmentNamePlaceholder")}
+                autofocus
+              />
+            </Field>
+            <label class="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                class="mt-0.5 h-4 w-4 shrink-0 rounded border-line"
+                checked={cloneCopyTags()}
+                onChange={(e) => setCloneCopyTags(e.currentTarget.checked)}
+              />
+              <span>
+                <span class="font-medium text-ink">{t("env.duplicateCopyTags")}</span>
+                <span class="block text-xs text-ink-muted">{t("env.duplicateCopyTagsHint")}</span>
+              </span>
+            </label>
             <Show when={error()}>
               <p class="text-sm text-danger">{error()}</p>
             </Show>
