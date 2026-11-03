@@ -23,6 +23,8 @@ export function AuditRoute() {
   const [query, setQuery] = createSignal("");
   const [action, setAction] = createSignal<string>("all");
   const [selected, setSelected] = createSignal<AuditEvent | null>(null);
+  const [from, setFrom] = createSignal("");
+  const [to, setTo] = createSignal("");
 
   // Text search (resource/actor name), debounced and applied server-side.
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
@@ -41,11 +43,13 @@ export function AuditRoute() {
   // Fetch the filtered audit events from the server. The query is debounced to avoid
   // sending a request on every keystroke. The action filter is applied immediately.
   const [eventsRes] = createResource(
-    () => ({ action: action(), search: debouncedQuery() }),
-    ({ action: actionFilter, search }) =>
+    () => ({ action: action(), search: debouncedQuery(), from: from(), to: to() }),
+    ({ action: actionFilter, search, from: fromDate, to: toDate }) =>
       audit.list({
         action: actionFilter === "all" ? undefined : actionFilter,
         search: search.trim() || undefined,
+        from: fromDate || undefined,
+        to: toDate || undefined,
         limit: 100,
       }),
   );
@@ -59,16 +63,54 @@ export function AuditRoute() {
       </div>
 
       <div class="mb-4 space-y-3">
-        <div class="relative w-full sm:w-72">
-          <Input
-            value={query()}
-            onInput={onSearchInput}
-            placeholder={t("audit.searchPlaceholder")}
-            style={{ "padding-left": "2.5rem" }}
-          />
-          <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-ink-faint">
-            <Icon name="search" size={16} />
-          </span>
+        <div class="flex flex-wrap items-end gap-3">
+          <div class="relative w-full sm:w-72">
+            <Input
+              value={query()}
+              onInput={onSearchInput}
+              placeholder={t("audit.searchPlaceholder")}
+              style={{ "padding-left": "2.5rem" }}
+            />
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-ink-faint">
+              <Icon name="search" size={16} />
+            </span>
+          </div>
+          <div class="flex items-end gap-2">
+            <label class="flex flex-col gap-1 text-xs text-ink-muted">
+              <span class="font-medium uppercase tracking-wide text-ink-faint">
+                {t("audit.from")}
+              </span>
+              <Input
+                type="date"
+                value={from()}
+                max={to() || undefined}
+                onInput={(e) => setFrom(e.currentTarget.value)}
+              />
+            </label>
+            <label class="flex flex-col gap-1 text-xs text-ink-muted">
+              <span class="font-medium uppercase tracking-wide text-ink-faint">
+                {t("audit.to")}
+              </span>
+              <Input
+                type="date"
+                value={to()}
+                min={from() || undefined}
+                onInput={(e) => setTo(e.currentTarget.value)}
+              />
+            </label>
+            <Show when={from() || to()}>
+              <button
+                type="button"
+                onClick={() => {
+                  setFrom("");
+                  setTo("");
+                }}
+                class="h-9 shrink-0 rounded-md px-2 text-sm text-ink-muted hover:bg-surface-2 hover:text-ink"
+              >
+                {t("audit.resetDates")}
+              </button>
+            </Show>
+          </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <span class="mr-1 text-xs font-medium uppercase tracking-wide text-ink-faint">

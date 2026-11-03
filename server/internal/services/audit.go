@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
@@ -30,11 +31,13 @@ func ActorFromContext(ctx context.Context) AuditActor {
 
 // AuditFilter filters the audit log listing.
 type AuditFilter struct {
-	Search    string // Search matches resource and actor names (empty for no filter).
-	ActorType string // ActorType filters by actor type (empty for no filter).
-	Action    string // Action filters by action (empty for no filter).
-	Limit     int    // Limit caps the number of returned events.
-	Offset    int    // Offset skips this many events before returning results.
+	Search    string     // Search matches resource and actor names (empty for no filter).
+	ActorType string     // ActorType filters by actor type (empty for no filter).
+	Action    string     // Action filters by action (empty for no filter).
+	From      *time.Time // From is an inclusive lower bound on created_at (nil for no lower bound).
+	To        *time.Time // To is an exclusive upper bound on created_at (nil for no upper bound).
+	Limit     int        // Limit caps the number of returned events.
+	Offset    int        // Offset skips this many events before returning results.
 }
 
 // AuditList is a page of audit events with a total count.
@@ -84,6 +87,8 @@ func (s *auditService) List(ctx context.Context, filter AuditFilter) (*AuditList
 		Search:    filter.Search,
 		ActorType: filter.ActorType,
 		Action:    filter.Action,
+		From:      filter.From,
+		To:        filter.To,
 		Limit:     filter.Limit,
 		Offset:    filter.Offset,
 	})

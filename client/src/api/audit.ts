@@ -6,6 +6,8 @@ export interface AuditQuery {
   search?: string;
   actorType?: string;
   action?: string;
+  from?: string; // Inclusive lower bound as YYYY-MM-DD (UTC) or RFC3339.
+  to?: string; // Inclusive-day upper bound as YYYY-MM-DD (UTC) or exclusive RFC3339.
   limit?: number;
   offset?: number;
 }
@@ -16,6 +18,8 @@ export async function list(query: AuditQuery = {}): Promise<AuditList> {
   if (query.search) params.set("search", query.search);
   if (query.actorType) params.set("actor_type", query.actorType);
   if (query.action) params.set("action", query.action);
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
   if (query.limit != null) params.set("limit", String(query.limit));
   if (query.offset != null) params.set("offset", String(query.offset));
 
