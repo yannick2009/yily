@@ -335,6 +335,10 @@ const messages: Record<LangCode, Messages> = {
     "audit.resource.token": "Token",
     "audit.actor.system": "System",
     "audit.actor.token": "Token",
+    "audit.showing": "Showing {from}–{to} of {total}",
+    "audit.prevPage": "Previous",
+    "audit.nextPage": "Next",
+    "audit.pageOf": "Page {page} of {total}",
     // --- Errors (en) ---
     "errors.INTERNAL_ERROR": "Something went wrong. Please try again.",
     "errors.BAD_REQUEST": "Invalid request.",
@@ -641,6 +645,10 @@ const messages: Record<LangCode, Messages> = {
     "audit.resource.token": "Jeton",
     "audit.actor.system": "Système",
     "audit.actor.token": "Jeton",
+    "audit.showing": "Affichage de {from} à {to} sur {total}",
+    "audit.prevPage": "Précédent",
+    "audit.nextPage": "Suivant",
+    "audit.pageOf": "Page {page} sur {total}",
     // --- Errors (fr) ---
     "errors.INTERNAL_ERROR": "Une erreur est survenue. Veuillez réessayer.",
     "errors.BAD_REQUEST": "Requête invalide.",
