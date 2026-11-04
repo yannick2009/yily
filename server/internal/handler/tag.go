@@ -5,6 +5,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/services"
 )
 
@@ -46,7 +47,7 @@ func (h *tagHandler) Create(c *echo.Context) error {
 
 	var req createTagRequest
 	if err := c.Bind(&req); err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid request body", nil)
+		return httputil.NewHTTPResponse[any](c, http.StatusBadRequest, "invalid request body", nil)
 	}
 
 	names := req.Names
@@ -54,14 +55,14 @@ func (h *tagHandler) Create(c *echo.Context) error {
 		names = []string{req.Name}
 	}
 	if len(names) == 0 {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, "name or names is required", nil)
+		return httputil.NewHTTPResponse[any](c, http.StatusBadRequest, "name or names is required", nil)
 	}
 
 	result, err := h.tagService.CreateBatch(c.Request().Context(), projectID, names)
 	if err != nil {
 		return respondError(c, err)
 	}
-	return NewHTTPResponse(c, http.StatusCreated, "Created", createTagResponse{
+	return httputil.NewHTTPResponse(c, http.StatusCreated, "Created", createTagResponse{
 		Created: result.Created,
 		Skipped: result.Skipped,
 	})
@@ -78,7 +79,7 @@ func (h *tagHandler) GetAll(c *echo.Context) error {
 	if err != nil {
 		return respondError(c, err)
 	}
-	return NewHTTPResponse(c, http.StatusOK, "Tags retrieved successfully", tags)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Tags retrieved successfully", tags)
 }
 
 // Delete handles DELETE /projects/:projectID/tags/:tagID.
@@ -95,5 +96,5 @@ func (h *tagHandler) Delete(c *echo.Context) error {
 	if err := h.tagService.Delete(c.Request().Context(), projectID, tagID); err != nil {
 		return respondError(c, err)
 	}
-	return NewHTTPResponse[any](c, http.StatusOK, "Tag deleted successfully", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Tag deleted successfully", nil)
 }

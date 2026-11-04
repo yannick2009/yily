@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/services"
 )
 
@@ -44,7 +45,7 @@ func (h *projectHandler) Create(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusCreated, "Project created successfully", project)
+	return httputil.NewHTTPResponse(c, http.StatusCreated, "Project created successfully", project)
 }
 
 // GetAll handles GET /projects.
@@ -54,7 +55,7 @@ func (h *projectHandler) GetAll(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusOK, "Projects retrieved successfully", projects)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Projects retrieved successfully", projects)
 }
 
 // GetByID handles GET /projects/:id.
@@ -69,7 +70,7 @@ func (h *projectHandler) GetByID(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusOK, "Project retrieved successfully", project)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Project retrieved successfully", project)
 }
 
 // SetName handles PATCH /projects/:id.
@@ -88,7 +89,7 @@ func (h *projectHandler) SetName(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse[any](c, http.StatusOK, "Project name updated successfully", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Project name updated successfully", nil)
 }
 
 // Delete handles DELETE /projects/:id.
@@ -102,7 +103,7 @@ func (h *projectHandler) Delete(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse[any](c, http.StatusOK, "Project deleted successfully", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Project deleted successfully", nil)
 }
 
 // Clear handles DELETE /projects.
@@ -111,5 +112,5 @@ func (h *projectHandler) Clear(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse[any](c, http.StatusOK, "All projects deleted successfully", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "All projects deleted successfully", nil)
 }

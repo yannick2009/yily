@@ -80,7 +80,7 @@ func (h *patHandler) Create(c *echo.Context) error {
 		ExpiresAt: pat.ExpiresAt,
 	}
 
-	return NewHTTPResponse(c, http.StatusCreated, "Personal access token created successfully", resp)
+	return httputil.NewHTTPResponse(c, http.StatusCreated, "Personal access token created successfully", resp)
 }
 
 // GetAll handles GET /tokens to list the authenticated user's PAT metadata without exposing raw tokens or hashes.
@@ -95,7 +95,7 @@ func (h *patHandler) GetAll(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusOK, "Personal access tokens retrieved successfully", pats)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Personal access tokens retrieved successfully", pats)
 }
 
 // Revoke handles DELETE /tokens/:id to revoke a PAT belonging to the authenticated user.
@@ -114,7 +114,7 @@ func (h *patHandler) Revoke(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse[any](c, http.StatusOK, "Personal access token revoked successfully", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Personal access token revoked successfully", nil)
 }
 
 // Rotate handles POST /tokens/:id/rotate to revoke an existing PAT and issue a replacement under the same name, returning the raw replacement token once.
@@ -136,12 +136,12 @@ func (h *patHandler) Rotate(c *echo.Context) error {
 
 	ttl, err := resolvePATTTL(req.ExpiresInDays)
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, err.Error(), nil)
+		return httputil.NewHTTPResponse[any](c, http.StatusBadRequest, err.Error(), nil)
 	}
 
 	rawToken, pat, err := h.patService.Rotate(c.Request().Context(), user.ID, id, ttl)
 	if err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return httputil.NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
 	}
 
 	resp := CreatePATResponse{
@@ -153,7 +153,7 @@ func (h *patHandler) Rotate(c *echo.Context) error {
 		ExpiresAt: pat.ExpiresAt,
 	}
 
-	return NewHTTPResponse(c, http.StatusCreated, "Personal access token rotated successfully", resp)
+	return httputil.NewHTTPResponse(c, http.StatusCreated, "Personal access token rotated successfully", resp)
 }
 
 // resolvePATTTL converts an optional expires_in_days value to a time.Duration, enforcing the fixed preset list (7, 30, 60, 90). A nil value means "use the service default".

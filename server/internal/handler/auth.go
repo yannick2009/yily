@@ -8,11 +8,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/types"
+	"github.com/yannick2009/yily/internal/httputil"
+	"github.com/yannick2009/yily/internal/middleware"
 	"github.com/yannick2009/yily/internal/services"
-)
-
-const (
-	SessionCookieName = "yily_session" // SessionCookieName is the HTTP cookie name storing the raw session token.
 )
 
 // AuthHandler defines the interface for Super Admin authentication and session HTTP handlers.
@@ -60,7 +58,7 @@ func (h *authHandler) Setup(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusCreated, "Super Admin created successfully", user)
+	return httputil.NewHTTPResponse(c, http.StatusCreated, "Super Admin created successfully", user)
 }
 
 // Login handles POST /auth/login to authenticate the Super Admin, rotate any prior session, and set the HttpOnly session cookie.
@@ -74,7 +72,7 @@ func (h *authHandler) Login(c *echo.Context) error {
 	}
 
 	var existingToken string
-	if cookie, err := c.Cookie(SessionCookieName); err == nil && cookie != nil {
+	if cookie, err := c.Cookie(httputil.SessionCookieName); err == nil && cookie != nil {
 		existingToken = cookie.Value
 	}
 
@@ -92,7 +90,7 @@ func (h *authHandler) Login(c *echo.Context) error {
 	}
 
 	http.SetCookie(c.Response(), &http.Cookie{
-		Name:     SessionCookieName,
+		Name:     httputil.SessionCookieName,
 		Value:    rawToken,
 		Path:     "/",
 		Expires:  session.ExpiresAt,
@@ -104,20 +102,20 @@ func (h *authHandler) Login(c *echo.Context) error {
 
 	_ = h.audit.RecordAs(c.Request().Context(), services.AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}, types.ActionSignedIn, "", uuid.Nil, "")
 
-	return NewHTTPResponse(c, http.StatusOK, "Login successful", user)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Login successful", user)
 }
 
 // Logout handles POST /auth/logout to revoke the current server-side session and expire the client cookie.
 func (h *authHandler) Logout(c *echo.Context) error {
 	var rawToken string
-	if cookie, err := c.Cookie(SessionCookieName); err == nil && cookie != nil {
+	if cookie, err := c.Cookie(httputil.SessionCookieName); err == nil && cookie != nil {
 		rawToken = cookie.Value
 	}
 
 	err := h.authService.Logout(c.Request().Context(), rawToken)
 
 	http.SetCookie(c.Response(), &http.Cookie{
-		Name:     SessionCookieName,
+		Name:     httputil.SessionCookieName,
 		Value:    "",
 		Path:     "/",
 		Expires:  time.Unix(0, 0).UTC(),
@@ -133,17 +131,17 @@ func (h *authHandler) Logout(c *echo.Context) error {
 
 	_ = h.audit.Record(c.Request().Context(), types.ActionSignedOut, "", uuid.Nil, "")
 
-	return NewHTTPResponse[any](c, http.StatusOK, "Logout successful", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Logout successful", nil)
 }
 
 // Me handles GET /auth/me to return the authenticated Super Admin from the request context.
 func (h *authHandler) Me(c *echo.Context) error {
-	user, ok := services.AuthenticatedUserFromContext(c.Request().Context())
+	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
 		return respondError(c, services.ErrUnauthorized)
 	}
 
-	return NewHTTPResponse(c, http.StatusOK, "Authenticated user retrieved successfully", user)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Authenticated user retrieved successfully", user)
 }
 
 // Status handles GET /auth/status to report whether the instance has been initialized.
@@ -153,7 +151,7 @@ func (h *authHandler) Status(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusOK, "Setup status retrieved successfully", struct {
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Setup status retrieved successfully", struct {
 		Initialized bool `json:"initialized"`
 	}{Initialized: initialized})
 }

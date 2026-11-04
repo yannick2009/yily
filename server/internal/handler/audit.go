@@ -9,6 +9,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/services"
 )
 
@@ -48,11 +49,11 @@ func (h *auditHandler) List(c *echo.Context) error {
 
 	from, err := parseAuditBoundary(c.QueryParam("from"), false)
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid from", nil)
+		return httputil.NewHTTPResponse[any](c, http.StatusBadRequest, "invalid from", nil)
 	}
 	to, err := parseAuditBoundary(c.QueryParam("to"), true)
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid to", nil)
+		return httputil.NewHTTPResponse[any](c, http.StatusBadRequest, "invalid to", nil)
 	}
 
 	filter := services.AuditFilter{
@@ -70,7 +71,7 @@ func (h *auditHandler) List(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusOK, "Audit log retrieved successfully", list)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Audit log retrieved successfully", list)
 }
 
 // Export handles GET /audit/export, streaming every event matching the same
@@ -78,11 +79,11 @@ func (h *auditHandler) List(c *echo.Context) error {
 func (h *auditHandler) Export(c *echo.Context) error {
 	from, err := parseAuditBoundary(c.QueryParam("from"), false)
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid from", nil)
+		return httputil.NewHTTPResponse[any](c, http.StatusBadRequest, "invalid from", nil)
 	}
 	to, err := parseAuditBoundary(c.QueryParam("to"), true)
 	if err != nil {
-		return NewHTTPResponse[any](c, http.StatusBadRequest, "invalid to", nil)
+		return httputil.NewHTTPResponse[any](c, http.StatusBadRequest, "invalid to", nil)
 	}
 
 	filter := services.AuditFilter{

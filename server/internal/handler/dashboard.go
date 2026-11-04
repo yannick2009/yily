@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/httputil"
+	"github.com/yannick2009/yily/internal/middleware"
 	"github.com/yannick2009/yily/internal/services"
 )
 
@@ -24,7 +26,7 @@ func NewDashboardHandler(dashboardService services.DashboardService) DashboardHa
 
 // Get handles GET /dashboard.
 func (h *dashboardHandler) Get(c *echo.Context) error {
-	user, ok := services.AuthenticatedUserFromContext(c.Request().Context())
+	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
 		return respondError(c, services.ErrUnauthorized)
 	}
@@ -34,5 +36,5 @@ func (h *dashboardHandler) Get(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusOK, "Dashboard retrieved successfully", dashboard)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Dashboard retrieved successfully", dashboard)
 }

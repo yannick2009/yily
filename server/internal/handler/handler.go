@@ -13,28 +13,13 @@ import (
 	"github.com/yannick2009/yily/internal/services"
 )
 
-// HTTPResponse is the standard JSON envelope used for every API response.
-// On errors, `Code` carries a stable machine-readable identifier so clients
-// can localise the message; it stays empty on successful responses.
-type HTTPResponse[T any] struct {
-	Status  int       `json:"status"`
-	Code    ErrorCode `json:"code,omitempty"`
-	Message string    `json:"message"`
-	Data    T         `json:"data,omitempty"`
-}
-
-// NewHTTPResponse sends a standardized JSON response.
-func NewHTTPResponse[T any](c *echo.Context, status int, message string, data T) error {
-	return c.JSON(status, HTTPResponse[T]{Status: status, Message: message, Data: data})
-}
-
 // respondError sends a standardized error response, pairing a stable code
 // (looked up from the sentinel error) with the original English message.
 func respondError(c *echo.Context, err error) error {
 	status := httpStatus(err)
-	return c.JSON(status, HTTPResponse[any]{
+	return c.JSON(status, httputil.HTTPResponse[any]{
 		Status:  status,
-		Code:    codeFor(err),
+		Code:    string(codeFor(err)),
 		Message: err.Error(),
 	})
 }
@@ -42,9 +27,9 @@ func respondError(c *echo.Context, err error) error {
 // respondErrorCode is for non-sentinel error paths where we want a stable code
 // anyway (parsing a multipart form, parsing a UUID path param, …).
 func respondErrorCode(c *echo.Context, status int, code ErrorCode, message string) error {
-	return c.JSON(status, HTTPResponse[any]{
+	return c.JSON(status, httputil.HTTPResponse[any]{
 		Status:  status,
-		Code:    code,
+		Code:    string(code),
 		Message: message,
 	})
 }
