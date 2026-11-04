@@ -1,5 +1,5 @@
 // Audit log API.
-import { request } from "./client";
+import { request, requestRaw } from "./client";
 import type { AuditList } from "../types";
 
 export interface AuditQuery {
@@ -26,4 +26,25 @@ export async function list(query: AuditQuery = {}): Promise<AuditList> {
   const qs = params.toString();
   const raw = await request<AuditList>("GET", `/audit${qs ? `?${qs}` : ""}`);
   return { events: raw.events ?? [], total: raw.total ?? 0 };
+}
+
+// exportCSV downloads the audit events matching the given filters as a CSV
+// file and returns the raw bytes plus the server-suggested filename.
+export async function exportCSV(query: AuditQuery = {}): Promise<{ blob: Blob; filename: string }> {
+  const params = new URLSearchParams();
+  if (query.search) params.set("search", query.search);
+  if (query.actorType) params.set("actor_type", query.actorType);
+  if (query.action) params.set("action", query.action);
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
+
+  const qs = params.toString();
+  const res = await requestRaw(`/audit/export${qs ? `?${qs}` : ""}`);
+  const blob = await res.blob();
+
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = /filename="([^"]+)"/.exec(disposition);
+  const filename = match?.[1] ?? "audit-log.csv";
+
+  return { blob, filename };
 }

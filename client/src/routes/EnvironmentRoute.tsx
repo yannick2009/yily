@@ -4,6 +4,7 @@ import { A, useParams } from "@solidjs/router";
 import { environments, projects, tags, variables } from "../api";
 import { t } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
+import { downloadBlob } from "../lib/download";
 import { createRevealController } from "../lib/reveal";
 import { normalizeVariableName } from "../lib/variable";
 import { Badge, Button, Icon, Input, Textarea } from "../components/ui";
@@ -371,10 +372,10 @@ export function EnvironmentRoute() {
               </Show>
             </div>
             <div class="flex gap-2">
-              <Button variant="secondary" icon="download" onClick={openImport}>
+              <Button variant="secondary" icon="upload" onClick={openImport}>
                 {t("env.import")}
               </Button>
-              <Button variant="secondary" icon="upload" onClick={() => setExportOpen(true)}>
+              <Button variant="secondary" icon="download" onClick={() => setExportOpen(true)}>
                 {t("env.export")}
               </Button>
               <Button icon="plus" onClick={() => setCreateOpen(true)}>
@@ -752,17 +753,6 @@ const EXPORT_FORMATS: FormatOption[] = [
   { id: "env", ext: "env", label: ".env" },
   { id: "yaml", ext: "yaml", label: "YAML" },
 ];
-
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
 
 // TagList displays a variable's tags on a single row, truncating to `max`
 // items. Any overflow collapses into a "+N" chip whose title lists the

@@ -143,6 +143,7 @@ func main() {
 
 	// Audit log
 	routes.GET("/audit", auditHandler.List)
+	routes.GET("/audit/export", auditHandler.Export)
 
 	// Setup graceful shutdown on SIGINT or SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
