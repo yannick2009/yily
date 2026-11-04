@@ -32,13 +32,11 @@
           nodejs
           nixfmt
         ];
-
-        vite-plus = import (pkgs.lib.cleanSource ./nix/vite-plus.nix) { inherit pkgs system; };
       in
       {
         devShells = {
           default = pkgs.mkShell {
-            buildInputs = devPkgs ++ [ vite-plus ];
+            buildInputs = devPkgs;
             shellHook = ''
               unset GOROOT
               (cd client && npm install --silent)
