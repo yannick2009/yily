@@ -4,7 +4,8 @@ import { createMemo, createResource, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
 import { dashboard } from "../api";
 import { currentUser } from "../store";
-import { locale, plural, t } from "../lib/i18n";
+import { plural, t } from "../lib/i18n";
+import { timeAgo } from "../lib/date";
 import type { AuditEvent } from "../types";
 import { Badge, Card, Icon, type IconName } from "../components/ui";
 
@@ -198,21 +199,4 @@ function actionVariant(action: string): "neutral" | "brand" | "success" {
   if (action === "created") return "success";
   if (action === "revealed" || action === "export") return "brand";
   return "neutral";
-}
-
-// Formats the time elapsed since an ISO date; falls back to a date for older items.
-function timeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(ms / 60000);
-  if (m < 1) return t("time.justNow");
-  if (m < 60) return t("time.minutesAgo", { n: m });
-  const h = Math.floor(m / 60);
-  if (h < 24) return t("time.hoursAgo", { n: h });
-  const d = Math.floor(h / 24);
-  if (d < 30) return t("time.daysAgo", { n: d });
-  return new Date(iso).toLocaleDateString(locale(), {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }

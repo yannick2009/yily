@@ -43,7 +43,7 @@ func main() {
 	auditRepository := repository.NewAuditRepository(db)
 
 	// Services
-	auditService := services.NewAuditService(auditRepository)
+	auditService := services.NewAuditService(auditRepository, middleware.ActorFromContext)
 	authService := services.NewAuthService(userRepository, sessionRepository)
 	patService := services.NewPATService(userRepository, patRepository, auditService)
 	projectService := services.NewProjectService(projectRepository, environmentRepository, tagRepository, auditService)
@@ -76,8 +76,10 @@ func main() {
 	server.Use(echomw.RateLimiter(echomw.NewRateLimiterMemoryStore(50.0))) // Rate limiting 50 requests per second
 	server.Use(echomw.Secure())                                            // Enable security headers
 
-	// Authentication middleware
+	// Authentication and scope guards
 	authMiddleware := middleware.RequireAuth(authService, patService)
+	writeScope := middleware.RequireWriteScope()
+	sessionOnly := middleware.RequireSession()
 
 	// Define API routes
 	api := server.Group("/api/v1")
@@ -87,63 +89,67 @@ func main() {
 	api.POST("/auth/setup", authHandler.Setup)
 	api.POST("/auth/login", authHandler.Login)
 
-	// Protected API routes (require a valid server-side session or Bearer PAT)
-	routes := api.Group("", authMiddleware)
+	// Read routes: any authenticated caller (session, read PAT, write PAT).
+	readRoutes := api.Group("", authMiddleware)
+	// Write routes: session or write-scoped PAT only.
+	writeRoutes := api.Group("", authMiddleware, writeScope)
+	// Admin routes: web session only — not accessible via any PAT.
+	adminRoutes := api.Group("", authMiddleware, sessionOnly)
 
-	// Authentication and token management
-	routes.POST("/auth/logout", authHandler.Logout)
-	routes.GET("/auth/me", authHandler.Me)
-	routes.POST("/tokens", patHandler.Create)
-	routes.GET("/tokens", patHandler.GetAll)
-	routes.POST("/tokens/:id/rotate", patHandler.Rotate)
-	routes.DELETE("/tokens/:id", patHandler.Revoke)
+	// Auth and token management (session-only)
+	adminRoutes.POST("/auth/logout", authHandler.Logout)
+	adminRoutes.GET("/auth/me", authHandler.Me)
+	adminRoutes.POST("/tokens", patHandler.Create)
+	adminRoutes.GET("/tokens", patHandler.GetAll)
+	adminRoutes.POST("/tokens/:id/rotate", patHandler.Rotate)
+	adminRoutes.DELETE("/tokens/:id", patHandler.Revoke)
 
-	// Dashboard
-	routes.GET("/dashboard", dashboardHandler.Get)
+	// Dashboard (read)
+	readRoutes.GET("/dashboard", dashboardHandler.Get)
 
 	// Projects
-	routes.POST("/projects", projectHandler.Create)
-	routes.GET("/projects", projectHandler.GetAll)
-	routes.DELETE("/projects", projectHandler.Clear)
-	routes.GET("/projects/:id", projectHandler.GetByID)
-	routes.PATCH("/projects/:id", projectHandler.SetName)
-	routes.DELETE("/projects/:id", projectHandler.Delete)
+	readRoutes.GET("/projects", projectHandler.GetAll)
+	readRoutes.GET("/projects/:id", projectHandler.GetByID)
+	writeRoutes.POST("/projects", projectHandler.Create)
+	writeRoutes.DELETE("/projects", projectHandler.Clear)
+	writeRoutes.PATCH("/projects/:id", projectHandler.SetName)
+	writeRoutes.DELETE("/projects/:id", projectHandler.Delete)
 
 	// Environments
-	routes.POST("/projects/:projectID/environments", environmentHandler.Create)
-	routes.GET("/projects/:projectID/environments", environmentHandler.GetAll)
-	routes.GET("/environments/:id", environmentHandler.GetByID)
-	routes.PATCH("/environments/:id/name", environmentHandler.SetName)
-	routes.PATCH("/environments/:id/description", environmentHandler.SetDescription)
-	routes.DELETE("/environments/:id", environmentHandler.Delete)
-	routes.POST("/environments/:id/clone", environmentHandler.Clone)
-	routes.POST("/environments/:id/imports", environmentHandler.Import)
-	routes.GET("/environments/:id/export", environmentHandler.Export)
+	readRoutes.GET("/projects/:projectID/environments", environmentHandler.GetAll)
+	readRoutes.GET("/environments/:id", environmentHandler.GetByID)
+	readRoutes.GET("/environments/:id/export", environmentHandler.Export)
+	writeRoutes.POST("/projects/:projectID/environments", environmentHandler.Create)
+	writeRoutes.PATCH("/environments/:id/name", environmentHandler.SetName)
+	writeRoutes.PATCH("/environments/:id/description", environmentHandler.SetDescription)
+	writeRoutes.DELETE("/environments/:id", environmentHandler.Delete)
+	writeRoutes.POST("/environments/:id/clone", environmentHandler.Clone)
+	writeRoutes.POST("/environments/:id/imports", environmentHandler.Import)
 
 	// Variables
-	routes.POST("/environments/:environmentID/variables", variableHandler.Create)
-	routes.GET("/environments/:environmentID/variables", variableHandler.List)
-	routes.GET("/variables/:id", variableHandler.GetByID)
-	routes.GET("/variables/:id/value", variableHandler.GetValue)
-	routes.PATCH("/variables/:id", variableHandler.SetName)
-	routes.DELETE("/variables/:id", variableHandler.Delete)
-	routes.PUT("/variables/:id/tags", variableHandler.SetTags)
+	readRoutes.GET("/environments/:environmentID/variables", variableHandler.List)
+	readRoutes.GET("/variables/:id", variableHandler.GetByID)
+	readRoutes.GET("/variables/:id/value", variableHandler.GetValue)
+	writeRoutes.POST("/environments/:environmentID/variables", variableHandler.Create)
+	writeRoutes.PATCH("/variables/:id", variableHandler.SetName)
+	writeRoutes.DELETE("/variables/:id", variableHandler.Delete)
+	writeRoutes.PUT("/variables/:id/tags", variableHandler.SetTags)
 
 	// Variable versions
-	routes.POST("/variables/:id/versions", variableHandler.AddVersion)
-	routes.GET("/variables/:id/versions", variableHandler.GetAllVersions)
-	routes.GET("/variables/:id/versions/current", variableHandler.GetCurrentVersion)
-	routes.PATCH("/variables/:id/versions/:versionID", variableHandler.SetVersionActive)
-	routes.DELETE("/variables/:id/value", variableHandler.ClearValue)
+	readRoutes.GET("/variables/:id/versions", variableHandler.GetAllVersions)
+	readRoutes.GET("/variables/:id/versions/current", variableHandler.GetCurrentVersion)
+	writeRoutes.POST("/variables/:id/versions", variableHandler.AddVersion)
+	writeRoutes.PATCH("/variables/:id/versions/:versionID", variableHandler.SetVersionActive)
+	writeRoutes.DELETE("/variables/:id/value", variableHandler.ClearValue)
 
 	// Tags
-	routes.POST("/projects/:projectID/tags", tagHandler.Create)
-	routes.GET("/projects/:projectID/tags", tagHandler.GetAll)
-	routes.DELETE("/projects/:projectID/tags/:tagID", tagHandler.Delete)
+	readRoutes.GET("/projects/:projectID/tags", tagHandler.GetAll)
+	writeRoutes.POST("/projects/:projectID/tags", tagHandler.Create)
+	writeRoutes.DELETE("/projects/:projectID/tags/:tagID", tagHandler.Delete)
 
 	// Audit log
-	routes.GET("/audit", auditHandler.List)
-	routes.GET("/audit/export", auditHandler.Export)
+	readRoutes.GET("/audit", auditHandler.List)
+	writeRoutes.GET("/audit/export", auditHandler.Export)
 
 	// Setup graceful shutdown on SIGINT or SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

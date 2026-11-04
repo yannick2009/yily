@@ -26,28 +26,6 @@ var (
 	ErrSessionRevoked     = errors.New("session revoked")                              // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
 )
 
-type authUserContextKey struct{}
-type authSessionContextKey struct{}
-
-// WithAuthenticatedIdentity stores the authenticated User and Session in the request context.
-func WithAuthenticatedIdentity(ctx context.Context, user *model.User, session *model.Session) context.Context {
-	ctx = context.WithValue(ctx, authUserContextKey{}, user)
-	ctx = context.WithValue(ctx, authSessionContextKey{}, session)
-	return ctx
-}
-
-// AuthenticatedUserFromContext retrieves the authenticated User injected by the auth middleware from the context.
-func AuthenticatedUserFromContext(ctx context.Context) (*model.User, bool) {
-	user, ok := ctx.Value(authUserContextKey{}).(*model.User)
-	return user, ok && user != nil
-}
-
-// AuthenticatedSessionFromContext retrieves the authenticated Session injected by the auth middleware from the context.
-func AuthenticatedSessionFromContext(ctx context.Context) (*model.Session, bool) {
-	session, ok := ctx.Value(authSessionContextKey{}).(*model.Session)
-	return session, ok && session != nil
-}
-
 // AuthService defines the interface for Super Admin authentication and server-side session management.
 type AuthService interface {
 	Setup(ctx context.Context, name, email, password string) (*model.User, error)                                     // Setup creates the initial Super Admin account.

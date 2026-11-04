@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/types"
+	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/services"
 )
 
@@ -70,10 +71,10 @@ func (h *environmentHandler) Clone(c *echo.Context) error {
 	}
 
 	if err := h.environmentService.Clone(c.Request().Context(), id, req.Name, req.CopyTags); err != nil {
-		return NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return httputil.NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
 	}
 
-	return NewHTTPResponse[any](c, http.StatusCreated, "Environment cloned successfully", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusCreated, "Environment cloned successfully", nil)
 }
 
 // Create handles POST /projects/:projectID/environments.
@@ -93,7 +94,7 @@ func (h *environmentHandler) Create(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusCreated, "Environment created successfully", environment)
+	return httputil.NewHTTPResponse(c, http.StatusCreated, "Environment created successfully", environment)
 }
 
 // GetAll handles GET /projects/:projectID/environments.
@@ -108,7 +109,7 @@ func (h *environmentHandler) GetAll(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusOK, "Environments retrieved successfully", environments)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Environments retrieved successfully", environments)
 }
 
 // GetByID handles GET /environments/:id.
@@ -123,7 +124,7 @@ func (h *environmentHandler) GetByID(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse(c, http.StatusOK, "Environment retrieved successfully", environment)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Environment retrieved successfully", environment)
 }
 
 // SetName handles PATCH /environments/:id.
@@ -142,7 +143,7 @@ func (h *environmentHandler) SetName(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse[any](c, http.StatusOK, "Environment name updated successfully", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Environment name updated successfully", nil)
 }
 
 // SetDescription handles PATCH /environments/:id/description.
@@ -161,7 +162,7 @@ func (h *environmentHandler) SetDescription(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse[any](c, http.StatusOK, "Environment description updated successfully", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Environment description updated successfully", nil)
 }
 
 // Delete handles DELETE /environments/:id.
@@ -175,7 +176,7 @@ func (h *environmentHandler) Delete(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse[any](c, http.StatusOK, "Environment deleted successfully", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Environment deleted successfully", nil)
 }
 
 // Import handles POST /environments/:id/import.
@@ -214,7 +215,7 @@ func (h *environmentHandler) Import(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	return NewHTTPResponse[any](c, http.StatusOK, "Variables imported successfully", nil)
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Variables imported successfully", nil)
 }
 
 // Export handles GET /environments/:id/export?format=json|yaml|env.

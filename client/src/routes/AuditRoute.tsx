@@ -2,12 +2,13 @@
 import { createEffect, createResource, createSignal, For, Show, onCleanup } from "solid-js";
 import { audit } from "../api";
 import { currentUser } from "../store";
-import { locale, t } from "../lib/i18n";
-import { errorMessage } from "../lib/errors";
-import { downloadBlob } from "../lib/download";
+import { t } from "../lib/i18n";
+import { formatDate, timeAgo } from "../lib/date";
 import type { AuditEvent } from "../types";
 import { Badge, Button, Icon, Input } from "../components/ui";
 import { Dialog, EmptyState } from "../components/shared";
+import { downloadBlob } from "../lib/download";
+import { errorMessage } from "../lib/errors";
 
 const ACTIONS = [
   "created",
@@ -272,7 +273,11 @@ export function AuditRoute() {
 
           <div class="mt-3 flex items-center justify-between gap-4">
             <p class="text-sm text-ink-muted">
-              {t("audit.showing", { from: showingFrom(), to: showingTo(), total: total() })}
+              {t("audit.showing", {
+                from: showingFrom(),
+                to: showingTo(),
+                total: total(),
+              })}
             </p>
             <Show when={totalPages() > 1}>
               <div class="flex items-center gap-2">
@@ -395,27 +400,6 @@ function chipClass(active: boolean): string {
     "rounded-full px-3 py-1 text-xs font-medium transition-colors",
     active ? "bg-brand text-on-brand" : "bg-surface-2 text-ink-muted hover:text-ink",
   ].join(" ");
-}
-
-// Formats the time elapsed since an ISO date; falls back to a date for older items.
-function timeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(ms / 60000);
-  if (m < 1) return t("time.justNow");
-  if (m < 60) return t("time.minutesAgo", { n: m });
-  const h = Math.floor(m / 60);
-  if (h < 24) return t("time.hoursAgo", { n: h });
-  const d = Math.floor(h / 24);
-  if (d < 30) return t("time.daysAgo", { n: d });
-  return formatDate(iso);
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(locale(), {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 // Parse the metadata JSON into sorted key/value pairs for the detail dialog.

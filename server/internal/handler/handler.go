@@ -9,32 +9,18 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/env"
+	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/repository"
 	"github.com/yannick2009/yily/internal/services"
 )
-
-// HTTPResponse is the standard JSON envelope used for every API response.
-// On errors, `Code` carries a stable machine-readable identifier so clients
-// can localise the message; it stays empty on successful responses.
-type HTTPResponse[T any] struct {
-	Status  int       `json:"status"`
-	Code    ErrorCode `json:"code,omitempty"`
-	Message string    `json:"message"`
-	Data    T         `json:"data,omitempty"`
-}
-
-// NewHTTPResponse sends a standardized JSON response.
-func NewHTTPResponse[T any](c *echo.Context, status int, message string, data T) error {
-	return c.JSON(status, HTTPResponse[T]{Status: status, Message: message, Data: data})
-}
 
 // respondError sends a standardized error response, pairing a stable code
 // (looked up from the sentinel error) with the original English message.
 func respondError(c *echo.Context, err error) error {
 	status := httpStatus(err)
-	return c.JSON(status, HTTPResponse[any]{
+	return c.JSON(status, httputil.HTTPResponse[any]{
 		Status:  status,
-		Code:    codeFor(err),
+		Code:    string(codeFor(err)),
 		Message: err.Error(),
 	})
 }
@@ -42,9 +28,9 @@ func respondError(c *echo.Context, err error) error {
 // respondErrorCode is for non-sentinel error paths where we want a stable code
 // anyway (parsing a multipart form, parsing a UUID path param, …).
 func respondErrorCode(c *echo.Context, status int, code ErrorCode, message string) error {
-	return c.JSON(status, HTTPResponse[any]{
+	return c.JSON(status, httputil.HTTPResponse[any]{
 		Status:  status,
-		Code:    code,
+		Code:    string(code),
 		Message: message,
 	})
 }
@@ -78,6 +64,8 @@ func httpStatus(err error) int {
 		errors.Is(err, repository.ErrTagNameAlreadyExists),
 		errors.Is(err, repository.ErrUserAlreadyExists):
 		return http.StatusConflict
+	case errors.Is(err, services.ErrPATWriteForbidden):
+		return http.StatusForbidden
 	case errors.Is(err, repository.ErrTagNotInProject),
 		errors.Is(err, env.ErrInvalidJSONFormat),
 		errors.Is(err, env.ErrInvalidYAMLFormat),
@@ -87,6 +75,7 @@ func httpStatus(err error) int {
 		errors.Is(err, services.ErrWeakPassword),
 		errors.Is(err, services.ErrInvalidPATName),
 		errors.Is(err, services.ErrInvalidPATExpiration),
+		errors.Is(err, services.ErrInvalidPATScope),
 		errors.Is(err, services.ErrEnvironmentDescriptionTooLong):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrProjectNotFound),
