@@ -26,7 +26,7 @@ export function TokenRow(props: {
   return (
     <div class="flex items-center gap-4 px-4 py-3.5">
       <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-ink-muted">
-        <Icon name="key" size={16} />
+        <Icon name={revoked() ? "key-off" : "key"} size={16} />
       </div>
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
