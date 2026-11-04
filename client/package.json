@@ -15,13 +15,13 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3",
-    "typescript": "~6.0.2",
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.2.0",
+    "@types/node": "^26.6.6",
+    "typescript": "~7.0.2",
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0",
     "vite-plugin-solid": "^2.11.14",
-    "vite-plus": "1.2.0"
+    "vite-plus": "1.5.0"
   },
   "overrides": {
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.2.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0"
   }
 }

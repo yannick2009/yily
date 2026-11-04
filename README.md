@@ -37,6 +37,26 @@ For this project, we have a monorepo structure that contains both the server and
 
 The `client` contains the web interface, while the `server` contains the API, the command-line interface, and the application's internal packages.
 
+## Development environment
+
+The project pins its system toolchain (Go, Node.js, linters, task runner…) through its Nix flake, and its JavaScript toolchain — including **vite-plus** — through `client/package.json`. To enter the dev shell:
+
+```bash
+nix develop
+```
+
+Then `npm install` (run automatically by the shell hook) pulls the pinned `vite-plus` into `client/node_modules/`. The npm scripts (`npm run dev`, `npm run build`, `npm run preview`) and `just lint` resolve `vp` from there — no global install needed.
+
+> **Do not run the official vite-plus installer** (`curl -fsSL https://viteplus.dev/install.sh | sh` or `vp self install`). It writes to `~/.local/share/vite-plus/`, prepends itself to your `PATH` via `~/.config/vite-plus/env`, and installs a `vp` shell function — all of which is unnecessary (the version in `client/package.json` is used by every project command) and can cause confusion if you type `vp` manually.
+>
+> If you had already run the installer, remove it with:
+>
+> ```bash
+> rm -rf ~/.local/share/vite-plus ~/.config/vite-plus
+> # then remove the `. "$HOME/.config/vite-plus/env"` line from
+> # ~/.zshrc, ~/.zshenv, ~/.bashrc, ~/.profile
+> ```
+
 ## Configuration
 
 ### Master Key (`YILY_MASTER_KEY`)
