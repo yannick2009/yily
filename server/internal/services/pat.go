@@ -25,31 +25,18 @@ var (
 	ErrPATExpired           = errors.New("personal access token expired")            // ErrPATExpired is returned when a PAT has reached or passed its expiration date.
 	ErrPATRevoked           = errors.New("personal access token revoked")            // ErrPATRevoked is returned when a PAT has been explicitly revoked.
 	ErrInvalidPATName       = errors.New("invalid personal access token name")       // ErrInvalidPATName is returned when a PAT name is empty or whitespace-only.
-	ErrInvalidPATExpiration = errors.New("invalid personal access token expiration") // ErrInvalidPATExpiration is returned when a PAT expiration duration is negative, zero, or above the 90-day cap.
+	ErrInvalidPATExpiration = errors.New("invalid personal access token expiration") // ErrInvalidPATExpiration is returned when a PAT expiration duration is negative, zero, or above the 90-day cap, or when a write-scoped PAT is created without an expiration.
+	ErrInvalidPATScope      = errors.New("invalid personal access token scope")      // ErrInvalidPATScope is returned when a PAT scope is not one of the accepted values (read, write).
+	ErrPATWriteForbidden    = errors.New("personal access token lacks write scope")  // ErrPATWriteForbidden is returned when a read-only PAT attempts a write operation.
 )
-
-type authPATContextKey struct{}
-
-// WithAuthenticatedPAT stores the authenticated User and PersonalAccessToken in the request context.
-func WithAuthenticatedPAT(ctx context.Context, user *model.User, pat *model.PersonalAccessToken) context.Context {
-	ctx = context.WithValue(ctx, authUserContextKey{}, user)
-	ctx = context.WithValue(ctx, authPATContextKey{}, pat)
-	return ctx
-}
-
-// AuthenticatedPATFromContext retrieves the authenticated PersonalAccessToken injected by the auth middleware from the context.
-func AuthenticatedPATFromContext(ctx context.Context) (*model.PersonalAccessToken, bool) {
-	pat, ok := ctx.Value(authPATContextKey{}).(*model.PersonalAccessToken)
-	return pat, ok && pat != nil
-}
 
 // PATService defines the interface for Personal Access Token creation, validation, listing, rotation, and revocation.
 type PATService interface {
-	Create(ctx context.Context, userID uuid.UUID, name string, ttl time.Duration) (string, *model.PersonalAccessToken, error)     // Create generates a new PAT, stores only its SHA-256 hash, and returns the raw token once.
-	Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UUID, ttl time.Duration) (string, *model.PersonalAccessToken, error) // Rotate revokes an existing PAT and issues a new one under the same name, returning the raw replacement token once.
-	Validate(ctx context.Context, rawToken string) (*model.User, *model.PersonalAccessToken, error)                               // Validate verifies a raw PAT against its stored SHA-256 hash and loads the owning user.
-	GetAll(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error)                                            // GetAll lists all PATs belonging to a user without exposing raw tokens or hashes.
-	Revoke(ctx context.Context, userID uuid.UUID, patID uuid.UUID) error                                                          // Revoke marks a user's PAT as revoked by its ID.
+	Create(ctx context.Context, userID uuid.UUID, name string, scope types.PATScope, ttl time.Duration) (string, *model.PersonalAccessToken, error) // Create generates a new PAT with the given scope, stores only its SHA-256 hash, and returns the raw token once.
+	Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UUID, ttl time.Duration) (string, *model.PersonalAccessToken, error)                   // Rotate revokes an existing PAT and issues a new one under the same name and scope, returning the raw replacement token once.
+	Validate(ctx context.Context, rawToken string) (*model.User, *model.PersonalAccessToken, error)                                                 // Validate verifies a raw PAT against its stored SHA-256 hash and loads the owning user.
+	GetAll(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error)                                                              // GetAll lists all PATs belonging to a user without exposing raw tokens or hashes.
+	Revoke(ctx context.Context, userID uuid.UUID, patID uuid.UUID) error                                                                            // Revoke marks a user's PAT as revoked by its ID.
 }
 
 // patService implements PATService.
@@ -73,17 +60,23 @@ func NewPATService(userRepository repository.UserRepository, patRepository repos
 }
 
 // Create generates a 256-bit PAT with the "yily_" prefix, persists only its SHA-256 hash in SQLite, and returns the raw token once.
-func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, ttl time.Duration) (string, *model.PersonalAccessToken, error) {
+// A write-scoped PAT must have a positive TTL within MaxPATTTL. A read-scoped PAT may omit the TTL (ttl == 0) for a non-expiring token.
+func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, scope types.PATScope, ttl time.Duration) (string, *model.PersonalAccessToken, error) {
 	trimmedName := strings.TrimSpace(name)
 	if trimmedName == "" {
 		return "", nil, ErrInvalidPATName
 	}
 
-	if ttl == 0 {
-		ttl = s.defaultTTL
+	if !scope.IsValid() {
+		return "", nil, ErrInvalidPATScope
 	}
+
 	if ttl < 0 || ttl > MaxPATTTL {
 		return "", nil, ErrInvalidPATExpiration
+	}
+	// Write-scoped tokens must expire to limit exposure if leaked; read-only tokens may live forever.
+	if ttl == 0 && scope == types.PATScopeWrite {
+		ttl = s.defaultTTL
 	}
 
 	if _, err := s.userRepository.GetByID(ctx, userID); err != nil {
@@ -99,9 +92,13 @@ func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, 
 	pat := &model.PersonalAccessToken{
 		UserID:    userID,
 		Name:      trimmedName,
+		Scope:     scope,
 		TokenHash: tokenHash,
 		CreatedAt: now,
-		ExpiresAt: now.Add(ttl),
+	}
+	if ttl > 0 {
+		expiresAt := now.Add(ttl)
+		pat.ExpiresAt = &expiresAt
 	}
 
 	if err := s.patRepository.Create(ctx, pat); err != nil {
@@ -113,11 +110,8 @@ func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, 
 	return rawToken, pat, nil
 }
 
-// Rotate revokes an existing PAT belonging to the user and issues a replacement under the same name with a fresh TTL. The raw token is returned exactly once.
+// Rotate revokes an existing PAT belonging to the user and issues a replacement under the same name and scope with a fresh TTL. The raw token is returned exactly once.
 func (s *patService) Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UUID, ttl time.Duration) (string, *model.PersonalAccessToken, error) {
-	if ttl == 0 {
-		ttl = s.defaultTTL
-	}
 	if ttl < 0 || ttl > MaxPATTTL {
 		return "", nil, ErrInvalidPATExpiration
 	}
@@ -130,6 +124,11 @@ func (s *patService) Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UU
 		return "", nil, repository.ErrPATNotFound
 	}
 
+	// Write-scoped tokens must expire to limit exposure if leaked; read-only tokens may live forever.
+	if ttl == 0 && existing.Scope == types.PATScopeWrite {
+		ttl = s.defaultTTL
+	}
+
 	rawToken, tokenHash, err := crypto.GeneratePAT()
 	if err != nil {
 		return "", nil, err
@@ -139,9 +138,13 @@ func (s *patService) Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UU
 	replacement := &model.PersonalAccessToken{
 		UserID:    userID,
 		Name:      existing.Name,
+		Scope:     existing.Scope,
 		TokenHash: tokenHash,
 		CreatedAt: now,
-		ExpiresAt: now.Add(ttl),
+	}
+	if ttl > 0 {
+		expiresAt := now.Add(ttl)
+		replacement.ExpiresAt = &expiresAt
 	}
 	if err := s.patRepository.Create(ctx, replacement); err != nil {
 		return "", nil, err

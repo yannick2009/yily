@@ -46,6 +46,8 @@ const (
 	CodeTokenNotFound          ErrorCode = "TOKEN_NOT_FOUND"
 	CodeTokenInvalidName       ErrorCode = "TOKEN_INVALID_NAME"
 	CodeTokenInvalidExpiration ErrorCode = "TOKEN_INVALID_EXPIRATION"
+	CodeTokenInvalidScope      ErrorCode = "TOKEN_INVALID_SCOPE"
+	CodeTokenWriteForbidden    ErrorCode = "TOKEN_WRITE_FORBIDDEN"
 
 	// Resources
 	CodeProjectNotFound         ErrorCode = "PROJECT_NOT_FOUND"
@@ -87,6 +89,8 @@ var sentinelCodes = []struct {
 	{repository.ErrPATNotFound, CodeTokenNotFound},
 	{services.ErrInvalidPATName, CodeTokenInvalidName},
 	{services.ErrInvalidPATExpiration, CodeTokenInvalidExpiration},
+	{services.ErrInvalidPATScope, CodeTokenInvalidScope},
+	{services.ErrPATWriteForbidden, CodeTokenWriteForbidden},
 
 	// Resources
 	{repository.ErrProjectNotFound, CodeProjectNotFound},

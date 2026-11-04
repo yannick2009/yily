@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v5"
-	"github.com/yannick2009/yily/internal/handler"
+	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/services"
 )
 
@@ -22,31 +22,31 @@ func RequireAuth(authService services.AuthService, patService services.PATServic
 			if authHeader := strings.TrimSpace(c.Request().Header.Get(AuthorizationHeader)); authHeader != "" {
 				rawToken, ok := extractBearerToken(authHeader)
 				if !ok {
-					return handler.NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+					return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
 				}
 
 				user, pat, err := patService.Validate(c.Request().Context(), rawToken)
 				if err != nil {
-					return handler.NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+					return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
 				}
 
-				ctx := services.WithAuthenticatedPAT(c.Request().Context(), user, pat)
+				ctx := WithAuthenticatedPAT(c.Request().Context(), user, pat)
 				c.SetRequest(c.Request().WithContext(ctx))
 				return next(c)
 			}
 
 			// Otherwise, authenticate via server-side session cookie.
-			cookie, err := c.Cookie(handler.SessionCookieName)
+			cookie, err := c.Cookie(httputil.SessionCookieName)
 			if err != nil || cookie == nil || strings.TrimSpace(cookie.Value) == "" {
-				return handler.NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+				return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
 			}
 
 			user, session, err := authService.ValidateSession(c.Request().Context(), cookie.Value)
 			if err != nil {
-				return handler.NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+				return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
 			}
 
-			ctx := services.WithAuthenticatedIdentity(c.Request().Context(), user, session)
+			ctx := WithAuthenticatedIdentity(c.Request().Context(), user, session)
 			c.SetRequest(c.Request().WithContext(ctx))
 			return next(c)
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/env"
+	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/repository"
 	"github.com/yannick2009/yily/internal/services"
 )
@@ -63,6 +64,8 @@ func httpStatus(err error) int {
 		errors.Is(err, repository.ErrTagNameAlreadyExists),
 		errors.Is(err, repository.ErrUserAlreadyExists):
 		return http.StatusConflict
+	case errors.Is(err, services.ErrPATWriteForbidden):
+		return http.StatusForbidden
 	case errors.Is(err, repository.ErrTagNotInProject),
 		errors.Is(err, env.ErrInvalidJSONFormat),
 		errors.Is(err, env.ErrInvalidYAMLFormat),
@@ -72,6 +75,7 @@ func httpStatus(err error) int {
 		errors.Is(err, services.ErrWeakPassword),
 		errors.Is(err, services.ErrInvalidPATName),
 		errors.Is(err, services.ErrInvalidPATExpiration),
+		errors.Is(err, services.ErrInvalidPATScope),
 		errors.Is(err, services.ErrEnvironmentDescriptionTooLong):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrProjectNotFound),

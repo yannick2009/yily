@@ -17,17 +17,8 @@ type AuditActor struct {
 	Name string          // Name is the actor's display name (empty for "system").
 }
 
-// ActorFromContext resolves the authenticated actor from the request context.
-// A Bearer PAT takes precedence over a session user, so token activity is attributed to the token.
-func ActorFromContext(ctx context.Context) AuditActor {
-	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
-		return AuditActor{Type: types.ActorTypeToken, ID: pat.ID, Name: pat.Name}
-	}
-	if user, ok := AuthenticatedUserFromContext(ctx); ok {
-		return AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}
-	}
-	return AuditActor{Type: types.ActorTypeSystem}
-}
+// ActorResolver resolves the authenticated actor from the request context. It is injected into the AuditService so the services layer never depends on HTTP context primitives.
+type ActorResolver func(ctx context.Context) AuditActor
 
 // AuditFilter filters the audit log listing.
 type AuditFilter struct {
@@ -57,16 +48,17 @@ type AuditService interface {
 // auditService implements AuditService.
 type auditService struct {
 	auditRepository repository.AuditRepository
+	resolveActor    ActorResolver
 }
 
-// NewAuditService creates a new auditService with the provided AuditRepository.
-func NewAuditService(auditRepository repository.AuditRepository) AuditService {
-	return &auditService{auditRepository: auditRepository}
+// NewAuditService creates a new AuditService with the provided AuditRepository and actor resolver. The resolver reads the authenticated actor from the request context; wire it to the context-aware helper at startup.
+func NewAuditService(auditRepository repository.AuditRepository, resolveActor ActorResolver) AuditService {
+	return &auditService{auditRepository: auditRepository, resolveActor: resolveActor}
 }
 
-// Record appends an audit event attributed to the actor resolved from the request context.
+// Record appends an audit event attributed to the actor resolved from the request context via the injected resolver.
 func (s *auditService) Record(ctx context.Context, action types.Action, resourceType types.ResourceType, resourceID uuid.UUID, resourceName string) error {
-	return s.RecordAs(ctx, ActorFromContext(ctx), action, resourceType, resourceID, resourceName)
+	return s.RecordAs(ctx, s.resolveActor(ctx), action, resourceType, resourceID, resourceName)
 }
 
 // RecordAs appends an audit event with an explicit actor.
