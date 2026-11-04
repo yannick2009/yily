@@ -1,4 +1,4 @@
-// Triggers a browser download for a blob under the given filename.
+// Triggers a browser download for an in-memory Blob under the given filename.
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

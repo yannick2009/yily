@@ -75,12 +75,16 @@ export interface VariableVersion {
 
 // --- Authentication & tokens ------------------------------------------------
 
+// Scope granted to a token. Read-only tokens can list and reveal values; write tokens can also mutate resources.
+export type TokenScope = "read" | "write";
+
 // A client access token. The secret is only ever returned once, at creation.
 export interface Token {
   id: string;
   name: string;
+  scope: TokenScope;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
   revoked_at: string | null;
   last_used_at: string | null;
 }
@@ -91,9 +95,10 @@ export interface CreatedToken {
   id: string;
   user_id: string;
   name: string;
+  scope: TokenScope;
   token: string;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
 }
 
 // The signed-in Super Admin.

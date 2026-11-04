@@ -1,14 +1,25 @@
-// Variables table for an environment: tag filter, value reveal/copy, and file import/export.
+// Environment page: header + rename/description editing, search/sort/tag filter, and the variables table.
+// Create/delete/import/export are delegated to dialog components.
 import { createEffect, createResource, createSignal, For, Show, onCleanup } from "solid-js";
 import { A, useParams } from "@solidjs/router";
 import { environments, projects, tags, variables } from "../api";
 import { t } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
-import { downloadBlob } from "../lib/download";
 import { createRevealController } from "../lib/reveal";
-import { normalizeVariableName } from "../lib/variable";
-import { Badge, Button, Icon, Input, Textarea } from "../components/ui";
-import { Dialog, EmptyState, Field, RevealCountdown, ValueGenerator } from "../components/shared";
+import { copyToClipboard } from "../lib/clipboard";
+import { Button, Icon, Input } from "../components/ui";
+import { EmptyState } from "../components/shared";
+import {
+  CreateVariableDialog,
+  DeleteVariableDialog,
+  ExportVariablesDialog,
+  ImportVariablesDialog,
+  SortPill,
+  VariablesTable,
+} from "../components/environment";
+
+type SortField = "name" | "created_at";
+type SortOrder = "asc" | "desc";
 
 export function EnvironmentRoute() {
   const params = useParams();
@@ -35,16 +46,11 @@ export function EnvironmentRoute() {
   // Server-side sort: two independent axes (column + direction). Clicking the
   // active pill toggles the direction; clicking the inactive one switches the
   // column while preserving the direction.
-  type SortField = "name" | "created_at";
-  type SortOrder = "asc" | "desc";
   const [sortField, setSortField] = createSignal<SortField>("name");
   const [sortOrder, setSortOrder] = createSignal<SortOrder>("asc");
   const onSortClick = (field: SortField) => {
-    if (sortField() === field) {
-      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-    }
+    if (sortField() === field) setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    else setSortField(field);
   };
 
   const [envRes, { refetch: refetchEnv }] = createResource(() => environments.get(envId()));
@@ -65,10 +71,7 @@ export function EnvironmentRoute() {
   const environment = () => envRes();
   const variableList = () => varsRes() ?? [];
   const tagList = () => tagsRes() ?? [];
-
-  // Whether the current list is narrowed by a search and/or tag filter.
   const filtering = () => debouncedQuery().trim() !== "" || selectedTags().length > 0;
-  // Whether the environment has variables at all, even when the filtered list is empty.
   const hasVariables = () => variableList().length > 0 || filtering();
 
   // Value reveal + copy. Revealed values auto-hide after 20s, with a countdown.
@@ -97,62 +100,25 @@ export function EnvironmentRoute() {
   };
 
   const copy = async (id: string) => {
-    try {
-      await navigator.clipboard.writeText(revealedValues()[id] ?? "");
-    } catch {
-      /* clipboard unavailable */
-    }
+    await copyToClipboard(revealedValues()[id] ?? "");
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1500);
   };
 
-  // Create variable.
+  // Dialog open state.
   const [createOpen, setCreateOpen] = createSignal(false);
-  const [name, setName] = createSignal("");
-  const [value, setValue] = createSignal("");
-  const [busy, setBusy] = createSignal(false);
-  const [error, setError] = createSignal<string | null>(null);
-  const submitCreate = async (e: Event) => {
-    e.preventDefault();
-    const n = normalizeVariableName(name());
-    if (!n) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await variables.create(envId(), { name: n, value: value() });
-      setName("");
-      setValue("");
-      setCreateOpen(false);
-      await refetchVars();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const [deleting, setDeleting] = createSignal<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [importOpen, setImportOpen] = createSignal(false);
+  const [exportOpen, setExportOpen] = createSignal(false);
 
-  // Delete variable.
-  const [deleting, setDeleting] = createSignal<{ id: string; name: string } | null>(null);
-  const confirmDelete = async () => {
-    const d = deleting();
-    if (!d) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await variables.remove(d.id);
-      setDeleting(null);
-      await refetchVars();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // Rename environment.
+  // Rename environment (inline).
   let renameInput: HTMLInputElement | undefined;
   const [renaming, setRenaming] = createSignal(false);
   const [draftName, setDraftName] = createSignal("");
+  const [renameError, setRenameError] = createSignal<string | null>(null);
 
   createEffect(() => {
     if (renaming()) renameInput?.focus();
@@ -169,7 +135,7 @@ export function EnvironmentRoute() {
         await environments.rename(envId(), n);
         await refetchEnv();
       } catch (err) {
-        setError(errorMessage(err));
+        setRenameError(errorMessage(err));
       }
     }
     setRenaming(false);
@@ -179,7 +145,7 @@ export function EnvironmentRoute() {
     else if (e.key === "Escape") setRenaming(false);
   };
 
-  // Edit description.
+  // Edit description (inline).
   let descInput: HTMLInputElement | undefined;
   const [editingDesc, setEditingDesc] = createSignal(false);
   const [draftDesc, setDraftDesc] = createSignal("");
@@ -199,7 +165,7 @@ export function EnvironmentRoute() {
         await environments.setDescription(envId(), d);
         await refetchEnv();
       } catch (err) {
-        setError(errorMessage(err));
+        setRenameError(errorMessage(err));
       }
     }
     setEditingDesc(false);
@@ -207,83 +173,6 @@ export function EnvironmentRoute() {
   const onDescKey = (e: KeyboardEvent) => {
     if (e.key === "Enter") void commitDesc();
     else if (e.key === "Escape") setEditingDesc(false);
-  };
-
-  // Import.
-  let fileInput: HTMLInputElement | undefined;
-  const [importOpen, setImportOpen] = createSignal(false);
-  const [importError, setImportError] = createSignal<string | null>(null);
-  const [dragging, setDragging] = createSignal(false);
-  const [importBusy, setImportBusy] = createSignal(false);
-
-  createEffect(() => {
-    if (importOpen()) {
-      queueMicrotask(() => {
-        if (fileInput) fileInput.value = "";
-      });
-      setDragging(false);
-    }
-  });
-
-  const openImport = () => {
-    setImportError(null);
-    setImportOpen(true);
-  };
-  const closeImport = () => {
-    setImportOpen(false);
-    setImportError(null);
-    setDragging(false);
-  };
-
-  const handleFile = async (file: File) => {
-    setImportBusy(true);
-    setImportError(null);
-    try {
-      await environments.importFile(envId(), file);
-      setImportOpen(false);
-      await refetchVars();
-    } catch (err) {
-      setImportError(errorMessage(err));
-    } finally {
-      setImportBusy(false);
-    }
-  };
-
-  const onImportFile = (e: Event) => {
-    const input = e.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) void handleFile(file);
-  };
-
-  const onDragOver = (e: DragEvent) => {
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-    setDragging(true);
-  };
-  const onDragLeave = () => setDragging(false);
-  const onDrop = (e: DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer?.files?.[0];
-    if (file) void handleFile(file);
-  };
-
-  // Export.
-  const [exportOpen, setExportOpen] = createSignal(false);
-  const [exportBusy, setExportBusy] = createSignal(false);
-
-  const doExport = async (format: FormatOption) => {
-    setExportBusy(true);
-    setError(null);
-    try {
-      const { blob, filename } = await environments.exportFile(envId(), format.id);
-      downloadBlob(blob, filename);
-      setExportOpen(false);
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setExportBusy(false);
-    }
   };
 
   return (
@@ -370,9 +259,12 @@ export function EnvironmentRoute() {
                   maxLength={50}
                 />
               </Show>
+              <Show when={renameError()}>
+                <p class="mt-2 text-sm text-danger">{renameError()}</p>
+              </Show>
             </div>
             <div class="flex gap-2">
-              <Button variant="secondary" icon="upload" onClick={openImport}>
+              <Button variant="secondary" icon="download" onClick={() => setImportOpen(true)}>
                 {t("env.import")}
               </Button>
               <Button variant="secondary" icon="download" onClick={() => setExportOpen(true)}>
@@ -468,347 +360,45 @@ export function EnvironmentRoute() {
                 />
               }
             >
-              <div class="overflow-x-auto rounded-xl border border-line bg-surface">
-                <table class="w-full table-fixed border-collapse text-left text-sm">
-                  <thead>
-                    <tr class="border-b border-line text-xs uppercase tracking-wide text-ink-faint">
-                      <th class="px-4 py-3 font-medium">{t("common.name")}</th>
-                      <th class="w-16 px-4 py-3 text-center font-medium">{t("env.status")}</th>
-                      <th class="w-64 px-4 py-3 font-medium">{t("env.value")}</th>
-                      <th class="px-4 py-3 font-medium">{t("project.tags")}</th>
-                      <th class="w-32 px-4 py-3 text-right font-medium">{t("env.actions")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <For each={variableList()}>
-                      {(v) => {
-                        const revealed = () => reveal.isRevealed(v.id);
-                        const remaining = () => reveal.countdownFor(v.id);
-                        const currentValue = () => revealedValues()[v.id] ?? "";
-                        const variableTags = () => v.tags ?? [];
-
-                        return (
-                          <tr class="border-t border-line first:border-t-0">
-                            <td class="py-3 pl-4 pr-4 align-top">
-                              <div class="flex items-center gap-2">
-                                <A
-                                  href={`/projects/${projectId()}/environments/${envId()}/variables/${v.id}`}
-                                  class="font-mono text-sm text-ink hover:text-brand hover:underline"
-                                >
-                                  {v.name}
-                                </A>
-                                <Show when={!v.active}>
-                                  <span class="shrink-0 rounded-md bg-warning-subtle px-1.5 py-0.5 text-xs font-medium text-warning">
-                                    {t("variable.needsValue")}
-                                  </span>
-                                </Show>
-                              </div>
-                            </td>
-                            <td class="py-3 pl-4 pr-4 text-center align-top">
-                              <span
-                                class={[
-                                  "mt-1.5 inline-block h-1.5 w-1.5 rounded-full",
-                                  v.active ? "bg-success" : "bg-ink-faint",
-                                ].join(" ")}
-                                title={v.active ? t("variable.active") : t("variable.inactive")}
-                              />
-                            </td>
-                            <td class="py-3 pr-4 align-top">
-                              <div class="flex items-center gap-2">
-                                <code
-                                  class={[
-                                    "min-w-0 flex-1 truncate font-mono text-sm",
-                                    v.active ? "text-ink-muted" : "text-ink-faint",
-                                  ].join(" ")}
-                                  title={revealed() ? currentValue() || undefined : undefined}
-                                >
-                                  {!v.active
-                                    ? "– – – – –"
-                                    : revealed()
-                                      ? truncateMiddle(currentValue() || t("env.noValue"))
-                                      : "••••••••••"}
-                                </code>
-                                <Show when={revealed() && remaining() > 0}>
-                                  <RevealCountdown seconds={remaining()} />
-                                </Show>
-                              </div>
-                            </td>
-                            <td class="py-3 pr-4 align-top">
-                              <TagList tags={variableTags()} max={3} />
-                            </td>
-                            <td class="py-3 pr-4 text-right align-top">
-                              <div class="flex items-center justify-end gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleReveal(v.id)}
-                                  disabled={!v.active}
-                                  class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-muted"
-                                  aria-label={
-                                    revealed()
-                                      ? t("env.hideAria", { name: v.name })
-                                      : t("env.revealAria", { name: v.name })
-                                  }
-                                  title={!v.active ? t("variable.needsValue") : undefined}
-                                >
-                                  <Icon name={revealed() ? "eye-off" : "eye"} size={15} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => copy(v.id)}
-                                  disabled={!v.active}
-                                  class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-muted"
-                                  aria-label={t("env.copyAria", { name: v.name })}
-                                  title={!v.active ? t("variable.needsValue") : undefined}
-                                >
-                                  <Icon name={copiedId() === v.id ? "check" : "copy"} size={15} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleting({ id: v.id, name: v.name })}
-                                  class="rounded-md p-1.5 text-ink-muted hover:bg-danger-subtle hover:text-danger"
-                                  aria-label={t("common.deleteAria", { name: v.name })}
-                                >
-                                  <Icon name="trash" size={15} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      }}
-                    </For>
-                  </tbody>
-                </table>
-              </div>
+              <VariablesTable
+                variables={variableList()}
+                projectId={projectId()}
+                envId={envId()}
+                isRevealed={(id) => reveal.isRevealed(id)}
+                getRevealedValue={(id) => revealedValues()[id] ?? ""}
+                remainingFor={(id) => reveal.countdownFor(id)}
+                copiedId={copiedId()}
+                onToggleReveal={toggleReveal}
+                onCopy={copy}
+                onDelete={setDeleting}
+              />
             </Show>
           </Show>
         </div>
 
-        <Dialog
+        <CreateVariableDialog
           open={createOpen()}
           onClose={() => setCreateOpen(false)}
-          title={t("env.newVariable")}
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setCreateOpen(false)}>
-                {t("common.cancel")}
-              </Button>
-              <Button type="submit" form="new-variable-form" loading={busy()}>
-                {t("env.createVariable")}
-              </Button>
-            </>
-          }
-        >
-          <form id="new-variable-form" onSubmit={submitCreate} class="space-y-4">
-            <Field label={t("common.name")}>
-              <Input
-                value={name()}
-                onInput={(e) => setName(normalizeVariableName(e.currentTarget.value))}
-                placeholder={t("env.varNamePlaceholder")}
-              />
-            </Field>
-            <Field label={t("env.value")} hint={t("env.encryptedHint")}>
-              <Textarea
-                rows={3}
-                value={value()}
-                onInput={(e) => setValue(e.currentTarget.value)}
-                placeholder={t("env.varValuePlaceholder")}
-              />
-              <ValueGenerator onGenerate={(v) => setValue(v)} />
-            </Field>
-            <Show when={error()}>
-              <p class="text-sm text-danger">{error()}</p>
-            </Show>
-          </form>
-        </Dialog>
-
-        <Dialog
-          open={!!deleting()}
+          envId={envId()}
+          onCreated={() => refetchVars()}
+        />
+        <DeleteVariableDialog
+          target={deleting()}
           onClose={() => setDeleting(null)}
-          title={t("env.deleteVariable")}
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setDeleting(null)}>
-                {t("common.cancel")}
-              </Button>
-              <Button variant="danger" onClick={confirmDelete} loading={busy()}>
-                {t("common.delete")}
-              </Button>
-            </>
-          }
-        >
-          <p class="text-sm text-ink-muted">
-            {t("env.deleteVariableConfirm", { name: deleting()?.name ?? "" })}
-          </p>
-          <Show when={error()}>
-            <p class="mt-3 text-sm text-danger">{error()}</p>
-          </Show>
-        </Dialog>
-
-        <Dialog
+          onDeleted={() => refetchVars()}
+        />
+        <ImportVariablesDialog
           open={importOpen()}
-          onClose={closeImport}
-          title={t("env.importTitle")}
-          footer={
-            <Button variant="secondary" onClick={closeImport}>
-              {t("common.cancel")}
-            </Button>
-          }
-        >
-          <div class="space-y-3">
-            <p class="text-sm text-ink-muted">{t("env.importHint")}</p>
-            <div
-              onClick={() => fileInput?.click()}
-              onDragOver={onDragOver}
-              onDragLeave={onDragLeave}
-              onDrop={onDrop}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  fileInput?.click();
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              class={[
-                "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-6 py-10 text-center transition-colors",
-                dragging()
-                  ? "border-brand bg-brand-subtle"
-                  : "border-line bg-surface-2 hover:border-ink-faint",
-              ].join(" ")}
-            >
-              <Icon name="upload" size={28} class={dragging() ? "text-brand" : "text-ink-faint"} />
-              <p class="text-sm font-medium text-ink">{t("env.dropTitle")}</p>
-              <p class="text-xs text-ink-muted">{t("env.dropBrowse")}</p>
-              <input
-                ref={(el) => (fileInput = el)}
-                type="file"
-                accept=".env,.json,.yaml,.yml"
-                onChange={onImportFile}
-                class="hidden"
-              />
-            </div>
-            <Show when={importBusy()}>
-              <p class="text-sm text-ink-muted">{t("common.loading")}</p>
-            </Show>
-            <Show when={importError()}>
-              <p class="text-sm text-danger">{importError()}</p>
-            </Show>
-          </div>
-        </Dialog>
-
-        <Dialog
+          onClose={() => setImportOpen(false)}
+          envId={envId()}
+          onImported={() => refetchVars()}
+        />
+        <ExportVariablesDialog
           open={exportOpen()}
           onClose={() => setExportOpen(false)}
-          title={t("env.exportTitle")}
-        >
-          <div class="space-y-3">
-            <p class="text-sm text-ink-muted">{t("env.exportHint")}</p>
-            <div class="space-y-2">
-              <For each={EXPORT_FORMATS}>
-                {(format) => (
-                  <button
-                    type="button"
-                    disabled={exportBusy()}
-                    onClick={() => doExport(format)}
-                    class="flex w-full items-center gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2.5 text-left transition-colors hover:border-brand hover:bg-surface disabled:pointer-events-none disabled:opacity-60"
-                  >
-                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-brand">
-                      <Icon name="code-bracket" size={15} />
-                    </div>
-                    <div class="min-w-0 flex-1">
-                      <p class="text-sm font-medium text-ink">{format.label}</p>
-                      <p class="text-xs text-ink-muted">.{format.ext}</p>
-                    </div>
-                    <Icon name="chevron-right" size={15} class="text-ink-faint" />
-                  </button>
-                )}
-              </For>
-            </div>
-            <Show when={error()}>
-              <p class="text-sm text-danger">{error()}</p>
-            </Show>
-          </div>
-        </Dialog>
+          envId={envId()}
+        />
       </Show>
     </Show>
-  );
-}
-
-// Show just the start and end of a long value, keeping the table on one line.
-function truncateMiddle(value: string, head = 16, tail = 6): string {
-  if (value.length <= head + tail + 1) return value;
-  return `${value.slice(0, head)}…${value.slice(-tail)}`;
-}
-
-// --- Export helpers ---
-
-interface FormatOption {
-  id: "json" | "yaml" | "env";
-  ext: string;
-  label: string;
-}
-
-const EXPORT_FORMATS: FormatOption[] = [
-  { id: "json", ext: "json", label: "JSON" },
-  { id: "env", ext: "env", label: ".env" },
-  { id: "yaml", ext: "yaml", label: "YAML" },
-];
-
-// TagList displays a variable's tags on a single row, truncating to `max`
-// items. Any overflow collapses into a "+N" chip whose title lists the
-// hidden names, so no information is lost — just visual noise.
-function TagList(props: { tags: { id: string; name: string }[]; max: number }) {
-  const visible = () => props.tags.slice(0, props.max);
-  const hidden = () => props.tags.slice(props.max);
-  return (
-    <div class="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
-      <For each={visible()}>
-        {(tag) => (
-          <Badge variant="brand" class="shrink-0 max-w-32 truncate" title={tag.name}>
-            {tag.name}
-          </Badge>
-        )}
-      </For>
-      <Show when={hidden().length > 0}>
-        <Badge
-          variant="neutral"
-          class="shrink-0"
-          title={hidden()
-            .map((t) => t.name)
-            .join(", ")}
-        >
-          +{hidden().length}
-        </Badge>
-      </Show>
-    </div>
-  );
-}
-
-// SortPill renders one column of the sort control. Clicking the active pill
-// toggles the direction (indicated by the arrow); clicking the inactive one
-// switches the sort column while preserving the current direction.
-function SortPill(props: {
-  label: string;
-  active: boolean;
-  order: "asc" | "desc";
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      aria-pressed={props.active}
-      class={[
-        "inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
-        props.active
-          ? "border-brand bg-brand-subtle text-brand"
-          : "border-line bg-surface text-ink-muted hover:border-ink-faint hover:text-ink",
-      ].join(" ")}
-    >
-      {props.label}
-      <Show when={props.active}>
-        <span aria-hidden="true">{props.order === "asc" ? "↑" : "↓"}</span>
-      </Show>
-    </button>
   );
 }

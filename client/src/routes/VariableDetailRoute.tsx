@@ -2,10 +2,12 @@
 import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { A, useParams } from "@solidjs/router";
 import { environments, tags, variables } from "../api";
-import { locale, t } from "../lib/i18n";
+import { t } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
 import { createRevealController } from "../lib/reveal";
 import { normalizeVariableName } from "../lib/variable";
+import { formatDate } from "../lib/date";
+import { copyToClipboard } from "../lib/clipboard";
 import { Badge, Button, Card, Icon, Input, Textarea } from "../components/ui";
 import { Dialog, EmptyState, Field, RevealCountdown, ValueGenerator } from "../components/shared";
 
@@ -58,13 +60,9 @@ export function VariableDetailRoute() {
   };
 
   const copyCurrent = async () => {
-    try {
-      await navigator.clipboard.writeText(revealedValue() ?? "");
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard unavailable */
-    }
+    if (!(await copyToClipboard(revealedValue() ?? ""))) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   // New version.
@@ -468,12 +466,4 @@ export function VariableDetailRoute() {
       </Show>
     </Show>
   );
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(locale(), {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
