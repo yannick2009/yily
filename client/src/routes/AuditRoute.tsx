@@ -3,6 +3,8 @@ import { createEffect, createResource, createSignal, For, Show, onCleanup } from
 import { audit } from "../api";
 import { currentUser } from "../store";
 import { locale, t } from "../lib/i18n";
+import { errorMessage } from "../lib/errors";
+import { downloadBlob } from "../lib/download";
 import type { AuditEvent } from "../types";
 import { Badge, Button, Icon, Input } from "../components/ui";
 import { Dialog, EmptyState } from "../components/shared";
@@ -81,12 +83,52 @@ export function AuditRoute() {
   const showingFrom = () => (total() === 0 ? 0 : (page() - 1) * PAGE_SIZE + 1);
   const showingTo = () => Math.min(page() * PAGE_SIZE, total());
 
+  // Export: download the currently filtered events as a CSV file.
+  const [exportBusy, setExportBusy] = createSignal(false);
+  const [exportError, setExportError] = createSignal("");
+
+  const doExport = async () => {
+    setExportBusy(true);
+    setExportError("");
+    try {
+      const { blob, filename } = await audit.exportCSV({
+        action: action() === "all" ? undefined : action(),
+        search: debouncedQuery().trim() || undefined,
+        from: from() || undefined,
+        to: to() || undefined,
+      });
+      downloadBlob(blob, filename);
+    } catch (err) {
+      setExportError(errorMessage(err));
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
   return (
     <div>
-      <div class="mb-6">
-        <h1 class="text-2xl font-semibold tracking-tight">{t("audit.title")}</h1>
-        <p class="mt-1 text-sm text-ink-muted">{t("audit.subtitle")}</p>
+      <div class="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-semibold tracking-tight">{t("audit.title")}</h1>
+          <p class="mt-1 text-sm text-ink-muted">{t("audit.subtitle")}</p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="download"
+          loading={exportBusy()}
+          onClick={doExport}
+        >
+          {t("audit.export")}
+          <span class="rounded border border-line bg-surface-2 px-1 font-mono text-[10px] font-semibold leading-4 text-ink-muted">
+            CSV
+          </span>
+        </Button>
       </div>
+
+      <Show when={exportError()}>
+        <p class="mb-4 text-sm text-danger">{exportError()}</p>
+      </Show>
 
       <div class="mb-4 space-y-3">
         <div class="flex flex-wrap items-end gap-3">

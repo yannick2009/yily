@@ -51,6 +51,7 @@ type AuditService interface {
 	Record(ctx context.Context, action types.Action, resourceType types.ResourceType, resourceID uuid.UUID, resourceName string) error                     // Record appends an event attributed to the actor resolved from ctx.
 	RecordAs(ctx context.Context, actor AuditActor, action types.Action, resourceType types.ResourceType, resourceID uuid.UUID, resourceName string) error // RecordAs appends an event with an explicit actor.
 	List(ctx context.Context, filter AuditFilter) (*AuditList, error)                                                                                      // List returns a page of audit events.
+	Export(ctx context.Context, filter AuditFilter) ([]model.AuditEvent, error)                                                                            // Export returns every audit event matching the filter, oldest first.
 }
 
 // auditService implements AuditService.
@@ -96,4 +97,15 @@ func (s *auditService) List(ctx context.Context, filter AuditFilter) (*AuditList
 		return nil, err
 	}
 	return &AuditList{Events: events, Total: total}, nil
+}
+
+// Export returns every audit event matching the filter, oldest first.
+func (s *auditService) Export(ctx context.Context, filter AuditFilter) ([]model.AuditEvent, error) {
+	return s.auditRepository.ListAll(ctx, repository.AuditListFilter{
+		Search:    filter.Search,
+		ActorType: filter.ActorType,
+		Action:    filter.Action,
+		From:      filter.From,
+		To:        filter.To,
+	})
 }

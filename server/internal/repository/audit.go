@@ -23,6 +23,7 @@ type AuditListFilter struct {
 type AuditRepository interface {
 	Create(ctx context.Context, event *model.AuditEvent) error                           // Create appends a new audit event.
 	List(ctx context.Context, filter AuditListFilter) ([]model.AuditEvent, int64, error) // List returns a page of events, newest first, and the total count matching the filter.
+	ListAll(ctx context.Context, filter AuditListFilter) ([]model.AuditEvent, error)     // ListAll returns every event matching the filter, oldest first (no pagination).
 }
 
 // auditRepository implements AuditRepository.
@@ -42,6 +43,33 @@ func (r *auditRepository) Create(ctx context.Context, event *model.AuditEvent) e
 
 // List returns a page of audit events, newest first, and the total count matching the filter.
 func (r *auditRepository) List(ctx context.Context, filter AuditListFilter) ([]model.AuditEvent, int64, error) {
+	query := r.applyFilters(ctx, filter)
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var events []model.AuditEvent
+	if err := query.Order("created_at DESC").Order("id DESC").Limit(filter.Limit).Offset(filter.Offset).Find(&events).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return events, total, nil
+}
+
+// ListAll returns every audit event matching the filter, oldest first (no pagination).
+// It is used by the CSV export, where a chronological order reads more naturally.
+func (r *auditRepository) ListAll(ctx context.Context, filter AuditListFilter) ([]model.AuditEvent, error) {
+	var events []model.AuditEvent
+	if err := r.applyFilters(ctx, filter).Order("created_at ASC").Order("id ASC").Find(&events).Error; err != nil {
+		return nil, err
+	}
+	return events, nil
+}
+
+// applyFilters returns a query scoped to the given filters, shared by List and ListAll.
+func (r *auditRepository) applyFilters(ctx context.Context, filter AuditListFilter) *gorm.DB {
 	query := r.DB.WithContext(ctx).Model(&model.AuditEvent{})
 
 	if filter.Search != "" {
@@ -60,15 +88,5 @@ func (r *auditRepository) List(ctx context.Context, filter AuditListFilter) ([]m
 		query = query.Where("created_at < ?", filter.To.UTC())
 	}
 
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	var events []model.AuditEvent
-	if err := query.Order("created_at DESC").Order("id DESC").Limit(filter.Limit).Offset(filter.Offset).Find(&events).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return events, total, nil
+	return query
 }
