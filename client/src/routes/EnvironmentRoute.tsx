@@ -264,7 +264,7 @@ export function EnvironmentRoute() {
               </Show>
             </div>
             <div class="flex gap-2">
-              <Button variant="secondary" icon="download" onClick={() => setImportOpen(true)}>
+              <Button variant="secondary" icon="upload" onClick={() => setImportOpen(true)}>
                 {t("env.import")}
               </Button>
               <Button variant="secondary" icon="download" onClick={() => setExportOpen(true)}>
