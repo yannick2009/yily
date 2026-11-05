@@ -104,6 +104,9 @@ func main() {
 	adminRoutes.POST("/tokens/:id/rotate", patHandler.Rotate)
 	adminRoutes.DELETE("/tokens/:id", patHandler.Revoke)
 
+	// Token introspection (read): returns metadata about the PAT used to authenticate.
+	readRoutes.GET("/tokens/me", patHandler.Me)
+
 	// Dashboard (read)
 	readRoutes.GET("/dashboard", dashboardHandler.Get)
 
