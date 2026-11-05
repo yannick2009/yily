@@ -6,7 +6,7 @@ import (
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/env"
 	"github.com/yannick2009/yily/internal/repository"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 // ErrorCode is a stable machine-readable identifier for a known error. It
@@ -16,7 +16,7 @@ import (
 type ErrorCode string
 
 // Generic codes. These don't map to a sentinel error; handlers emit them
-// directly when a specific validation or I/O step fails outside the services
+// directly when a specific validation or I/O step fails outside the service
 // layer (parsing a UUID, reading a multipart file, …).
 const (
 	CodeInternal           ErrorCode = "INTERNAL_ERROR"
@@ -29,7 +29,7 @@ const (
 	CodeFileReadFailed     ErrorCode = "FILE_READ_FAILED"
 )
 
-// Codes tied to sentinel errors from the services / repository / env packages.
+// Codes tied to sentinel errors from the service / repository / env packages.
 const (
 	// Auth
 	CodeAuthInvalidCredentials ErrorCode = "AUTH_INVALID_CREDENTIALS"
@@ -75,27 +75,27 @@ var sentinelCodes = []struct {
 	code ErrorCode
 }{
 	// Auth
-	{services.ErrInvalidCredentials, CodeAuthInvalidCredentials},
-	{services.ErrUnauthorized, CodeAuthUnauthorized},
-	{services.ErrSessionExpired, CodeAuthSessionExpired},
-	{services.ErrSessionRevoked, CodeAuthSessionRevoked},
-	{services.ErrWeakPassword, CodeAuthWeakPassword},
+	{service.ErrInvalidCredentials, CodeAuthInvalidCredentials},
+	{service.ErrUnauthorized, CodeAuthUnauthorized},
+	{service.ErrSessionExpired, CodeAuthSessionExpired},
+	{service.ErrSessionRevoked, CodeAuthSessionRevoked},
+	{service.ErrWeakPassword, CodeAuthWeakPassword},
 	{repository.ErrUserAlreadyExists, CodeAuthUserExists},
 	{repository.ErrUserNotFound, CodeAuthUserNotFound},
 
 	// Tokens
-	{services.ErrPATExpired, CodeTokenExpired},
-	{services.ErrPATRevoked, CodeTokenRevoked},
+	{service.ErrPATExpired, CodeTokenExpired},
+	{service.ErrPATRevoked, CodeTokenRevoked},
 	{repository.ErrPATNotFound, CodeTokenNotFound},
-	{services.ErrInvalidPATName, CodeTokenInvalidName},
-	{services.ErrInvalidPATExpiration, CodeTokenInvalidExpiration},
-	{services.ErrInvalidPATScope, CodeTokenInvalidScope},
-	{services.ErrPATWriteForbidden, CodeTokenWriteForbidden},
+	{service.ErrInvalidPATName, CodeTokenInvalidName},
+	{service.ErrInvalidPATExpiration, CodeTokenInvalidExpiration},
+	{service.ErrInvalidPATScope, CodeTokenInvalidScope},
+	{service.ErrPATWriteForbidden, CodeTokenWriteForbidden},
 
 	// Resources
 	{repository.ErrProjectNotFound, CodeProjectNotFound},
 	{repository.ErrEnvironmentNotFound, CodeEnvironmentNotFound},
-	{services.ErrEnvironmentDescriptionTooLong, CodeEnvironmentDescTooLong},
+	{service.ErrEnvironmentDescriptionTooLong, CodeEnvironmentDescTooLong},
 	{repository.ErrVariableNotFound, CodeVariableNotFound},
 	{repository.ErrVariableVersionNotFound, CodeVariableVersionNotFound},
 	{repository.ErrVariableNameAlreadyExists, CodeVariableNameExists},

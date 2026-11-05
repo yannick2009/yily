@@ -10,7 +10,7 @@ import (
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/middleware"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 // PATHandler defines the interface for Personal Access Token HTTP handlers.
@@ -23,11 +23,11 @@ type PATHandler interface {
 
 // patHandler handles HTTP requests for Personal Access Tokens.
 type patHandler struct {
-	patService services.PATService
+	patService service.PATService
 }
 
 // NewPATHandler creates a new PATHandler.
-func NewPATHandler(patService services.PATService) PATHandler {
+func NewPATHandler(patService service.PATService) PATHandler {
 	return &patHandler{patService: patService}
 }
 
@@ -58,7 +58,7 @@ type CreatePATResponse struct {
 func (h *patHandler) Create(c *echo.Context) error {
 	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
-		return respondError(c, services.ErrUnauthorized)
+		return respondError(c, service.ErrUnauthorized)
 	}
 
 	var req createPATRequest
@@ -93,7 +93,7 @@ func (h *patHandler) Create(c *echo.Context) error {
 func (h *patHandler) GetAll(c *echo.Context) error {
 	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
-		return respondError(c, services.ErrUnauthorized)
+		return respondError(c, service.ErrUnauthorized)
 	}
 
 	pats, err := h.patService.GetAll(c.Request().Context(), user.ID)
@@ -108,7 +108,7 @@ func (h *patHandler) GetAll(c *echo.Context) error {
 func (h *patHandler) Revoke(c *echo.Context) error {
 	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
-		return respondError(c, services.ErrUnauthorized)
+		return respondError(c, service.ErrUnauthorized)
 	}
 
 	id, ok := uuidParam(c, "id")
@@ -127,7 +127,7 @@ func (h *patHandler) Revoke(c *echo.Context) error {
 func (h *patHandler) Rotate(c *echo.Context) error {
 	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
-		return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, services.ErrUnauthorized.Error(), nil)
+		return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, service.ErrUnauthorized.Error(), nil)
 	}
 
 	id, ok := uuidParam(c, "id")
@@ -169,8 +169,8 @@ func resolvePATTTL(expiresInDays *int) (time.Duration, error) {
 		return 0, nil
 	}
 	days := *expiresInDays
-	if slices.Contains(services.AllowedPATTTLDays, days) {
+	if slices.Contains(service.AllowedPATTTLDays, days) {
 		return time.Duration(days) * 24 * time.Hour, nil
 	}
-	return 0, services.ErrInvalidPATExpiration
+	return 0, service.ErrInvalidPATExpiration
 }

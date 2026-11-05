@@ -11,7 +11,7 @@ import (
 	"github.com/yannick2009/yily/internal/env"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/repository"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 // respondError sends a standardized error response, pairing a stable code
@@ -53,18 +53,18 @@ func bindAndValidate(c *echo.Context, req any) bool {
 // Sentinel "not found" errors become 404, anything else becomes 500.
 func httpStatus(err error) int {
 	switch {
-	case errors.Is(err, services.ErrInvalidCredentials),
-		errors.Is(err, services.ErrUnauthorized),
-		errors.Is(err, services.ErrSessionExpired),
-		errors.Is(err, services.ErrSessionRevoked),
-		errors.Is(err, services.ErrPATExpired),
-		errors.Is(err, services.ErrPATRevoked):
+	case errors.Is(err, service.ErrInvalidCredentials),
+		errors.Is(err, service.ErrUnauthorized),
+		errors.Is(err, service.ErrSessionExpired),
+		errors.Is(err, service.ErrSessionRevoked),
+		errors.Is(err, service.ErrPATExpired),
+		errors.Is(err, service.ErrPATRevoked):
 		return http.StatusUnauthorized
 	case errors.Is(err, repository.ErrVariableNameAlreadyExists),
 		errors.Is(err, repository.ErrTagNameAlreadyExists),
 		errors.Is(err, repository.ErrUserAlreadyExists):
 		return http.StatusConflict
-	case errors.Is(err, services.ErrPATWriteForbidden):
+	case errors.Is(err, service.ErrPATWriteForbidden):
 		return http.StatusForbidden
 	case errors.Is(err, repository.ErrTagNotInProject),
 		errors.Is(err, env.ErrInvalidJSONFormat),
@@ -72,11 +72,11 @@ func httpStatus(err error) int {
 		errors.Is(err, env.ErrInvalidEnvFileFormat),
 		errors.Is(err, types.ErrUnsupportedFileType),
 		errors.Is(err, env.ErrDuplicateVariableName),
-		errors.Is(err, services.ErrWeakPassword),
-		errors.Is(err, services.ErrInvalidPATName),
-		errors.Is(err, services.ErrInvalidPATExpiration),
-		errors.Is(err, services.ErrInvalidPATScope),
-		errors.Is(err, services.ErrEnvironmentDescriptionTooLong):
+		errors.Is(err, service.ErrWeakPassword),
+		errors.Is(err, service.ErrInvalidPATName),
+		errors.Is(err, service.ErrInvalidPATExpiration),
+		errors.Is(err, service.ErrInvalidPATScope),
+		errors.Is(err, service.ErrEnvironmentDescriptionTooLong):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrProjectNotFound),
 		errors.Is(err, repository.ErrEnvironmentNotFound),

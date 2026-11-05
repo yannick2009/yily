@@ -10,7 +10,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/httputil"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 // Default pagination bounds for the audit log listing.
@@ -27,11 +27,11 @@ type AuditHandler interface {
 
 // auditHandler handles HTTP requests for the audit log.
 type auditHandler struct {
-	auditService services.AuditService
+	auditService service.AuditService
 }
 
 // NewAuditHandler creates a new auditHandler.
-func NewAuditHandler(auditService services.AuditService) AuditHandler {
+func NewAuditHandler(auditService service.AuditService) AuditHandler {
 	return &auditHandler{auditService: auditService}
 }
 
@@ -56,7 +56,7 @@ func (h *auditHandler) List(c *echo.Context) error {
 		return httputil.NewHTTPResponse[any](c, http.StatusBadRequest, "invalid to", nil)
 	}
 
-	filter := services.AuditFilter{
+	filter := service.AuditFilter{
 		Search:    c.QueryParam("search"),
 		ActorType: c.QueryParam("actor_type"),
 		Action:    c.QueryParam("action"),
@@ -86,7 +86,7 @@ func (h *auditHandler) Export(c *echo.Context) error {
 		return httputil.NewHTTPResponse[any](c, http.StatusBadRequest, "invalid to", nil)
 	}
 
-	filter := services.AuditFilter{
+	filter := service.AuditFilter{
 		Search:    c.QueryParam("search"),
 		ActorType: c.QueryParam("actor_type"),
 		Action:    c.QueryParam("action"),
