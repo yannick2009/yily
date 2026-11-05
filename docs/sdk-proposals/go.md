@@ -35,9 +35,6 @@ The SDK is maintained in a dedicated repository: [`github.com/yannick2009/yily-s
 ├── README.md
 ├── examples/
 │   └── main.go
-├── client_test.go
-├── config_test.go
-└── loader_test.go
 ```
 
 The module will expose a single public package named `yily`.
