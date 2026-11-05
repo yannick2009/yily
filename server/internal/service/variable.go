@@ -22,14 +22,15 @@ var (
 // VariableService defines the interface for variable business logic, including its versions.
 type VariableService interface {
 	// variables
-	Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error)       // Create creates a new variable with its first version.
-	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                             // GetByID retrieves a variable by its ID.
-	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) // List retrieves the variables of an environment matching the given filter.
-	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                   // SetName updates the name of a variable.
-	Delete(ctx context.Context, variableID uuid.UUID) error                                                 // Delete deletes a variable (and its versions via cascade).
-	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                            // SetTags replaces the set of tags associated with a variable.
-	Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType) error        // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
-	Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error)           // Export serializes all variables of an environment into the given file format.
+	Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error)               // Create creates a new variable with its first version.
+	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                                     // GetByID retrieves a variable by its ID.
+	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error)         // List retrieves the variables of an environment matching the given filter.
+	GetValues(ctx context.Context, environmentID uuid.UUID, names []string, version int) (map[string]string, error) // GetValues retrieves requested secret values in one call.
+	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                           // SetName updates the name of a variable.
+	Delete(ctx context.Context, variableID uuid.UUID) error                                                         // Delete deletes a variable (and its versions via cascade).
+	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                                    // SetTags replaces the set of tags associated with a variable.
+	Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType) error                // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
+	Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error)                   // Export serializes all variables of an environment into the given file format.
 
 	// versions
 	AddVersion(ctx context.Context, variableID uuid.UUID, value string) (*model.VariableVersion, error) // AddVersion adds a new active version to a variable.
@@ -178,6 +179,84 @@ func (s *variableService) GetValue(ctx context.Context, variableID uuid.UUID) (s
 	s.auditVariable(ctx, types.ActionRevealed, variableID)
 
 	return value, nil
+}
+
+// GetValues retrieves requested variable values from one environment. A zero
+// version selects each variable's active version; a positive version selects
+// that version number for every requested variable.
+func (s *variableService) GetValues(ctx context.Context, environmentID uuid.UUID, names []string, version int) (map[string]string, error) {
+	if _, err := s.environmentRepository.GetByID(ctx, environmentID); err != nil {
+		return nil, err
+	}
+
+	nameSet := make(map[string]struct{}, len(names))
+	normalizedNames := make([]string, 0, len(names))
+	for _, name := range names {
+		name = normalizeVariableName(name)
+		if name == "" {
+			continue
+		}
+		if _, exists := nameSet[name]; exists {
+			continue
+		}
+		nameSet[name] = struct{}{}
+		normalizedNames = append(normalizedNames, name)
+	}
+	if len(normalizedNames) == 0 {
+		return map[string]string{}, nil
+	}
+
+	variables, err := s.variableRepository.GetByNames(ctx, environmentID, normalizedNames)
+	if err != nil {
+		return nil, err
+	}
+	if len(variables) == 0 {
+		return map[string]string{}, nil
+	}
+
+	variableIDs := make([]uuid.UUID, 0, len(variables))
+	for _, variable := range variables {
+		variableIDs = append(variableIDs, variable.ID)
+	}
+
+	versions, err := s.versionRepository.GetForVariables(ctx, variableIDs, version)
+	if err != nil {
+		return nil, err
+	}
+	activeByVariable := make(map[uuid.UUID]model.VariableVersion, len(versions))
+	for _, variableVersion := range versions {
+		// Results are ordered by descending version, so the first row matches
+		// GetCurrentActive's behavior if inconsistent data has multiple actives.
+		if _, exists := activeByVariable[variableVersion.VariableID]; !exists {
+			activeByVariable[variableVersion.VariableID] = variableVersion
+		}
+	}
+
+	values := make(map[string]string, len(variables))
+	revealed := make([]model.Variable, 0, len(variables))
+	for _, variable := range variables {
+		variableVersion, exists := activeByVariable[variable.ID]
+		if !exists {
+			if version > 0 {
+				return nil, repository.ErrVariableVersionNotFound
+			}
+			// Match export behavior for a variable that has no active version.
+			values[variable.Name] = ""
+			continue
+		}
+
+		value, err := s.decryptVersion(&variableVersion)
+		if err != nil {
+			return nil, err
+		}
+		values[variable.Name] = value
+		revealed = append(revealed, variable)
+	}
+	for _, variable := range revealed {
+		_ = s.audit.Record(ctx, types.ActionRevealed, types.ResourceVariable, variable.ID, variable.Name)
+	}
+
+	return values, nil
 }
 
 // GetAllVersions returns all versions of a variable, newest first, without their values.

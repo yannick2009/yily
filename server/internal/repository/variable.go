@@ -21,6 +21,7 @@ type VariableRepository interface {
 	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                   // SetName updates the name of an existing variable in the database.
 	Delete(ctx context.Context, variableID uuid.UUID) error                                                 // Delete deletes a variable from the database by its ID.
 	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                             // GetByID retrieves a variable from the database by its ID.
+	GetByNames(ctx context.Context, environmentID uuid.UUID, names []string) ([]model.Variable, error)      // GetByNames retrieves variables by their names in an environment.
 	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) // List retrieves all variables of an environment matching the given filter.
 	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error)                               // CountByProjectID counts the variables across all environments of a project.
 	CountByEnvironmentID(ctx context.Context, environmentID uuid.UUID) (int64, error)                       // CountByEnvironmentID counts the variables of an environment.
@@ -100,6 +101,21 @@ func (r *variableRepository) GetByID(ctx context.Context, variableID uuid.UUID) 
 		return nil, err
 	}
 	return variable, nil
+}
+
+// GetByNames retrieves variables with exact names from the given environment.
+func (r *variableRepository) GetByNames(ctx context.Context, environmentID uuid.UUID, names []string) ([]model.Variable, error) {
+	if len(names) == 0 {
+		return []model.Variable{}, nil
+	}
+
+	variables, err := gorm.G[model.Variable](r.DB).
+		Where("environment_id = ? AND name IN ?", environmentID, names).
+		Find(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return variables, nil
 }
 
 // CountByProjectID counts the variables across all environments of a project.
