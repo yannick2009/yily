@@ -1,6 +1,11 @@
 package main
 
+import "os"
+
 // entry point for the CLI application.
 func main() {
-	// Initialize the CLI
+	if err := rootCmd.Execute(); err != nil {
+		// Cobra already printed the error to stderr.
+		os.Exit(1)
+	}
 }
