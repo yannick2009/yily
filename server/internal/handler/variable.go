@@ -8,7 +8,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/repository"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 // VariableHandler defines the interface for handling HTTP requests related to variables and their versions.
@@ -30,11 +30,11 @@ type VariableHandler interface {
 
 // variableHandler handles HTTP requests for variables and their versions.
 type variableHandler struct {
-	variableService services.VariableService
+	variableService service.VariableService
 }
 
 // NewVariableHandler creates a new VariableHandler.
-func NewVariableHandler(variableService services.VariableService) VariableHandler {
+func NewVariableHandler(variableService service.VariableService) VariableHandler {
 	return &variableHandler{variableService}
 }
 
@@ -103,7 +103,7 @@ func (h *variableHandler) List(c *echo.Context) error {
 		return respondErrorCode(c, http.StatusBadRequest, CodeInvalidUUID, "invalid tag_ids")
 	}
 
-	variables, err := h.variableService.List(c.Request().Context(), environmentID, services.VariableListFilter{
+	variables, err := h.variableService.List(c.Request().Context(), environmentID, service.VariableListFilter{
 		Search: strings.TrimSpace(c.QueryParam("search")),
 		TagIDs: tagIDs,
 		Sort:   parseVariableSort(c.QueryParam("sort")),

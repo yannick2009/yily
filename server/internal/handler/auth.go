@@ -10,7 +10,7 @@ import (
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/middleware"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 // AuthHandler defines the interface for Super Admin authentication and session HTTP handlers.
@@ -24,12 +24,12 @@ type AuthHandler interface {
 
 // authHandler handles HTTP requests for authentication and server-side sessions.
 type authHandler struct {
-	authService services.AuthService
-	audit       services.AuditService
+	authService service.AuthService
+	audit       service.AuditService
 }
 
 // NewAuthHandler creates a new AuthHandler.
-func NewAuthHandler(authService services.AuthService, audit services.AuditService) AuthHandler {
+func NewAuthHandler(authService service.AuthService, audit service.AuditService) AuthHandler {
 	return &authHandler{authService: authService, audit: audit}
 }
 
@@ -68,7 +68,7 @@ func (h *authHandler) Login(c *echo.Context) error {
 		return respondErrorCode(c, http.StatusBadRequest, CodeInvalidRequestBody, "invalid request body")
 	}
 	if strings.TrimSpace(req.Email) == "" || req.Password == "" {
-		return respondError(c, services.ErrInvalidCredentials)
+		return respondError(c, service.ErrInvalidCredentials)
 	}
 
 	var existingToken string
@@ -86,7 +86,7 @@ func (h *authHandler) Login(c *echo.Context) error {
 
 	maxAge := int(session.ExpiresAt.Sub(session.CreatedAt).Seconds())
 	if maxAge <= 0 {
-		maxAge = int(services.DefaultSessionTTL.Seconds())
+		maxAge = int(service.DefaultSessionTTL.Seconds())
 	}
 
 	http.SetCookie(c.Response(), &http.Cookie{
@@ -100,7 +100,7 @@ func (h *authHandler) Login(c *echo.Context) error {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	_ = h.audit.RecordAs(c.Request().Context(), services.AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}, types.ActionSignedIn, "", uuid.Nil, "")
+	_ = h.audit.RecordAs(c.Request().Context(), service.AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}, types.ActionSignedIn, "", uuid.Nil, "")
 
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Login successful", user)
 }
@@ -138,7 +138,7 @@ func (h *authHandler) Logout(c *echo.Context) error {
 func (h *authHandler) Me(c *echo.Context) error {
 	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
-		return respondError(c, services.ErrUnauthorized)
+		return respondError(c, service.ErrUnauthorized)
 	}
 
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Authenticated user retrieved successfully", user)

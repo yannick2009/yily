@@ -6,7 +6,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/httputil"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 // TagHandler defines the interface for handling HTTP requests related to tags.
@@ -18,11 +18,11 @@ type TagHandler interface {
 
 // tagHandler handles HTTP requests for tags.
 type tagHandler struct {
-	tagService services.TagService
+	tagService service.TagService
 }
 
 // NewTagHandler creates a new TagHandler.
-func NewTagHandler(tagService services.TagService) TagHandler {
+func NewTagHandler(tagService service.TagService) TagHandler {
 	return &tagHandler{tagService}
 }
 

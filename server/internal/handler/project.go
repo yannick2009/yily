@@ -5,7 +5,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/httputil"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 // ProjectHandler defines the interface for handling HTTP requests related to projects.
@@ -20,11 +20,11 @@ type ProjectHandler interface {
 
 // projectHandler handles HTTP requests for projects.
 type projectHandler struct {
-	projectService services.ProjectService
+	projectService service.ProjectService
 }
 
 // NewProjectHandler creates a new projectHandler.
-func NewProjectHandler(projectService services.ProjectService) ProjectHandler {
+func NewProjectHandler(projectService service.ProjectService) ProjectHandler {
 	return &projectHandler{projectService}
 }
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 type authUserContextKey struct{}
@@ -57,12 +57,12 @@ func AuthenticatedScopeFromContext(ctx context.Context) (types.PATScope, bool) {
 
 // ActorFromContext resolves the authenticated actor from the request context for audit attribution.
 // A Bearer PAT takes precedence over a session user, so token activity is attributed to the token.
-func ActorFromContext(ctx context.Context) services.AuditActor {
+func ActorFromContext(ctx context.Context) service.AuditActor {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
-		return services.AuditActor{Type: types.ActorTypeToken, ID: pat.ID, Name: pat.Name}
+		return service.AuditActor{Type: types.ActorTypeToken, ID: pat.ID, Name: pat.Name}
 	}
 	if user, ok := AuthenticatedUserFromContext(ctx); ok {
-		return services.AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}
+		return service.AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}
 	}
-	return services.AuditActor{Type: types.ActorTypeSystem}
+	return service.AuditActor{Type: types.ActorTypeSystem}
 }

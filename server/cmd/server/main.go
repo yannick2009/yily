@@ -17,7 +17,7 @@ import (
 	"github.com/yannick2009/yily/internal/handler"
 	"github.com/yannick2009/yily/internal/middleware"
 	"github.com/yannick2009/yily/internal/repository"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 // entry point for the server application.
@@ -43,14 +43,14 @@ func main() {
 	auditRepository := repository.NewAuditRepository(db)
 
 	// Services
-	auditService := services.NewAuditService(auditRepository, middleware.ActorFromContext)
-	authService := services.NewAuthService(userRepository, sessionRepository)
-	patService := services.NewPATService(userRepository, patRepository, auditService)
-	projectService := services.NewProjectService(projectRepository, environmentRepository, tagRepository, auditService)
-	environmentService := services.NewEnvironmentService(environmentRepository, variableRepository, auditService)
-	variableService := services.NewVariableService(variableRepository, versionRepository, environmentRepository, auditService, cfg.MasterKey)
-	tagService := services.NewTagService(tagRepository, auditService)
-	dashboardService := services.NewDashboardService(projectRepository, environmentRepository, variableRepository, patRepository, auditService)
+	auditService := service.NewAuditService(auditRepository, middleware.ActorFromContext)
+	authService := service.NewAuthService(userRepository, sessionRepository)
+	patService := service.NewPATService(userRepository, patRepository, auditService)
+	projectService := service.NewProjectService(projectRepository, environmentRepository, tagRepository, auditService)
+	environmentService := service.NewEnvironmentService(environmentRepository, variableRepository, auditService)
+	variableService := service.NewVariableService(variableRepository, versionRepository, environmentRepository, auditService, cfg.MasterKey)
+	tagService := service.NewTagService(tagRepository, auditService)
+	dashboardService := service.NewDashboardService(projectRepository, environmentRepository, variableRepository, patRepository, auditService)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService, auditService)

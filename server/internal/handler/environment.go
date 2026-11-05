@@ -8,7 +8,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
-	"github.com/yannick2009/yily/internal/services"
+	"github.com/yannick2009/yily/internal/service"
 )
 
 // EnvironmentHandler defines the interface for handling HTTP requests related to environments.
@@ -26,12 +26,12 @@ type EnvironmentHandler interface {
 
 // environmentHandler handles HTTP requests for environments.
 type environmentHandler struct {
-	environmentService services.EnvironmentService
-	variableService    services.VariableService
+	environmentService service.EnvironmentService
+	variableService    service.VariableService
 }
 
 // NewEnvironmentHandler creates a new EnvironmentHandler.
-func NewEnvironmentHandler(environmentService services.EnvironmentService, variableService services.VariableService) EnvironmentHandler {
+func NewEnvironmentHandler(environmentService service.EnvironmentService, variableService service.VariableService) EnvironmentHandler {
 	return &environmentHandler{environmentService, variableService}
 }
 
