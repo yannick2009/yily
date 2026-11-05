@@ -3,7 +3,6 @@ package yily
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -50,8 +49,8 @@ func NewClient(cfg Config) (*Client, error) {
 
 	return &Client{
 		baseURL:       normalizeBaseURL(cfg.BaseURL),
-		environmentID: cfg.EnvironmentID,
-		token:         cfg.Token,
+		environmentID: strings.TrimSpace(cfg.EnvironmentID),
+		token:         strings.TrimSpace(cfg.Token),
 		httpClient:    httpClient,
 		timeout:       timeout,
 	}, nil
@@ -65,7 +64,14 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		reqURL += "?" + query.Encode()
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, reqURL, body)
+	reqCtx := ctx
+	if c.timeout > 0 {
+		var cancel context.CancelFunc
+		reqCtx, cancel = context.WithTimeout(ctx, c.timeout)
+		defer cancel()
+	}
+
+	req, err := http.NewRequestWithContext(reqCtx, method, reqURL, body)
 
 	if err != nil {
 		return fmt.Errorf("yily: failed to create request: %w", err)
@@ -93,7 +99,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		var errEnv apiResponse[any]
 
-		if err := json.Unmarshal(respBody, &errEnv); err == nil && errEnv.Message != "" {
+		if err := json.Unmarshal(respBody, &errEnv); err == nil && (errEnv.Message != "" || errEnv.Code != "") {
 			apiErr := &APIError{
 				StatusCode: resp.StatusCode,
 				Code:       errEnv.Code,
@@ -102,9 +108,9 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 			switch resp.StatusCode {
 			case http.StatusUnauthorized:
-				return fmt.Errorf("%w: %s", ErrUnauthorized, apiErr.Error())
+				return fmt.Errorf("%w: %w", ErrUnauthorized, apiErr)
 			case http.StatusNotFound:
-				return fmt.Errorf("%w: %s", ErrNotFound, apiErr.Error())
+				return fmt.Errorf("%w: %w", ErrNotFound, apiErr)
 			default:
 				return apiErr
 			}
@@ -130,34 +136,41 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	}
 
 	return nil
-
 }
 
 // GetOption configures an individual variable retrieval.
 type GetOption func(*getOptions)
 
 type getOptions struct {
-	version int
+	version    int
+	versionSet bool
 }
 
 // Version specifies a specific variable version number to retrieve.
 func Version(v int) GetOption {
 	return func(o *getOptions) {
 		o.version = v
+		o.versionSet = true
 	}
 }
 
 // Get retrieves the value of an individual configuration variable by name.
 // By default, it retrieves the active version. Use yily.Version(n) to request a specific version.
 func (c *Client) Get(ctx context.Context, name string, opts ...GetOption) (string, error) {
-	name = strings.TrimSpace(name)
+	name = normalizeVariableName(name)
 	if name == "" {
-		return "", errors.New("yily: variable name cannot be empty")
+		return "", ErrInvalidVariableName
 	}
 
 	var options getOptions
 	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
 		opt(&options)
+	}
+	if options.versionSet && options.version <= 0 {
+		return "", ErrInvalidVersion
 	}
 
 	query := url.Values{}
@@ -167,7 +180,7 @@ func (c *Client) Get(ctx context.Context, name string, opts ...GetOption) (strin
 		query.Set("version", strconv.Itoa(options.version))
 	}
 
-	path := fmt.Sprintf("/environments/%s/variables/values", c.environmentID)
+	path := fmt.Sprintf("/environments/%s/variables/values", url.PathEscape(c.environmentID))
 
 	var resp apiResponse[map[string]string]
 	if err := c.do(ctx, http.MethodGet, path, query, nil, &resp); err != nil {
