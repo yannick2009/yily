@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ type VariableHandler interface {
 	List(c *echo.Context) error
 	GetByID(c *echo.Context) error
 	GetValue(c *echo.Context) error
+	GetValues(c *echo.Context) error
 	SetName(c *echo.Context) error
 	Delete(c *echo.Context) error
 	SetTags(c *echo.Context) error
@@ -141,6 +143,44 @@ func (h *variableHandler) GetValue(c *echo.Context) error {
 		return respondError(c, err)
 	}
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Variable value retrieved successfully", variableValueResponse{Value: value})
+}
+
+// GetValues handles GET /environments/:environmentID/variables/values.
+// Repeated "name" parameters select variables; an optional positive "version"
+// parameter selects that version for each requested variable.
+func (h *variableHandler) GetValues(c *echo.Context) error {
+	environmentID, ok := uuidParam(c, "environmentID")
+	if !ok {
+		return nil
+	}
+
+	query := c.Request().URL.Query()
+	names := query["name"]
+	if len(names) == 0 {
+		return respondErrorCode(c, http.StatusBadRequest, CodeBadRequest, "at least one name is required")
+	}
+	for _, name := range names {
+		if strings.TrimSpace(name) == "" {
+			return respondErrorCode(c, http.StatusBadRequest, CodeBadRequest, "variable names cannot be empty")
+		}
+	}
+
+	version := 0
+	if versions := query["version"]; len(versions) > 1 {
+		return respondErrorCode(c, http.StatusBadRequest, CodeBadRequest, "version must be provided at most once")
+	} else if len(versions) == 1 {
+		parsedVersion, err := strconv.Atoi(versions[0])
+		if err != nil || parsedVersion <= 0 {
+			return respondErrorCode(c, http.StatusBadRequest, CodeBadRequest, "version must be a positive integer")
+		}
+		version = parsedVersion
+	}
+
+	values, err := h.variableService.GetValues(c.Request().Context(), environmentID, names, version)
+	if err != nil {
+		return respondError(c, err)
+	}
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Variable values retrieved successfully", values)
 }
 
 // SetName handles PATCH /variables/:id.

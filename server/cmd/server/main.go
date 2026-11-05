@@ -127,6 +127,7 @@ func main() {
 	writeRoutes.POST("/environments/:id/imports", environmentHandler.Import)
 
 	// Variables
+	readRoutes.GET("/environments/:environmentID/variables/values", variableHandler.GetValues)
 	readRoutes.GET("/environments/:environmentID/variables", variableHandler.List)
 	readRoutes.GET("/variables/:id", variableHandler.GetByID)
 	readRoutes.GET("/variables/:id/value", variableHandler.GetValue)
