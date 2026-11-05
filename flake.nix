@@ -24,10 +24,9 @@
 
         devPkgs = with pkgs; [
           air
-          go
+          go_1_27
           golangci-lint
           hivemind
-          nilaway
           just
           nodejs
           nixfmt

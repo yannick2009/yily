@@ -13,7 +13,7 @@ start:
 # format & lint the server code
 lint:
     (cd client && npx vp check --fix) && \
-    (cd server && go fmt ./... && golangci-lint run ./... && nilaway ./...)
+    (cd server && go fmt ./... && golangci-lint run ./... && go tool nilaway ./...)
 
 # format and check the server code
 test:
