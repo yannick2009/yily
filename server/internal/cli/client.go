@@ -45,12 +45,50 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("%s (HTTP %d)", e.Message, e.StatusCode)
 }
 
-// Get sends a GET request to url and decodes the standard Yily response envelope.
+// Get sends a GET request to path and decodes the standard Yily response envelope.
 // T is the type of the envelope's data field.
-func (c *Client) Get[T any](ctx context.Context, url string) (*httputil.HTTPResponse[T], error) {
-	resp, err := c.request(ctx, http.MethodGet, c.endpoint(url), nil)
+func (c *Client) Get[T any](ctx context.Context, path string) (*httputil.HTTPResponse[T], error) {
+	return c.do[T](ctx, http.MethodGet, path, nil)
+}
+
+// Post sends a POST request with a JSON body to path.
+func (c *Client) Post[T any](ctx context.Context, path string, body any) (*httputil.HTTPResponse[T], error) {
+	return c.do[T](ctx, http.MethodPost, path, body)
+}
+
+// Patch sends a PATCH request with a JSON body to path.
+func (c *Client) Patch[T any](ctx context.Context, path string, body any) (*httputil.HTTPResponse[T], error) {
+	return c.do[T](ctx, http.MethodPatch, path, body)
+}
+
+// Delete sends a DELETE request to path.
+func (c *Client) Delete[T any](ctx context.Context, path string) (*httputil.HTTPResponse[T], error) {
+	return c.do[T](ctx, http.MethodDelete, path, nil)
+}
+
+// do encodes the optional body, sends the request, and decodes the response.
+func (c *Client) do[T any](ctx context.Context, method, path string, body any) (*httputil.HTTPResponse[T], error) {
+	var payload []byte
+	if body != nil {
+		var err error
+		payload, err = json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("encode request body: %w", err)
+		}
+	}
+
+	resp, err := c.request(ctx, method, c.endpoint(path), payload)
 	if err != nil {
 		return nil, err
+	}
+
+	return decodeResponse[T](resp)
+}
+
+// decodeResponse turns an HTTP response into the standard Yily envelope.
+func decodeResponse[T any](resp *http.Response) (*httputil.HTTPResponse[T], error) {
+	if resp == nil {
+		return nil, errors.New("empty HTTP response")
 	}
 	defer func() {
 		_ = resp.Body.Close()

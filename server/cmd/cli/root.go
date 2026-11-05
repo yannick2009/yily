@@ -11,9 +11,9 @@ import (
 var asciiArt string
 
 var rootCmd = &cobra.Command{
-	Use:           "yily",
-	Short:         "Yily is a CLI tool for interacting with the Yily server.",
-	Long:          asciiArt + "\nYily is a command-line interface (CLI) tool that allows users to interact with the Yily server for various operations.",
+	Use:           "yily-cli",
+	Short:         "Yily-cli is a CLI tool for interacting with the Yily server.",
+	Long:          asciiArt + "\nYily-cli is a command-line interface (CLI) tool that allows users to interact with the Yily server for various operations.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }
@@ -22,4 +22,5 @@ func init() {
 	rootCmd.AddCommand(cli.LoginCmd)
 	rootCmd.AddCommand(cli.LogoutCmd)
 	rootCmd.AddCommand(cli.WhoamiCmd)
+	rootCmd.AddCommand(cli.ProjectsCmd)
 }

@@ -44,6 +44,18 @@ func LoadConfigFile() (*Config, error) {
 	return &config, nil
 }
 
+// NewClientFromConfig loads the saved configuration and returns an authenticated client.
+func NewClientFromConfig() (*Client, error) {
+	cfg, err := LoadConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil || cfg.Token == "" {
+		return nil, ErrNotAuthenticated
+	}
+	return NewClient(cfg.BaseURL, cfg.Token), nil
+}
+
 // WriteConfigFile writes the configuration to a JSON file with owner-only permissions.
 func WriteConfigFile(config *Config) error {
 	if config == nil {

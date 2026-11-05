@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	baseURL *string
-	token   *string
+	baseURL string
+	token   string
 )
 
 // tokenInfo is the subset of the token introspection response used by login.
@@ -32,8 +32,8 @@ with the permissions granted to that token.`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		rawToken := strings.TrimSpace(*token)
-		client := NewClient(*baseURL, rawToken)
+		rawToken := strings.TrimSpace(token)
+		client := NewClient(baseURL, rawToken)
 
 		resp, err := client.Get[tokenInfo](cmd.Context(), "/api/v1/tokens/me")
 		if err != nil {
@@ -81,15 +81,10 @@ var WhoamiCmd = &cobra.Command{
 	Long:  `Display the current authenticated user based on the saved authentication token.`,
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		cfg, err := LoadConfigFile()
+		client, err := NewClientFromConfig()
 		if err != nil {
-			return fmt.Errorf("load configuration: %w", err)
+			return err
 		}
-		if cfg == nil || cfg.Token == "" {
-			return ErrNotAuthenticated
-		}
-
-		client := NewClient(cfg.BaseURL, cfg.Token)
 		resp, err := client.Get[tokenInfo](cmd.Context(), "/api/v1/tokens/me")
 		if err != nil {
 			return err
@@ -112,8 +107,8 @@ var WhoamiCmd = &cobra.Command{
 
 // init initializes the command-line flags for the login command.
 func init() {
-	baseURL = LoginCmd.Flags().StringP("url", "u", "", "Base URL of the Yily server (e.g., https://yily.example.com)")
-	token = LoginCmd.Flags().StringP("token", "t", "", "Personal access token to authenticate with the Yily server")
+	LoginCmd.Flags().StringVarP(&baseURL, "url", "u", "", "Base URL of the Yily server (e.g., https://yily.example.com)")
+	LoginCmd.Flags().StringVarP(&token, "token", "t", "", "Personal access token to authenticate with the Yily server")
 	_ = LoginCmd.MarkFlagRequired("url")
 	_ = LoginCmd.MarkFlagRequired("token")
 }

@@ -12,6 +12,16 @@ import (
 // ErrNotAuthenticated is returned when a command needs a saved token but none exists.
 var ErrNotAuthenticated = errors.New("not authenticated")
 
+// UserError is an error caused by invalid user input rather than a failed request.
+type UserError struct {
+	Message string
+}
+
+// Error implements the error interface.
+func (e *UserError) Error() string {
+	return e.Message
+}
+
 const (
 	ansiReset = "\x1b[0m"
 	ansiBold  = "\x1b[1m"
@@ -26,14 +36,23 @@ func PrintSuccess(w io.Writer, message string) error {
 	return err
 }
 
+// PrintInfo writes an informational message to w.
+func PrintInfo(w io.Writer, message string) error {
+	_, err := fmt.Fprintf(w, "%s %s\n", paint(w, ansiDim, "•"), message)
+	return err
+}
+
 // PrintError writes a short, user-friendly error message to w.
 func PrintError(w io.Writer, err error) {
 	var apiErr *APIError
 	var urlErr *url.Error
+	var userErr *UserError
 
 	switch {
 	case errors.Is(err, ErrNotAuthenticated):
 		printBlock(w, "Not logged in", "Run `yily login --url <server> --token <token>` first.")
+	case errors.As(err, &userErr):
+		printBlock(w, "Invalid input", userErr.Message)
 	case errors.As(err, &apiErr):
 		detail := apiErr.Message
 		if apiErr.Code != "" {
