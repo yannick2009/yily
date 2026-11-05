@@ -29,7 +29,7 @@ export function ProjectsRoute() {
   // Navigate to the project detail page when a project is clicked.
   const openProject = (id: string) => navigate(`/projects/${id}`);
 
-  // Create a new project and navigate to its detail page.
+  // Create a new project and stay on the list, refreshed with the new entry.
   const submitCreate = async (e: Event) => {
     e.preventDefault();
     const n = name().trim();
@@ -37,11 +37,10 @@ export function ProjectsRoute() {
     setError(null);
     setBusy(true);
     try {
-      const created = await projects.create({ name: n });
+      await projects.create({ name: n });
       setName("");
       setCreateOpen(false);
       await refetch();
-      navigate(`/projects/${created.id}`);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
