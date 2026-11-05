@@ -1,5 +1,6 @@
 // Audit log: a read-only history of actions across projects, variables and tokens.
-import { createEffect, createResource, createSignal, For, Show, onCleanup } from "solid-js";
+import { createEffect, createResource, createSignal, For, on, Show, onCleanup } from "solid-js";
+import { useSearchParams } from "@solidjs/router";
 import { audit } from "../api";
 import { currentUser } from "../store";
 import { t } from "../lib/i18n";
@@ -47,16 +48,23 @@ export function AuditRoute() {
 
   onCleanup(() => clearTimeout(searchTimer));
 
-  // Pagination state. Any change to a filter returns the list to the first page
-  // before the next fetch, so a stale page number never produces an empty view.
-  const [page, setPage] = createSignal(1);
-  createEffect(() => {
-    action();
-    debouncedQuery();
-    from();
-    to();
-    setPage(1);
-  });
+  // Pagination state lives in the URL (?page=N) so reloading or opening the
+  // link again keeps the current page instead of falling back to the first one.
+  const [searchParams, setSearchParams] = useSearchParams<{ page?: string }>();
+  const page = () => {
+    const n = Number.parseInt(String(searchParams.page ?? ""), 10);
+    return Number.isFinite(n) && n >= 1 ? n : 1;
+  };
+  const setPage = (next: number | ((p: number) => number)) => {
+    const value = typeof next === "function" ? next(page()) : next;
+    // Page 1 is the default, so drop the parameter instead of storing ?page=1.
+    setSearchParams({ page: value > 1 ? String(value) : undefined }, { replace: true });
+  };
+
+  // Any change to a filter returns the list to the first page before the next
+  // fetch, so a stale page number never produces an empty view. `defer` skips
+  // the initial run, preserving a page restored from the URL on reload.
+  createEffect(on([action, debouncedQuery, from, to], () => setPage(1), { defer: true }));
 
   // Fetch the filtered audit events from the server. The query is debounced to avoid
   // sending a request on every keystroke. The action filter is applied immediately.
