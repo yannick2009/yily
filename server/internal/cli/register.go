@@ -37,7 +37,7 @@ with the permissions granted to that token.`,
 
 		resp, err := client.Get[tokenInfo](cmd.Context(), "/api/v1/tokens/me")
 		if err != nil {
-			return fmt.Errorf("authenticate with %s: %w", client.BaseURL, err)
+			return err
 		}
 
 		cfg := &Config{
@@ -50,7 +50,7 @@ with the permissions granted to that token.`,
 			return fmt.Errorf("save configuration: %w", err)
 		}
 
-		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Authenticated Successfully! ✅\n"); err != nil {
+		if err := PrintSuccess(cmd.OutOrStdout(), "Authenticated successfully."); err != nil {
 			return fmt.Errorf("write output: %w", err)
 		}
 		return nil
@@ -67,7 +67,7 @@ var LogoutCmd = &cobra.Command{
 		if err := CleanupConfigFile(); err != nil {
 			return fmt.Errorf("remove configuration: %w", err)
 		}
-		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Logged out successfully! ✅\n"); err != nil {
+		if err := PrintSuccess(cmd.OutOrStdout(), "Logged out successfully."); err != nil {
 			return fmt.Errorf("write output: %w", err)
 		}
 		return nil
@@ -86,16 +86,24 @@ var WhoamiCmd = &cobra.Command{
 			return fmt.Errorf("load configuration: %w", err)
 		}
 		if cfg == nil || cfg.Token == "" {
-			return fmt.Errorf("not authenticated. Please run 'yily login' first")
+			return ErrNotAuthenticated
 		}
 
 		client := NewClient(cfg.BaseURL, cfg.Token)
 		resp, err := client.Get[tokenInfo](cmd.Context(), "/api/v1/tokens/me")
 		if err != nil {
-			return fmt.Errorf("fetch user info: %w", err)
+			return err
 		}
 
-		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Authenticated as: %s\nScope: %s\nExpires at: %s\n", resp.Data.Name, resp.Data.Scope, resp.Data.ExpiresAt.Format("2006-01-02 15:04:05")); err != nil {
+		expires := "never"
+		if resp.Data.ExpiresAt != nil {
+			expires = resp.Data.ExpiresAt.Local().Format("2006-01-02 15:04:05")
+		}
+
+		if err := PrintSuccess(cmd.OutOrStdout(), fmt.Sprintf("Authenticated as %q (scope: %s)", resp.Data.Name, resp.Data.Scope)); err != nil {
+			return fmt.Errorf("write output: %w", err)
+		}
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "  Expires: %s\n", expires); err != nil {
 			return fmt.Errorf("write output: %w", err)
 		}
 		return nil

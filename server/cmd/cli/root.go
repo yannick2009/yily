@@ -11,9 +11,11 @@ import (
 var asciiArt string
 
 var rootCmd = &cobra.Command{
-	Use:   "yily",
-	Short: "Yily is a CLI tool for interacting with the Yily server.",
-	Long:  asciiArt + "\nYily is a command-line interface (CLI) tool that allows users to interact with the Yily server for various operations.",
+	Use:           "yily",
+	Short:         "Yily is a CLI tool for interacting with the Yily server.",
+	Long:          asciiArt + "\nYily is a command-line interface (CLI) tool that allows users to interact with the Yily server for various operations.",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 func init() {

@@ -108,7 +108,7 @@ func (c *Client) request(ctx context.Context, method, url string, body []byte) (
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s %s: %w", method, url, err)
+		return nil, err
 	}
 	if resp == nil {
 		return nil, errors.New("empty HTTP response")

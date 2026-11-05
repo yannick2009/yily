@@ -1,11 +1,15 @@
 package main
 
-import "os"
+import (
+	"os"
+
+	"github.com/yannick2009/yily/internal/cli"
+)
 
 // entry point for the CLI application.
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		// Cobra already printed the error to stderr.
+		cli.PrintError(os.Stderr, err)
 		os.Exit(1)
 	}
 }
