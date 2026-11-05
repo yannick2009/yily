@@ -22,23 +22,22 @@ It will not support variable management, environment administration, Yily's proj
 
 ## 3. Project Structure
 
-The SDK will be integrated into the existing repository as an independent Go module under `sdk/go/`.
+The SDK is maintained in a dedicated repository: [`github.com/yannick2009/yily-sdk-go`](https://github.com/yannick2009/yily-sdk-go).
 
 ```text
-sdk/
-└── go/
-    ├── go.mod
-    ├── client.go
-    ├── config.go
-    ├── loader.go
-    ├── decoder.go
-    ├── errors.go
-    ├── README.md
-    ├── examples/
-    │   └── main.go
-    ├── client_test.go
-    ├── config_test.go
-    └── loader_test.go
+.
+├── go.mod
+├── client.go
+├── config.go
+├── loader.go
+├── decoder.go
+├── errors.go
+├── README.md
+├── examples/
+│   └── main.go
+├── client_test.go
+├── config_test.go
+└── loader_test.go
 ```
 
 The module will expose a single public package named `yily`.
