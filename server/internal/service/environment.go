@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 	"unicode/utf8"
+	"uuid"
 
 	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"

@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
-	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/repository"

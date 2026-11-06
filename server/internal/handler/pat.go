@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"slices"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"

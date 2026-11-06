@@ -4,8 +4,8 @@ import (
 	"context"
 	"sort"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/repository"
 )

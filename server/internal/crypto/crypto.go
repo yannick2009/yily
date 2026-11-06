@@ -9,8 +9,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 const (

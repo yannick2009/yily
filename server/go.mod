@@ -5,7 +5,6 @@ go 1.27
 require (
 	github.com/aquasecurity/table v1.11.0
 	github.com/go-playground/validator/v10 v10.30.5
-	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v5 v5.4.0
 	github.com/spf13/cobra v1.10.2
