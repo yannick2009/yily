@@ -119,5 +119,9 @@ func (s *projectService) Delete(ctx context.Context, projectID uuid.UUID) error 
 
 // Clear deletes all projects.
 func (s *projectService) Clear(ctx context.Context) error {
-	return s.projectRepository.DeleteAll(ctx)
+	if err := s.projectRepository.DeleteAll(ctx); err != nil {
+		return err
+	}
+	_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceProject, uuid.Nil(), "all projects")
+	return nil
 }

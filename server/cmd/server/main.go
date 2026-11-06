@@ -114,7 +114,8 @@ func main() {
 	readRoutes.GET("/projects", projectHandler.GetAll)
 	readRoutes.GET("/projects/:id", projectHandler.GetByID)
 	writeRoutes.POST("/projects", projectHandler.Create)
-	writeRoutes.DELETE("/projects", projectHandler.Clear)
+	// Clearing every project is a UI-only action; it is not reachable with a PAT.
+	adminRoutes.DELETE("/projects", projectHandler.Clear)
 	writeRoutes.PATCH("/projects/:id", projectHandler.SetName)
 	writeRoutes.DELETE("/projects/:id", projectHandler.Delete)
 
