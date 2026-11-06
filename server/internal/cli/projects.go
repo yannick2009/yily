@@ -44,7 +44,7 @@ var ProjectsCmd = &cobra.Command{
 	Short:   "Manage Yily projects",
 }
 
-// printProjectsTable renders the project list as a terminal table.
+// projectsListCmd lists all projects in the Yily instance.
 var projectsListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
@@ -69,7 +69,7 @@ var projectsListCmd = &cobra.Command{
 	},
 }
 
-// printProjectTable renders a single project as a field/value table.
+// projectsGetCmd shows a single project's details.
 var projectsGetCmd = &cobra.Command{
 	Use:   "get <id>",
 	Short: "Show a project",
@@ -209,7 +209,7 @@ var projectsClearCmd = &cobra.Command{
 	},
 }
 
-// parseID validates and returns a UUID from a string, or returns an error if invalid.
+// init registers the project command flags and subcommands.
 func init() {
 	projectsDeleteCmd.Flags().BoolVarP(&deleteProjectYes, "yes", "y", false, "Skip the confirmation prompt")
 	projectsClearCmd.Flags().BoolVarP(&clearProjectsYes, "yes", "y", false, "Skip the confirmation prompt")

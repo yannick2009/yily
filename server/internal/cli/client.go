@@ -77,7 +77,12 @@ func (c *Client) do[T any](ctx context.Context, method, path string, body any) (
 		}
 	}
 
-	resp, err := c.request(ctx, method, c.endpoint(path), payload)
+	contentType := ""
+	if payload != nil {
+		contentType = "application/json"
+	}
+
+	resp, err := c.request(ctx, method, c.endpoint(path), payload, contentType)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +125,7 @@ func (c *Client) endpoint(path string) string {
 }
 
 // request builds and sends an authenticated HTTP request.
-func (c *Client) request(ctx context.Context, method, url string, body []byte) (*http.Response, error) {
+func (c *Client) request(ctx context.Context, method, url string, body []byte, contentType string) (*http.Response, error) {
 	var reader io.Reader
 	if len(body) > 0 {
 		reader = bytes.NewReader(body)
@@ -132,8 +137,8 @@ func (c *Client) request(ctx context.Context, method, url string, body []byte) (
 	}
 
 	req.Header.Set("Accept", "application/json")
-	if reader != nil {
-		req.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
