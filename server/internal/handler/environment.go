@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/service"
@@ -35,29 +36,6 @@ func NewEnvironmentHandler(environmentService service.EnvironmentService, variab
 	return &environmentHandler{environmentService, variableService}
 }
 
-// createEnvironmentRequest represents the expected JSON body for creating an environment.
-type createEnvironmentRequest struct {
-	Name        string `json:"name" validate:"required"`
-	Description string `json:"description"`
-}
-
-// updateEnvironmentNameRequest represents the expected JSON body for updating an environment's name.
-type updateEnvironmentNameRequest struct {
-	Name string `json:"name" validate:"required"`
-}
-
-// updateEnvironmentDescriptionRequest represents the expected JSON body for updating an environment's description.
-// The description may be empty, which clears it.
-type updateEnvironmentDescriptionRequest struct {
-	Description string `json:"description"`
-}
-
-// cloneEnvironmentRequest represents the expected JSON body for cloning an environment.
-type cloneEnvironmentRequest struct {
-	Name     string `json:"name" validate:"required"`
-	CopyTags bool   `json:"copy_tags"`
-}
-
 // Clone handles POST /environments/:id/clone. The new environment lives in the same project; variables are duplicated by name only (no values).
 func (h *environmentHandler) Clone(c *echo.Context) error {
 	id, ok := uuidParam(c, "id")
@@ -65,7 +43,7 @@ func (h *environmentHandler) Clone(c *echo.Context) error {
 		return nil
 	}
 
-	var req cloneEnvironmentRequest
+	var req api.CloneEnvironmentRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}
@@ -84,7 +62,7 @@ func (h *environmentHandler) Create(c *echo.Context) error {
 		return nil
 	}
 
-	var req createEnvironmentRequest
+	var req api.CreateEnvironmentRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}
@@ -134,7 +112,7 @@ func (h *environmentHandler) SetName(c *echo.Context) error {
 		return nil
 	}
 
-	var req updateEnvironmentNameRequest
+	var req api.UpdateEnvironmentNameRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}
@@ -153,7 +131,7 @@ func (h *environmentHandler) SetDescription(c *echo.Context) error {
 		return nil
 	}
 
-	var req updateEnvironmentDescriptionRequest
+	var req api.UpdateEnvironmentDescriptionRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}

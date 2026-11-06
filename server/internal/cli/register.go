@@ -3,22 +3,16 @@ package cli
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/yannick2009/yily/internal/domain/model"
 )
 
 var (
 	baseURL string
 	token   string
 )
-
-// tokenInfo is the subset of the token introspection response used by login.
-type tokenInfo struct {
-	Name      string     `json:"name"`
-	Scope     string     `json:"scope"`
-	ExpiresAt *time.Time `json:"expires_at,omitempty"`
-}
 
 // LoginCmd is a Cobra command that authenticates with a Yily server using a personal access token.
 var LoginCmd = &cobra.Command{
@@ -33,9 +27,19 @@ with the permissions granted to that token.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		rawToken := strings.TrimSpace(token)
+		if rawToken == "" || rawToken == "-" {
+			secret, err := readSecret(cmd, "Token")
+			if err != nil {
+				return err
+			}
+			rawToken = strings.TrimSpace(secret)
+		}
+		if rawToken == "" {
+			return &UserError{Message: "token cannot be empty"}
+		}
 		client := NewClient(baseURL, rawToken)
 
-		resp, err := client.Get[tokenInfo](cmd.Context(), "/api/v1/tokens/me")
+		resp, err := client.Get[model.PersonalAccessToken](cmd.Context(), "/api/v1/tokens/me")
 		if err != nil {
 			return err
 		}
@@ -43,7 +47,7 @@ with the permissions granted to that token.`,
 		cfg := &Config{
 			BaseURL:  client.BaseURL,
 			Token:    rawToken,
-			Scope:    resp.Data.Scope,
+			Scope:    string(resp.Data.Scope),
 			ExpireAt: resp.Data.ExpiresAt,
 		}
 		if err := WriteConfigFile(cfg); err != nil {
@@ -85,7 +89,7 @@ var WhoamiCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		resp, err := client.Get[tokenInfo](cmd.Context(), "/api/v1/tokens/me")
+		resp, err := client.Get[model.PersonalAccessToken](cmd.Context(), "/api/v1/tokens/me")
 		if err != nil {
 			return err
 		}
@@ -108,7 +112,6 @@ var WhoamiCmd = &cobra.Command{
 // init initializes the command-line flags for the login command.
 func init() {
 	LoginCmd.Flags().StringVarP(&baseURL, "url", "u", "", "Base URL of the Yily server (e.g., https://yily.example.com)")
-	LoginCmd.Flags().StringVarP(&token, "token", "t", "", "Personal access token to authenticate with the Yily server")
+	LoginCmd.Flags().StringVarP(&token, "token", "t", "", "Personal access token (omit or use '-' to be prompted without echo)")
 	_ = LoginCmd.MarkFlagRequired("url")
-	_ = LoginCmd.MarkFlagRequired("token")
 }

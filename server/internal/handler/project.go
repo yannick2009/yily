@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/service"
 )
@@ -28,14 +29,9 @@ func NewProjectHandler(projectService service.ProjectService) ProjectHandler {
 	return &projectHandler{projectService}
 }
 
-// projectRequest represents the expected JSON body for creating or updating a project.
-type projectRequest struct {
-	Name string `json:"name" validate:"required"`
-}
-
 // Create handles POST /projects.
 func (h *projectHandler) Create(c *echo.Context) error {
-	var req projectRequest
+	var req api.CreateProjectRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}
@@ -80,7 +76,7 @@ func (h *projectHandler) SetName(c *echo.Context) error {
 		return nil
 	}
 
-	var req projectRequest
+	var req api.UpdateProjectRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}

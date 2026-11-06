@@ -24,4 +24,5 @@ func init() {
 	rootCmd.AddCommand(cli.WhoamiCmd)
 	rootCmd.AddCommand(cli.ProjectsCmd)
 	rootCmd.AddCommand(cli.EnvironmentsCmd)
+	rootCmd.AddCommand(cli.VariablesCmd)
 }

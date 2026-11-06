@@ -3,34 +3,12 @@ package cli
 import (
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+
+	"github.com/yannick2009/yily/internal/api"
+	"github.com/yannick2009/yily/internal/domain/model"
 )
-
-// ProjectSummary mirrors the list endpoint's project DTO, including its counts.
-type ProjectSummary struct {
-	ID               uuid.UUID `json:"id"`
-	Name             string    `json:"name"`
-	EnvironmentCount int       `json:"environment_count"`
-	TagCount         int       `json:"tag_count"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-}
-
-// Project is the subset of a project returned by the detail endpoint.
-type Project struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-// projectRequest is the JSON body accepted by the create and rename endpoints.
-type projectRequest struct {
-	Name string `json:"name"`
-}
 
 var (
 	deleteProjectYes bool
@@ -56,7 +34,7 @@ var projectsListCmd = &cobra.Command{
 			return err
 		}
 
-		resp, err := client.Get[[]ProjectSummary](cmd.Context(), "/api/v1/projects")
+		resp, err := client.Get[[]api.ProjectSummaryResponse](cmd.Context(), "/api/v1/projects")
 		if err != nil {
 			return err
 		}
@@ -85,7 +63,7 @@ var projectsGetCmd = &cobra.Command{
 			return err
 		}
 
-		resp, err := client.Get[Project](cmd.Context(), "/api/v1/projects/"+id)
+		resp, err := client.Get[model.Project](cmd.Context(), "/api/v1/projects/"+id)
 		if err != nil {
 			return err
 		}
@@ -111,7 +89,7 @@ var projectsCreateCmd = &cobra.Command{
 			return err
 		}
 
-		resp, err := client.Post[Project](cmd.Context(), "/api/v1/projects", projectRequest{Name: name})
+		resp, err := client.Post[model.Project](cmd.Context(), "/api/v1/projects", api.CreateProjectRequest{Name: name})
 		if err != nil {
 			return err
 		}
@@ -141,7 +119,7 @@ var projectsSetNameCmd = &cobra.Command{
 			return err
 		}
 
-		if _, err := client.Patch[any](cmd.Context(), "/api/v1/projects/"+id, projectRequest{Name: name}); err != nil {
+		if _, err := client.Patch[any](cmd.Context(), "/api/v1/projects/"+id, api.UpdateProjectRequest{Name: name}); err != nil {
 			return err
 		}
 

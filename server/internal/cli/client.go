@@ -61,6 +61,11 @@ func (c *Client) Patch[T any](ctx context.Context, path string, body any) (*http
 	return c.do[T](ctx, http.MethodPatch, path, body)
 }
 
+// Put sends a PUT request with a JSON body to path.
+func (c *Client) Put[T any](ctx context.Context, path string, body any) (*httputil.HTTPResponse[T], error) {
+	return c.do[T](ctx, http.MethodPut, path, body)
+}
+
 // Delete sends a DELETE request to path.
 func (c *Client) Delete[T any](ctx context.Context, path string) (*httputil.HTTPResponse[T], error) {
 	return c.do[T](ctx, http.MethodDelete, path, nil)
@@ -163,10 +168,7 @@ func (c *Client) request(ctx context.Context, method, url string, body []byte, c
 // newAPIError builds an APIError from a non-2xx response body. When the body is
 // not a standard error envelope, it falls back to the HTTP status text.
 func newAPIError(status int, body []byte) error {
-	var envelope struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
-	}
+	var envelope httputil.HTTPResponse[any]
 
 	message := ""
 	if err := json.Unmarshal(body, &envelope); err == nil {

@@ -5,13 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/aquasecurity/table"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
+
+	"github.com/yannick2009/yily/internal/api"
+	"github.com/yannick2009/yily/internal/domain/model"
 )
 
 // parseID validates a UUID command-line argument and returns its canonical form.
@@ -43,7 +48,7 @@ func confirm(cmd *cobra.Command, question string, yes bool) (bool, error) {
 }
 
 // printProjectsTable renders the project list as a terminal table.
-func printProjectsTable(w io.Writer, projects []ProjectSummary) {
+func printProjectsTable(w io.Writer, projects []api.ProjectSummaryResponse) {
 	t := newTable(w)
 	t.SetHeaders("ID", "NAME", "ENVIRONMENTS", "TAGS", "CREATED")
 
@@ -71,7 +76,7 @@ func printProjectsTable(w io.Writer, projects []ProjectSummary) {
 }
 
 // printProjectTable renders a single project as a field/value table.
-func printProjectTable(w io.Writer, project Project) {
+func printProjectTable(w io.Writer, project model.Project) {
 	t := newTable(w)
 	t.SetHeaders("FIELD", "VALUE")
 
@@ -101,4 +106,27 @@ func formatTime(t time.Time) string {
 		return "—"
 	}
 	return t.Local().Format("2006-01-02 15:04")
+}
+
+// readSecret reads a secret without echo when stdin is a terminal, or from a
+// pipe otherwise.
+func readSecret(cmd *cobra.Command, label string) (string, error) {
+	in := cmd.InOrStdin()
+	if file, ok := in.(*os.File); ok && term.IsTerminal(int(file.Fd())) {
+		if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "%s: ", label); err != nil {
+			return "", fmt.Errorf("write prompt: %w", err)
+		}
+		data, err := term.ReadPassword(int(file.Fd()))
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr())
+		if err != nil {
+			return "", fmt.Errorf("read secret: %w", err)
+		}
+		return string(data), nil
+	}
+
+	data, err := io.ReadAll(in)
+	if err != nil {
+		return "", fmt.Errorf("read secret: %w", err)
+	}
+	return strings.TrimRight(string(data), "\r\n"), nil
 }

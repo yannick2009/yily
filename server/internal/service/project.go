@@ -10,16 +10,6 @@ import (
 	"github.com/yannick2009/yily/internal/repository"
 )
 
-// ProjectDTO is the response shape for a project in list endpoints, including its related counts.
-type ProjectDTO struct {
-	ID               uuid.UUID `json:"id"`                // Unique identifier of the project.
-	Name             string    `json:"name"`              // Name of the project.
-	EnvironmentCount int       `json:"environment_count"` // Number of environments in the project.
-	TagCount         int       `json:"tag_count"`         // Number of tags in the project.
-	CreatedAt        time.Time `json:"created_at"`        // Timestamp when the project was created.
-	UpdatedAt        time.Time `json:"updated_at"`        // Timestamp when the project was last updated.
-}
-
 // defaultEnvironmentName is the name of the environment created alongside every new project.
 const defaultEnvironmentName = "default"
 
@@ -27,7 +17,7 @@ const defaultEnvironmentName = "default"
 type ProjectService interface {
 	Create(ctx context.Context, name string) (*model.Project, error)          // Create creates a new project.
 	GetByID(ctx context.Context, projectID uuid.UUID) (*model.Project, error) // GetByID retrieves a project by its ID.
-	GetAll(ctx context.Context) ([]ProjectDTO, error)                         // GetAll retrieves all projects with their environment and tag counts.
+	GetAll(ctx context.Context) ([]api.ProjectSummaryResponse, error)         // GetAll retrieves all projects with their environment and tag counts.
 	SetName(ctx context.Context, projectID uuid.UUID, name string) error      // SetName updates the name of a project.
 	Delete(ctx context.Context, projectID uuid.UUID) error                    // Delete deletes a project.
 	Clear(ctx context.Context) error                                          // Clear deletes all projects.
@@ -73,13 +63,13 @@ func (s *projectService) GetByID(ctx context.Context, projectID uuid.UUID) (*mod
 }
 
 // GetAll retrieves all projects with their environment and tag counts.
-func (s *projectService) GetAll(ctx context.Context) ([]ProjectDTO, error) {
+func (s *projectService) GetAll(ctx context.Context) ([]api.ProjectSummaryResponse, error) {
 	projects, err := s.projectRepository.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	dtos := make([]ProjectDTO, 0, len(projects))
+	dtos := make([]api.ProjectSummaryResponse, 0, len(projects))
 	for _, project := range projects {
 		environmentCount, err := s.environmentRepository.CountByProjectID(ctx, project.ID)
 		if err != nil {
@@ -90,7 +80,7 @@ func (s *projectService) GetAll(ctx context.Context) ([]ProjectDTO, error) {
 			return nil, err
 		}
 
-		dtos = append(dtos, ProjectDTO{
+		dtos = append(dtos, api.ProjectSummaryResponse{
 			ID:               project.ID,
 			Name:             project.Name,
 			EnvironmentCount: int(environmentCount),

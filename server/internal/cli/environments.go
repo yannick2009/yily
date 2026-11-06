@@ -8,56 +8,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/aquasecurity/table"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+
+	"github.com/yannick2009/yily/internal/api"
+	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 )
-
-// EnvironmentSummary mirrors the list endpoint's environment DTO.
-type EnvironmentSummary struct {
-	ID            uuid.UUID `json:"id"`
-	Name          string    `json:"name"`
-	Description   string    `json:"description"`
-	ProjectID     uuid.UUID `json:"project_id"`
-	VariableCount int       `json:"variable_count"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-}
-
-// Environment is the subset of an environment returned by the detail endpoint.
-type Environment struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	ProjectID   uuid.UUID `json:"project_id"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-}
-
-// createEnvironmentRequest is the JSON body accepted by the create endpoint.
-type createEnvironmentRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
-
-// environmentNameRequest is the JSON body accepted by the set-name endpoint.
-type environmentNameRequest struct {
-	Name string `json:"name"`
-}
-
-// environmentDescriptionRequest is the JSON body accepted by the set-description endpoint.
-type environmentDescriptionRequest struct {
-	Description string `json:"description"`
-}
-
-// cloneEnvironmentRequest is the JSON body accepted by the clone endpoint.
-type cloneEnvironmentRequest struct {
-	Name     string `json:"name"`
-	CopyTags bool   `json:"copy_tags"`
-}
 
 var (
 	environmentDescription  string
@@ -91,7 +49,7 @@ var environmentsListCmd = &cobra.Command{
 			return err
 		}
 
-		resp, err := client.Get[[]EnvironmentSummary](cmd.Context(), "/api/v1/projects/"+projectID+"/environments")
+		resp, err := client.Get[[]api.EnvironmentSummaryResponse](cmd.Context(), "/api/v1/projects/"+projectID+"/environments")
 		if err != nil {
 			return err
 		}
@@ -120,7 +78,7 @@ var environmentsGetCmd = &cobra.Command{
 			return err
 		}
 
-		resp, err := client.Get[Environment](cmd.Context(), "/api/v1/environments/"+id)
+		resp, err := client.Get[model.Environment](cmd.Context(), "/api/v1/environments/"+id)
 		if err != nil {
 			return err
 		}
@@ -150,7 +108,7 @@ var environmentsCreateCmd = &cobra.Command{
 			return err
 		}
 
-		resp, err := client.Post[Environment](cmd.Context(), "/api/v1/projects/"+projectID+"/environments", createEnvironmentRequest{
+		resp, err := client.Post[model.Environment](cmd.Context(), "/api/v1/projects/"+projectID+"/environments", api.CreateEnvironmentRequest{
 			Name:        name,
 			Description: environmentDescription,
 		})
@@ -182,7 +140,7 @@ var environmentsCloneCmd = &cobra.Command{
 			return err
 		}
 
-		if _, err := client.Post[any](cmd.Context(), "/api/v1/environments/"+id+"/clone", cloneEnvironmentRequest{
+		if _, err := client.Post[any](cmd.Context(), "/api/v1/environments/"+id+"/clone", api.CloneEnvironmentRequest{
 			Name:     name,
 			CopyTags: environmentCopyTags,
 		}); err != nil {
@@ -214,7 +172,7 @@ var environmentsSetNameCmd = &cobra.Command{
 			return err
 		}
 
-		if _, err := client.Patch[any](cmd.Context(), "/api/v1/environments/"+id+"/name", environmentNameRequest{Name: name}); err != nil {
+		if _, err := client.Patch[any](cmd.Context(), "/api/v1/environments/"+id+"/name", api.UpdateEnvironmentNameRequest{Name: name}); err != nil {
 			return err
 		}
 
@@ -239,7 +197,7 @@ var environmentsSetDescriptionCmd = &cobra.Command{
 			return err
 		}
 
-		if _, err := client.Patch[any](cmd.Context(), "/api/v1/environments/"+id+"/description", environmentDescriptionRequest{
+		if _, err := client.Patch[any](cmd.Context(), "/api/v1/environments/"+id+"/description", api.UpdateEnvironmentDescriptionRequest{
 			Description: args[1],
 		}); err != nil {
 			return err
@@ -396,7 +354,7 @@ func init() {
 }
 
 // printEnvironmentsTable renders the environment list as a terminal table.
-func printEnvironmentsTable(w io.Writer, environments []EnvironmentSummary) {
+func printEnvironmentsTable(w io.Writer, environments []api.EnvironmentSummaryResponse) {
 	t := newTable(w)
 	t.SetHeaders("ID", "NAME", "DESCRIPTION", "VARIABLES", "CREATED")
 
@@ -424,7 +382,7 @@ func printEnvironmentsTable(w io.Writer, environments []EnvironmentSummary) {
 }
 
 // printEnvironmentTable renders a single environment as a field/value table.
-func printEnvironmentTable(w io.Writer, environment Environment) {
+func printEnvironmentTable(w io.Writer, environment model.Environment) {
 	t := newTable(w)
 	t.SetHeaders("FIELD", "VALUE")
 
