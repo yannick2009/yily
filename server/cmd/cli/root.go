@@ -25,4 +25,5 @@ func init() {
 	rootCmd.AddCommand(cli.ProjectsCmd)
 	rootCmd.AddCommand(cli.EnvironmentsCmd)
 	rootCmd.AddCommand(cli.VariablesCmd)
+	rootCmd.AddCommand(cli.TagsCmd)
 }

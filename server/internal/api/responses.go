@@ -3,6 +3,8 @@ package api
 import (
 	"time"
 	"uuid"
+
+	"github.com/yannick2009/yily/internal/domain/model"
 )
 
 // ProjectSummaryResponse is a project list item, including its related counts.
@@ -29,4 +31,11 @@ type EnvironmentSummaryResponse struct {
 // VariableValueResponse is the response body for revealing a variable's decrypted value.
 type VariableValueResponse struct {
 	Value string `json:"value"`
+}
+
+// CreateTagResponse is the response body of POST /projects/:projectID/tags.
+// Created lists the tags persisted during this call; Skipped lists names that already existed.
+type CreateTagResponse struct {
+	Created []model.Tag `json:"created"`
+	Skipped []string    `json:"skipped"`
 }

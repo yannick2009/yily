@@ -59,3 +59,10 @@ type SetVariableVersionActiveRequest struct {
 type SetVariableTagsRequest struct {
 	TagIDs []uuid.UUID `json:"tag_ids"`
 }
+
+// CreateTagRequest is the JSON body for creating one or more tags.
+// Name is kept for backward compatibility; new callers should use Names.
+type CreateTagRequest struct {
+	Name  string   `json:"name,omitempty"`
+	Names []string `json:"names,omitempty"`
+}

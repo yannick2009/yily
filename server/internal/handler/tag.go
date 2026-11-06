@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
-	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/service"
 )
@@ -26,18 +26,6 @@ func NewTagHandler(tagService service.TagService) TagHandler {
 	return &tagHandler{tagService}
 }
 
-// createTagRequest represents the expected JSON body for creating one or several tags. "name" is accepted for backward compatibility with earlier clients; new callers should prefer "names" to create several tags in one round-trip.
-type createTagRequest struct {
-	Name  string   `json:"name,omitempty"`
-	Names []string `json:"names,omitempty"`
-}
-
-// createTagResponse is the shape returned by POST /projects/:projectID/tags. Created lists tags persisted during this call; Skipped lists names that already existed in the project.
-type createTagResponse struct {
-	Created []model.Tag `json:"created"`
-	Skipped []string    `json:"skipped"`
-}
-
 // Create handles POST /projects/:projectID/tags. The body may carry either a single "name" (legacy) or a "names" array; empty values and duplicates are ignored. Existing names are reported in `skipped` and never surface as errors.
 func (h *tagHandler) Create(c *echo.Context) error {
 	projectID, ok := uuidParam(c, "projectID")
@@ -45,7 +33,7 @@ func (h *tagHandler) Create(c *echo.Context) error {
 		return nil
 	}
 
-	var req createTagRequest
+	var req api.CreateTagRequest
 	if err := c.Bind(&req); err != nil {
 		return httputil.NewHTTPResponse[any](c, http.StatusBadRequest, "invalid request body", nil)
 	}
@@ -62,7 +50,7 @@ func (h *tagHandler) Create(c *echo.Context) error {
 	if err != nil {
 		return respondError(c, err)
 	}
-	return httputil.NewHTTPResponse(c, http.StatusCreated, "Created", createTagResponse{
+	return httputil.NewHTTPResponse(c, http.StatusCreated, "Created", api.CreateTagResponse{
 		Created: result.Created,
 		Skipped: result.Skipped,
 	})
