@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"strings"
 	"syscall"
 )
 
@@ -50,14 +51,19 @@ func PrintError(w io.Writer, err error) {
 
 	switch {
 	case errors.Is(err, ErrNotAuthenticated):
-		printBlock(w, "Not logged in", "Run `yily login --url <server> --token <token>` first.")
+		printBlock(w, "Not logged in", "Run `yily-cli login --url <server> --token <token>` first.")
 	case errors.As(err, &userErr):
 		printBlock(w, "Invalid input", userErr.Message)
+	case isUsageError(err):
+		printBlock(w, "Invalid input", err.Error())
+	case strings.Contains(err.Error(), "required flag"):
+		printBlock(w, "Missing required flag", err.Error()+"\n  Run `yily-cli <command> --help` for usage.")
 	case errors.As(err, &apiErr):
 		detail := apiErr.Message
 		if apiErr.Code != "" {
 			detail += fmt.Sprintf(" [%s]", apiErr.Code)
 		}
+		detail += apiErrorHint(apiErr)
 		printBlock(w, fmt.Sprintf("Request failed (HTTP %d)", apiErr.StatusCode), detail)
 	case errors.As(err, &urlErr) && errors.Is(urlErr.Err, syscall.ECONNREFUSED):
 		printBlock(w, "Cannot reach the Yily server", urlErr.URL+"\n  Is it running?")
@@ -67,6 +73,32 @@ func PrintError(w io.Writer, err error) {
 		printBlock(w, "Cannot reach the Yily server", urlErr.Err.Error())
 	default:
 		printBlock(w, "Something went wrong", err.Error())
+	}
+}
+
+// isUsageError reports whether err is a Cobra syntax error rather than a
+// runtime failure. In that case Cobra has already printed the usage.
+func isUsageError(err error) bool {
+	message := err.Error()
+	return strings.Contains(message, "arg(s)") ||
+		strings.Contains(message, "unknown flag") ||
+		strings.Contains(message, "unknown shorthand flag") ||
+		strings.Contains(message, "unknown command")
+}
+
+// apiErrorHint returns an actionable hint for the most common API errors.
+func apiErrorHint(err *APIError) string {
+	switch {
+	case err.StatusCode == 401:
+		return "\n  Check your token or run `yily-cli login`."
+	case err.StatusCode == 403 && err.Code == "TOKEN_WRITE_FORBIDDEN":
+		return "\n  This command needs a write-scoped token."
+	case err.StatusCode == 403:
+		return "\n  This token does not have permission for this command."
+	case err.StatusCode == 404:
+		return "\n  Check the ID, or list the resource first."
+	default:
+		return ""
 	}
 }
 

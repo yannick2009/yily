@@ -26,4 +26,5 @@ func init() {
 	rootCmd.AddCommand(cli.EnvironmentsCmd)
 	rootCmd.AddCommand(cli.VariablesCmd)
 	rootCmd.AddCommand(cli.TagsCmd)
+	rootCmd.AddCommand(cli.RecapCmd)
 }

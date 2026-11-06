@@ -39,6 +39,7 @@ var environmentsListCmd = &cobra.Command{
 	Short:   "List a project's environments",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		projectID, err := parseID(args[0], "project")
 		if err != nil {
 			return err
@@ -68,6 +69,7 @@ var environmentsGetCmd = &cobra.Command{
 	Short: "Show an environment",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "environment")
 		if err != nil {
 			return err
@@ -94,6 +96,7 @@ var environmentsCreateCmd = &cobra.Command{
 	Short: "Create an environment",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		projectID, err := parseID(args[0], "project")
 		if err != nil {
 			return err
@@ -126,6 +129,7 @@ var environmentsCloneCmd = &cobra.Command{
 	Short: "Clone an environment",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "environment")
 		if err != nil {
 			return err
@@ -158,6 +162,7 @@ var environmentsSetNameCmd = &cobra.Command{
 	Short:   "Set an environment's name",
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "environment")
 		if err != nil {
 			return err
@@ -187,6 +192,7 @@ var environmentsSetDescriptionCmd = &cobra.Command{
 	Short:   "Set an environment's description",
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "environment")
 		if err != nil {
 			return err
@@ -217,6 +223,7 @@ var environmentsDeleteCmd = &cobra.Command{
 	Short:   "Delete an environment",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "environment")
 		if err != nil {
 			return err
@@ -249,6 +256,7 @@ var environmentsExportCmd = &cobra.Command{
 	Short: "Export an environment's variables to a file",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "environment")
 		if err != nil {
 			return err
@@ -302,6 +310,7 @@ var environmentsImportCmd = &cobra.Command{
 	Short: "Import variables into an environment from a file",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "environment")
 		if err != nil {
 			return err

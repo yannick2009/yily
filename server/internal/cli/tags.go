@@ -28,6 +28,7 @@ var tagsListCmd = &cobra.Command{
 	Short:   "List a project's tags",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		projectID, err := parseID(args[0], "project")
 		if err != nil {
 			return err
@@ -57,6 +58,7 @@ var tagsCreateCmd = &cobra.Command{
 	Short: "Create one or more tags",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		projectID, err := parseID(args[0], "project")
 		if err != nil {
 			return err
@@ -107,6 +109,7 @@ var tagsDeleteCmd = &cobra.Command{
 	Short:   "Delete a tag",
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		projectID, err := parseID(args[0], "project")
 		if err != nil {
 			return err

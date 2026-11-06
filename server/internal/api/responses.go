@@ -7,6 +7,19 @@ import (
 	"github.com/yannick2009/yily/internal/domain/model"
 )
 
+// DashboardStats holds the aggregate counts shown by the recap command.
+type DashboardStats struct {
+	Projects     int `json:"projects"`     // Projects is the total number of projects.
+	Environments int `json:"environments"` // Environments is the total number of environments.
+	Variables    int `json:"variables"`    // Variables is the total number of variables (secrets).
+	Tokens       int `json:"tokens"`       // Tokens is the total number of the user's personal access tokens.
+}
+
+// DashboardRecapResponse is the subset of the dashboard payload used by the recap command.
+type DashboardRecapResponse struct {
+	Stats DashboardStats `json:"stats"`
+}
+
 // ProjectSummaryResponse is a project list item, including its related counts.
 type ProjectSummaryResponse struct {
 	ID               uuid.UUID `json:"id"`                // Unique identifier of the project.

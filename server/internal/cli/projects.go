@@ -29,6 +29,7 @@ var projectsListCmd = &cobra.Command{
 	Short:   "List all projects",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		cmd.SilenceUsage = true
 		client, err := NewClientFromConfig()
 		if err != nil {
 			return err
@@ -53,6 +54,7 @@ var projectsGetCmd = &cobra.Command{
 	Short: "Show a project",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "project")
 		if err != nil {
 			return err
@@ -79,6 +81,7 @@ var projectsCreateCmd = &cobra.Command{
 	Short: "Create a project",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		name := strings.TrimSpace(args[0])
 		if name == "" {
 			return &UserError{Message: "project name cannot be empty"}
@@ -105,6 +108,7 @@ var projectsSetNameCmd = &cobra.Command{
 	Short:   "Set a project's name",
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "project")
 		if err != nil {
 			return err
@@ -134,6 +138,7 @@ var projectsDeleteCmd = &cobra.Command{
 	Short:   "Delete a project",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "project")
 		if err != nil {
 			return err
@@ -166,6 +171,7 @@ var projectsClearCmd = &cobra.Command{
 	Short: "Delete all projects",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		cmd.SilenceUsage = true
 		ok, err := confirm(cmd, "Delete ALL projects? This cannot be undone", clearProjectsYes)
 		if err != nil {
 			return err

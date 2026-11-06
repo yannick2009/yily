@@ -40,6 +40,7 @@ var variablesListCmd = &cobra.Command{
 	Short:   "List an environment's variables",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		environmentID, err := parseID(args[0], "environment")
 		if err != nil {
 			return err
@@ -100,6 +101,7 @@ var variablesGetCmd = &cobra.Command{
 	Short: "Show a variable",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "variable")
 		if err != nil {
 			return err
@@ -127,6 +129,7 @@ var variablesValueCmd = &cobra.Command{
 	Short:   "Print a variable's current value",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "variable")
 		if err != nil {
 			return err
@@ -156,6 +159,7 @@ var variablesCreateCmd = &cobra.Command{
 	Short: "Create a variable",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		environmentID, err := parseID(args[0], "environment")
 		if err != nil {
 			return err
@@ -194,6 +198,7 @@ var variablesSetNameCmd = &cobra.Command{
 	Short:   "Set a variable's name",
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "variable")
 		if err != nil {
 			return err
@@ -222,6 +227,7 @@ var variablesSetTagsCmd = &cobra.Command{
 	Short: "Replace a variable's tags",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "variable")
 		if err != nil {
 			return err
@@ -255,6 +261,7 @@ var variablesClearValueCmd = &cobra.Command{
 	Short:   "Clear a variable's current value",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "variable")
 		if err != nil {
 			return err
@@ -288,6 +295,7 @@ var variablesDeleteCmd = &cobra.Command{
 	Short:   "Delete a variable",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		id, err := parseID(args[0], "variable")
 		if err != nil {
 			return err
@@ -328,6 +336,7 @@ var variableVersionsListCmd = &cobra.Command{
 	Short:   "List a variable's versions",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		variableID, err := parseID(args[0], "variable")
 		if err != nil {
 			return err
@@ -357,6 +366,7 @@ var variableVersionsCurrentCmd = &cobra.Command{
 	Short: "Show the current active version",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		variableID, err := parseID(args[0], "variable")
 		if err != nil {
 			return err
@@ -383,6 +393,7 @@ var variableVersionsAddCmd = &cobra.Command{
 	Short: "Add a new active version",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		variableID, err := parseID(args[0], "variable")
 		if err != nil {
 			return err
@@ -420,6 +431,7 @@ var variableVersionsActivateCmd = &cobra.Command{
 	Short: "Activate a version",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		return setVariableVersionActive(cmd, args, true)
 	},
 }
@@ -430,6 +442,7 @@ var variableVersionsDeactivateCmd = &cobra.Command{
 	Short: "Deactivate a version",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		return setVariableVersionActive(cmd, args, false)
 	},
 }

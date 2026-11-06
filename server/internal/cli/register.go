@@ -23,9 +23,9 @@ var LoginCmd = &cobra.Command{
 The token is validated by the server and, if accepted, saved to the
 configuration file for future commands. Subsequent CLI commands then run
 with the permissions granted to that token.`,
-	Args:         cobra.NoArgs,
-	SilenceUsage: true,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		cmd.SilenceUsage = true
 		rawToken := strings.TrimSpace(token)
 		if rawToken == "" || rawToken == "-" {
 			secret, err := readSecret(cmd, "Token")
@@ -68,6 +68,7 @@ var LogoutCmd = &cobra.Command{
 	Long:  `Remove the saved authentication token from the configuration file.`,
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		cmd.SilenceUsage = true
 		if err := CleanupConfigFile(); err != nil {
 			return fmt.Errorf("remove configuration: %w", err)
 		}
@@ -85,6 +86,7 @@ var WhoamiCmd = &cobra.Command{
 	Long:  `Display the current authenticated user based on the saved authentication token.`,
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		cmd.SilenceUsage = true
 		client, err := NewClientFromConfig()
 		if err != nil {
 			return err
