@@ -12,7 +12,6 @@ import (
 
 var (
 	deleteProjectYes bool
-	clearProjectsYes bool
 )
 
 // ProjectsCmd groups all project-related commands.
@@ -165,38 +164,25 @@ var projectsDeleteCmd = &cobra.Command{
 	},
 }
 
-// projectsClearCmd deletes all projects from the Yily instance.
+// projectsClearCmd is a hidden tombstone. Clearing every project is now a
+// web-interface-only action, but existing scripts should fail loudly instead
+// of silently receiving the parent command's help.
 var projectsClearCmd = &cobra.Command{
-	Use:   "clear",
-	Short: "Delete all projects",
-	Args:  cobra.NoArgs,
+	Use:    "clear",
+	Hidden: true,
+	Args:   cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cmd.SilenceUsage = true
-		ok, err := confirm(cmd, "Delete ALL projects? This cannot be undone", clearProjectsYes)
-		if err != nil {
-			return err
+		return &UserError{
+			Title:   "Command removed",
+			Message: "clearing all projects is only available from the web interface",
 		}
-		if !ok {
-			return PrintInfo(cmd.OutOrStdout(), "Cancelled.")
-		}
-
-		client, err := NewClientFromConfig()
-		if err != nil {
-			return err
-		}
-
-		if _, err := client.Delete[any](cmd.Context(), "/api/v1/projects"); err != nil {
-			return err
-		}
-
-		return PrintSuccess(cmd.OutOrStdout(), "All projects deleted.")
 	},
 }
 
 // init registers the project command flags and subcommands.
 func init() {
 	projectsDeleteCmd.Flags().BoolVarP(&deleteProjectYes, "yes", "y", false, "Skip the confirmation prompt")
-	projectsClearCmd.Flags().BoolVarP(&clearProjectsYes, "yes", "y", false, "Skip the confirmation prompt")
 
 	ProjectsCmd.AddCommand(
 		projectsListCmd,

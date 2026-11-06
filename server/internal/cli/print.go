@@ -15,6 +15,7 @@ var ErrNotAuthenticated = errors.New("not authenticated")
 
 // UserError is an error caused by invalid user input rather than a failed request.
 type UserError struct {
+	Title   string // Title overrides the default "Invalid input" heading.
 	Message string
 }
 
@@ -53,7 +54,11 @@ func PrintError(w io.Writer, err error) {
 	case errors.Is(err, ErrNotAuthenticated):
 		printBlock(w, "Not logged in", "Run `yily-cli login --url <server> --token <token>` first.")
 	case errors.As(err, &userErr):
-		printBlock(w, "Invalid input", userErr.Message)
+		title := userErr.Title
+		if title == "" {
+			title = "Invalid input"
+		}
+		printBlock(w, title, userErr.Message)
 	case isUsageError(err):
 		printBlock(w, "Invalid input", err.Error())
 	case strings.Contains(err.Error(), "required flag"):
