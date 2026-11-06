@@ -26,11 +26,17 @@ function Splash() {
   );
 }
 
-// ProtectedShell guards every route inside the app shell.
+// ProtectedShell guards every route inside the app shell. The Show boundaries
+// keep the guard reactive: clearing the user state on logout unmounts the
+// shell and redirects to the login page.
 function ProtectedShell(props: RouteSectionProps) {
-  if (!initialized()) return <Navigate href="/init" />;
-  if (!currentUser()) return <Navigate href="/login" />;
-  return <AppShell {...props} />;
+  return (
+    <Show when={initialized()} fallback={<Navigate href="/init" />}>
+      <Show when={currentUser()} fallback={<Navigate href="/login" />}>
+        <AppShell {...props} />
+      </Show>
+    </Show>
+  );
 }
 
 // InitOnly is valid only before an account exists.
