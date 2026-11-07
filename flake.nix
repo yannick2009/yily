@@ -20,7 +20,10 @@
         };
 
         name = "yily";
-        version = "1.0.0-beta.1"; # Used in package names and the image tag.
+        # Single source of truth for package names and the image tag.
+        version = pkgs.lib.removeSuffix "\n" (builtins.readFile ./VERSION);
+        commit = if self ? dirtyShortRev then "${self.dirtyShortRev}-dirty" else self.shortRev or "unknown";
+        buildDate = self.lastModifiedDate or "unknown";
 
         # go.mod targets Go 1.27.
         buildGoModule = pkgs.buildGoModule.override { go = pkgs.go_1_27; };
@@ -97,6 +100,12 @@
           ldflags = [
             "-s"
             "-w"
+            "-X"
+            "github.com/yannick2009/yily/internal/version.Number=${version}"
+            "-X"
+            "github.com/yannick2009/yily/internal/version.Commit=${commit}"
+            "-X"
+            "github.com/yannick2009/yily/internal/version.Date=${buildDate}"
           ];
           postInstall = ''
             mv $out/bin/server $out/bin/${name}
@@ -114,6 +123,12 @@
           ldflags = [
             "-s"
             "-w"
+            "-X"
+            "github.com/yannick2009/yily/internal/version.Number=${version}"
+            "-X"
+            "github.com/yannick2009/yily/internal/version.Commit=${commit}"
+            "-X"
+            "github.com/yannick2009/yily/internal/version.Date=${buildDate}"
           ];
           postInstall = ''
             mv $out/bin/cli $out/bin/${name}-cli
