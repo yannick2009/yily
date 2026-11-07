@@ -95,10 +95,18 @@ func (s *projectService) GetAll(ctx context.Context) ([]api.ProjectSummaryRespon
 
 // SetName updates the name of a project.
 func (s *projectService) SetName(ctx context.Context, projectID uuid.UUID, name string) error {
+	oldName := ""
+	if project, err := s.projectRepository.GetByID(ctx, projectID); err == nil {
+		oldName = project.Name
+	}
 	if err := s.projectRepository.SetName(ctx, projectID, name); err != nil {
 		return err
 	}
-	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceProject, projectID, name, nil)
+	var metadata map[string]string
+	if oldName != "" && oldName != name {
+		metadata = map[string]string{"old_name": oldName, "new_name": name}
+	}
+	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceProject, projectID, name, metadata)
 	return nil
 }
 

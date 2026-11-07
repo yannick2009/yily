@@ -59,6 +59,15 @@ func NewPATService(userRepository repository.UserRepository, patRepository repos
 	}
 }
 
+// patMetadata builds the audit metadata for a PAT: its scope and, when it expires, its absolute expiration date.
+func patMetadata(scope types.PATScope, expiresAt *time.Time) map[string]string {
+	metadata := map[string]string{"scope": string(scope)}
+	if expiresAt != nil {
+		metadata["expires_at"] = expiresAt.Format("2006-01-02 15:04")
+	}
+	return metadata
+}
+
 // Create generates a 256-bit PAT with the "yily_" prefix, persists only its SHA-256 hash in SQLite, and returns the raw token once.
 // A write-scoped PAT must have a positive TTL within MaxPATTTL. A read-scoped PAT may omit the TTL (ttl == 0) for a non-expiring token.
 func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, scope types.PATScope, ttl time.Duration) (string, *model.PersonalAccessToken, error) {
@@ -105,7 +114,7 @@ func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, 
 		return "", nil, err
 	}
 
-	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, pat.ID, pat.Name, nil)
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, pat.ID, pat.Name, patMetadata(pat.Scope, pat.ExpiresAt))
 
 	return rawToken, pat, nil
 }
@@ -157,8 +166,8 @@ func (s *patService) Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UU
 		}
 	}
 
-	_ = s.audit.Record(ctx, types.ActionRotated, types.ResourceToken, existing.ID, existing.Name, nil)
-	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, replacement.ID, replacement.Name, nil)
+	_ = s.audit.Record(ctx, types.ActionRotated, types.ResourceToken, existing.ID, existing.Name, patMetadata(existing.Scope, replacement.ExpiresAt))
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, replacement.ID, replacement.Name, patMetadata(replacement.Scope, replacement.ExpiresAt))
 
 	return rawToken, replacement, nil
 }

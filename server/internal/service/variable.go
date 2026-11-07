@@ -6,6 +6,7 @@ import (
 	"errors"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"uuid"
 
@@ -125,10 +126,18 @@ func (s *variableService) List(ctx context.Context, environmentID uuid.UUID, fil
 // SetName updates the name of a variable.
 func (s *variableService) SetName(ctx context.Context, variableID uuid.UUID, name string) error {
 	normalized := normalizeVariableName(name)
+	oldName := ""
+	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
+		oldName = variable.Name
+	}
 	if err := s.variableRepository.SetName(ctx, variableID, normalized); err != nil {
 		return err
 	}
-	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceVariable, variableID, normalized, nil)
+	var metadata map[string]string
+	if oldName != "" && oldName != normalized {
+		metadata = map[string]string{"old_name": oldName, "new_name": normalized}
+	}
+	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceVariable, variableID, normalized, metadata)
 	return nil
 }
 
@@ -381,6 +390,8 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 	}
 	sort.Strings(names)
 
+	createdCount := 0
+	updatedCount := 0
 	for _, name := range names {
 		value := variables[name]
 		variable, exists := byName[name]
@@ -388,10 +399,15 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 			if _, err := s.create(ctx, environmentID, name, value); err != nil {
 				return err
 			}
+			createdCount++
 			continue
 		}
-		if err := s.applyImportValue(ctx, variable.ID, value); err != nil {
+		changed, err := s.applyImportValue(ctx, variable.ID, value)
+		if err != nil {
 			return err
+		}
+		if changed {
+			updatedCount++
 		}
 	}
 
@@ -401,7 +417,10 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 		return err
 	}
 	_ = s.audit.Record(ctx, types.ActionImport, types.ResourceEnvironment, environmentID, environment.Name, map[string]string{
-		"file": filepath.Base(filename),
+		"file":          filepath.Base(filename),
+		"file_type":     string(fileType),
+		"created_count": strconv.Itoa(createdCount),
+		"updated_count": strconv.Itoa(updatedCount),
 	})
 
 	return nil
@@ -410,22 +429,25 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 // applyImportValue adds a new encrypted version to an existing variable when its
 // current decrypted value differs from the imported one. An empty value is a
 // no-op, so re-importing an unchanged file does not create spurious versions.
-func (s *variableService) applyImportValue(ctx context.Context, variableID uuid.UUID, value string) error {
+// It reports whether a new version was actually added.
+func (s *variableService) applyImportValue(ctx context.Context, variableID uuid.UUID, value string) (bool, error) {
 	if value == "" {
-		return nil
+		return false, nil
 	}
 
 	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
 	if err == nil {
 		if current, decErr := s.decryptVersion(version); decErr == nil && current == value {
-			return nil // unchanged
+			return false, nil // unchanged
 		}
 	} else if !errors.Is(err, repository.ErrVariableVersionNotFound) {
-		return err
+		return false, err
 	}
 
-	_, err = s.addVersion(ctx, variableID, value)
-	return err
+	if _, err := s.addVersion(ctx, variableID, value); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // Export serializes all variables of an environment (name → current decrypted value) into the given file format.
@@ -473,7 +495,10 @@ func (s *variableService) Export(ctx context.Context, environmentID uuid.UUID, f
 	if err != nil {
 		return nil, err
 	}
-	_ = s.audit.Record(ctx, types.ActionExport, types.ResourceEnvironment, environmentID, environment.Name, nil)
+	_ = s.audit.Record(ctx, types.ActionExport, types.ResourceEnvironment, environmentID, environment.Name, map[string]string{
+		"file_type":      string(fileType),
+		"variable_count": strconv.Itoa(len(variables)),
+	})
 
 	return content, nil
 }

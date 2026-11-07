@@ -140,10 +140,18 @@ func (s *environmentService) GetAll(ctx context.Context, projectID uuid.UUID) ([
 
 // SetName updates the name of an environment.
 func (s *environmentService) SetName(ctx context.Context, environmentID uuid.UUID, name string) error {
+	oldName := ""
+	if environment, err := s.environmentRepository.GetByID(ctx, environmentID); err == nil {
+		oldName = environment.Name
+	}
 	if err := s.environmentRepository.SetName(ctx, environmentID, name); err != nil {
 		return err
 	}
-	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, name, nil)
+	var metadata map[string]string
+	if oldName != "" && oldName != name {
+		metadata = map[string]string{"old_name": oldName, "new_name": name}
+	}
+	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, name, metadata)
 	return nil
 }
 
