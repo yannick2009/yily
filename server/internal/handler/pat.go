@@ -7,9 +7,9 @@ import (
 	"uuid"
 
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
-	"github.com/yannick2009/yily/internal/middleware"
 	"github.com/yannick2009/yily/internal/service"
 )
 
@@ -57,7 +57,7 @@ type CreatePATResponse struct {
 
 // Create handles POST /tokens to generate a new PAT for the authenticated user and return its raw token once.
 func (h *patHandler) Create(c *echo.Context) error {
-	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
 		return respondError(c, service.ErrUnauthorized)
 	}
@@ -92,7 +92,7 @@ func (h *patHandler) Create(c *echo.Context) error {
 
 // GetAll handles GET /tokens to list the authenticated user's PAT metadata without exposing raw tokens or hashes.
 func (h *patHandler) GetAll(c *echo.Context) error {
-	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
 		return respondError(c, service.ErrUnauthorized)
 	}
@@ -108,7 +108,7 @@ func (h *patHandler) GetAll(c *echo.Context) error {
 // Me handles GET /tokens/me to return metadata about the PAT used to authenticate the request.
 // It is reachable by any valid PAT (read or write scope) and never returns the raw token or its hash.
 func (h *patHandler) Me(c *echo.Context) error {
-	pat, ok := middleware.AuthenticatedPATFromContext(c.Request().Context())
+	pat, ok := authctx.AuthenticatedPATFromContext(c.Request().Context())
 	if !ok {
 		return respondErrorCode(c, http.StatusForbidden, CodeTokenRequired, "this endpoint requires a personal access token")
 	}
@@ -118,7 +118,7 @@ func (h *patHandler) Me(c *echo.Context) error {
 
 // Revoke handles DELETE /tokens/:id to revoke a PAT belonging to the authenticated user.
 func (h *patHandler) Revoke(c *echo.Context) error {
-	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
 		return respondError(c, service.ErrUnauthorized)
 	}
@@ -137,7 +137,7 @@ func (h *patHandler) Revoke(c *echo.Context) error {
 
 // Rotate handles POST /tokens/:id/rotate to revoke an existing PAT and issue a replacement under the same name, returning the raw replacement token once.
 func (h *patHandler) Rotate(c *echo.Context) error {
-	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
 		return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, service.ErrUnauthorized.Error(), nil)
 	}

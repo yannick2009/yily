@@ -43,7 +43,7 @@ func (s *tagService) Create(ctx context.Context, projectID uuid.UUID, name strin
 		return nil, err
 	}
 
-	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceTag, tag.ID, tag.Name)
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceTag, tag.ID, tag.Name, nil)
 
 	return tag, nil
 }
@@ -79,7 +79,7 @@ func (s *tagService) CreateBatch(ctx context.Context, projectID uuid.UUID, names
 			}
 			return result, err
 		}
-		_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceTag, tag.ID, tag.Name)
+		_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceTag, tag.ID, tag.Name, nil)
 		result.Created = append(result.Created, *tag)
 	}
 	return result, nil
@@ -95,7 +95,7 @@ func (s *tagService) Delete(ctx context.Context, projectID, tagID uuid.UUID) err
 		return err
 	}
 	if name != "" {
-		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceTag, tagID, name)
+		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceTag, tagID, name, nil)
 	}
 	return nil
 }

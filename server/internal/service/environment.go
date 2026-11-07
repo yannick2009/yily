@@ -58,7 +58,7 @@ func (s *environmentService) Create(ctx context.Context, projectID uuid.UUID, na
 		return nil, err
 	}
 
-	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceEnvironment, environment.ID, environment.Name)
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceEnvironment, environment.ID, environment.Name, nil)
 
 	return environment, nil
 }
@@ -99,7 +99,7 @@ func (s *environmentService) Clone(ctx context.Context, sourceEnvironmentID uuid
 			}
 		}
 
-		_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceVariable, clone.ID, clone.Name)
+		_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceVariable, clone.ID, clone.Name, nil)
 	}
 
 	return nil
@@ -143,7 +143,7 @@ func (s *environmentService) SetName(ctx context.Context, environmentID uuid.UUI
 	if err := s.environmentRepository.SetName(ctx, environmentID, name); err != nil {
 		return err
 	}
-	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, name)
+	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, name, nil)
 	return nil
 }
 
@@ -157,7 +157,7 @@ func (s *environmentService) SetDescription(ctx context.Context, environmentID u
 		return err
 	}
 	if environment, err := s.environmentRepository.GetByID(ctx, environmentID); err == nil {
-		_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, environment.Name)
+		_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, environment.Name, nil)
 	}
 	return nil
 }
@@ -172,7 +172,7 @@ func (s *environmentService) Delete(ctx context.Context, environmentID uuid.UUID
 		return err
 	}
 	if name != "" {
-		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceEnvironment, environmentID, name)
+		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceEnvironment, environmentID, name, nil)
 	}
 	return nil
 }

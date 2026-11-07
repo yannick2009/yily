@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/service"
 )
@@ -30,7 +31,7 @@ func RequireAuth(authService service.AuthService, patService service.PATService)
 					return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, service.ErrUnauthorized.Error(), nil)
 				}
 
-				ctx := WithAuthenticatedPAT(c.Request().Context(), user, pat)
+				ctx := authctx.WithAuthenticatedPAT(c.Request().Context(), user, pat)
 				c.SetRequest(c.Request().WithContext(ctx))
 				return next(c)
 			}
@@ -46,7 +47,7 @@ func RequireAuth(authService service.AuthService, patService service.PATService)
 				return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, service.ErrUnauthorized.Error(), nil)
 			}
 
-			ctx := WithAuthenticatedIdentity(c.Request().Context(), user, session)
+			ctx := authctx.WithAuthenticatedIdentity(c.Request().Context(), user, session)
 			c.SetRequest(c.Request().WithContext(ctx))
 			return next(c)
 		}

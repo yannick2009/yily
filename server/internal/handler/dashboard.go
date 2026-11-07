@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/httputil"
-	"github.com/yannick2009/yily/internal/middleware"
 	"github.com/yannick2009/yily/internal/service"
 )
 
@@ -26,7 +26,7 @@ func NewDashboardHandler(dashboardService service.DashboardService) DashboardHan
 
 // Get handles GET /dashboard.
 func (h *dashboardHandler) Get(c *echo.Context) error {
-	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
 		return respondError(c, service.ErrUnauthorized)
 	}

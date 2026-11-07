@@ -105,7 +105,7 @@ func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, 
 		return "", nil, err
 	}
 
-	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, pat.ID, pat.Name)
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, pat.ID, pat.Name, nil)
 
 	return rawToken, pat, nil
 }
@@ -157,8 +157,8 @@ func (s *patService) Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UU
 		}
 	}
 
-	_ = s.audit.Record(ctx, types.ActionRotated, types.ResourceToken, existing.ID, existing.Name)
-	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, replacement.ID, replacement.Name)
+	_ = s.audit.Record(ctx, types.ActionRotated, types.ResourceToken, existing.ID, existing.Name, nil)
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceToken, replacement.ID, replacement.Name, nil)
 
 	return rawToken, replacement, nil
 }
@@ -224,7 +224,7 @@ func (s *patService) Revoke(ctx context.Context, userID uuid.UUID, patID uuid.UU
 	}
 
 	if name != "" {
-		_ = s.audit.Record(ctx, types.ActionRevoked, types.ResourceToken, patID, name)
+		_ = s.audit.Record(ctx, types.ActionRevoked, types.ResourceToken, patID, name, nil)
 	}
 	return nil
 }
