@@ -3,8 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/yannick2009/yily/internal/domain/model"
 	"gorm.io/gorm"

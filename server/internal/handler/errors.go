@@ -41,6 +41,7 @@ const (
 	CodeAuthUserNotFound       ErrorCode = "AUTH_USER_NOT_FOUND"
 
 	// Personal Access Tokens
+	CodeTokenRequired          ErrorCode = "TOKEN_REQUIRED"
 	CodeTokenExpired           ErrorCode = "TOKEN_EXPIRED"
 	CodeTokenRevoked           ErrorCode = "TOKEN_REVOKED"
 	CodeTokenNotFound          ErrorCode = "TOKEN_NOT_FOUND"

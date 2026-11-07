@@ -11,6 +11,10 @@ logs
 coverage/
 tmp/
 
+# NIX
+/result
+/result-*
+
 # COMMON
 .env
 .env.*

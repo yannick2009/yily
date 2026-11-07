@@ -4,22 +4,15 @@ import (
 	"context"
 	"sort"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
 // dashboardListLimit caps how many items the dashboard's recent activity and projects lists return.
 const dashboardListLimit = 10
-
-// DashboardStats holds the aggregate counts shown at the top of the dashboard.
-type DashboardStats struct {
-	Projects     int `json:"projects"`     // Projects is the total number of projects.
-	Environments int `json:"environments"` // Environments is the total number of environments.
-	Variables    int `json:"variables"`    // Variables is the total number of variables (secrets).
-	Tokens       int `json:"tokens"`       // Tokens is the total number of the user's personal access tokens.
-}
 
 // ProjectSummary is a project with its environment and variable counts.
 type ProjectSummary struct {
@@ -32,7 +25,7 @@ type ProjectSummary struct {
 
 // Dashboard aggregates the counts, recent activity and project summaries shown on the dashboard.
 type Dashboard struct {
-	Stats          DashboardStats     `json:"stats"`           // Stats holds the aggregate counts.
+	Stats          api.DashboardStats `json:"stats"`           // Stats holds the aggregate counts.
 	RecentActivity []model.AuditEvent `json:"recent_activity"` // RecentActivity lists the latest audit events, newest first.
 	Projects       []ProjectSummary   `json:"projects"`        // Projects lists the most recently updated projects with their counts.
 }
@@ -79,7 +72,7 @@ func (s *dashboardService) GetDashboard(ctx context.Context, userID uuid.UUID) (
 	}
 
 	return &Dashboard{
-		Stats: DashboardStats{
+		Stats: api.DashboardStats{
 			Projects:     len(projects),
 			Environments: environmentCount,
 			Variables:    variableCount,

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"gorm.io/gorm"
 )

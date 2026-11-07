@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"slices"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
@@ -17,6 +17,7 @@ import (
 type PATHandler interface {
 	Create(c *echo.Context) error // Create handles POST /tokens to issue a new PAT.
 	GetAll(c *echo.Context) error // GetAll handles GET /tokens to list PAT metadata.
+	Me(c *echo.Context) error     // Me handles GET /tokens/me to return the PAT used to authenticate the request.
 	Revoke(c *echo.Context) error // Revoke handles DELETE /tokens/:id to revoke a PAT.
 	Rotate(c *echo.Context) error // Rotate handles POST /tokens/:id/rotate to replace an existing PAT.
 }
@@ -102,6 +103,17 @@ func (h *patHandler) GetAll(c *echo.Context) error {
 	}
 
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Personal access tokens retrieved successfully", pats)
+}
+
+// Me handles GET /tokens/me to return metadata about the PAT used to authenticate the request.
+// It is reachable by any valid PAT (read or write scope) and never returns the raw token or its hash.
+func (h *patHandler) Me(c *echo.Context) error {
+	pat, ok := middleware.AuthenticatedPATFromContext(c.Request().Context())
+	if !ok {
+		return respondErrorCode(c, http.StatusForbidden, CodeTokenRequired, "this endpoint requires a personal access token")
+	}
+
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Personal access token retrieved successfully", pat)
 }
 
 // Revoke handles DELETE /tokens/:id to revoke a PAT belonging to the authenticated user.

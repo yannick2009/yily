@@ -1,12 +1,20 @@
 // Main layout: sidebar navigation + content area rendering the route children.
 import { createMemo } from "solid-js";
-import { A, type RouteSectionProps } from "@solidjs/router";
+import { A, useNavigate, type RouteSectionProps } from "@solidjs/router";
 import { t } from "../lib/i18n";
 import { cycleTheme, theme } from "../lib/theme";
 import { Icon, type IconName } from "../components/ui/Icon";
 import { currentUser, logout } from "../store";
 
 export function AppShell(props: RouteSectionProps) {
+  const navigate = useNavigate();
+
+  // Sign out, then return to the login page even if the server call failed.
+  const signOut = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
+
   // Avatar initials from the user's name ("Jane Doe" → "JD").
   const initials = createMemo(() =>
     (currentUser()?.name ?? "")
@@ -108,7 +116,7 @@ export function AppShell(props: RouteSectionProps) {
             </A>
             <button
               type="button"
-              onClick={() => void logout()}
+              onClick={() => void signOut()}
               class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink"
               title={t("nav.signOut")}
               aria-label={t("nav.signOut")}

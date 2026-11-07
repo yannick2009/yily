@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -76,6 +79,11 @@ func main() {
 	server.Use(echomw.RateLimiter(echomw.NewRateLimiterMemoryStore(50.0))) // Rate limiting 50 requests per second
 	server.Use(echomw.Secure())                                            // Enable security headers
 
+	// Serve a dist directory placed next to the executable. Missing builds are non-fatal.
+	if err := registerClient(server); err != nil {
+		server.Logger.Warn("client static files disabled", "error", err)
+	}
+
 	// Authentication and scope guards
 	authMiddleware := middleware.RequireAuth(authService, patService)
 	writeScope := middleware.RequireWriteScope()
@@ -104,6 +112,9 @@ func main() {
 	adminRoutes.POST("/tokens/:id/rotate", patHandler.Rotate)
 	adminRoutes.DELETE("/tokens/:id", patHandler.Revoke)
 
+	// Token introspection (read): returns metadata about the PAT used to authenticate.
+	readRoutes.GET("/tokens/me", patHandler.Me)
+
 	// Dashboard (read)
 	readRoutes.GET("/dashboard", dashboardHandler.Get)
 
@@ -111,7 +122,8 @@ func main() {
 	readRoutes.GET("/projects", projectHandler.GetAll)
 	readRoutes.GET("/projects/:id", projectHandler.GetByID)
 	writeRoutes.POST("/projects", projectHandler.Create)
-	writeRoutes.DELETE("/projects", projectHandler.Clear)
+	// Clearing every project is a UI-only action; it is not reachable with a PAT.
+	adminRoutes.DELETE("/projects", projectHandler.Clear)
 	writeRoutes.PATCH("/projects/:id", projectHandler.SetName)
 	writeRoutes.DELETE("/projects/:id", projectHandler.Delete)
 
@@ -163,6 +175,51 @@ func main() {
 	if err := sc.Start(ctx, server); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		server.Logger.Error("failed to start server", "error", err)
 	}
+}
+
+// registerClient serves the built SPA from a "dist" directory placed next to
+// the server executable. It is a no-op when dist is absent, so development
+// builds run without a client build.
+func registerClient(server *echo.Echo) error {
+	executable, err := os.Executable()
+	if err != nil {
+		return nil
+	}
+
+	dir := filepath.Join(filepath.Dir(executable), "dist")
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // no client build alongside the server: normal in development
+		}
+		return fmt.Errorf("dist: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("dist path %q is not a directory", dir)
+	}
+
+	indexPath := filepath.Join(dir, "index.html")
+	indexInfo, err := os.Stat(indexPath)
+	if err != nil {
+		return fmt.Errorf("index.html: %w", err)
+	}
+	if indexInfo.IsDir() {
+		return fmt.Errorf("index.html in %q is a directory", dir)
+	}
+
+	server.Use(echomw.StaticWithConfig(echomw.StaticConfig{
+		Filesystem: os.DirFS(dir),
+		Root:       ".",
+		Index:      "index.html",
+		HTML5:      true,
+		Skipper: func(c *echo.Context) bool {
+			path := c.Request().URL.Path
+			// API routes must keep their JSON 404s instead of falling back to the SPA.
+			return path == "/api" || strings.HasPrefix(path, "/api/")
+		},
+	}))
+
+	return nil
 }
 
 // CustomValidator wraps go-playground/validator and implements echo.Validator.

@@ -1,0 +1,119 @@
+package cli
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/yannick2009/yily/internal/domain/model"
+)
+
+var (
+	baseURL string
+	token   string
+)
+
+// LoginCmd is a Cobra command that authenticates with a Yily server using a personal access token.
+var LoginCmd = &cobra.Command{
+	Use:   "login",
+	Short: "Authenticate with a Yily server",
+	Long: `Authenticate with a Yily server using a personal access token.
+
+The token is validated by the server and, if accepted, saved to the
+configuration file for future commands. Subsequent CLI commands then run
+with the permissions granted to that token.`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		cmd.SilenceUsage = true
+		rawToken := strings.TrimSpace(token)
+		if rawToken == "" || rawToken == "-" {
+			secret, err := readSecret(cmd, "Token")
+			if err != nil {
+				return err
+			}
+			rawToken = strings.TrimSpace(secret)
+		}
+		if rawToken == "" {
+			return &UserError{Message: "token cannot be empty"}
+		}
+		client := NewClient(baseURL, rawToken)
+
+		resp, err := client.Get[model.PersonalAccessToken](cmd.Context(), "/api/v1/tokens/me")
+		if err != nil {
+			return err
+		}
+
+		cfg := &Config{
+			BaseURL:  client.BaseURL,
+			Token:    rawToken,
+			Scope:    string(resp.Data.Scope),
+			ExpireAt: resp.Data.ExpiresAt,
+		}
+		if err := WriteConfigFile(cfg); err != nil {
+			return fmt.Errorf("save configuration: %w", err)
+		}
+
+		if err := PrintSuccess(cmd.OutOrStdout(), "Authenticated successfully."); err != nil {
+			return fmt.Errorf("write output: %w", err)
+		}
+		return nil
+	},
+}
+
+// LogoutCmd is a Cobra command that removes the saved authentication token from the configuration file.
+var LogoutCmd = &cobra.Command{
+	Use:   "logout",
+	Short: "Remove the saved authentication token",
+	Long:  `Remove the saved authentication token from the configuration file.`,
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		cmd.SilenceUsage = true
+		if err := CleanupConfigFile(); err != nil {
+			return fmt.Errorf("remove configuration: %w", err)
+		}
+		if err := PrintSuccess(cmd.OutOrStdout(), "Logged out successfully."); err != nil {
+			return fmt.Errorf("write output: %w", err)
+		}
+		return nil
+	},
+}
+
+// WhoamiCmd is a Cobra command that displays the current authenticated user based on the saved authentication token.
+var WhoamiCmd = &cobra.Command{
+	Use:   "whoami",
+	Short: "Display the current authenticated user",
+	Long:  `Display the current authenticated user based on the saved authentication token.`,
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		cmd.SilenceUsage = true
+		client, err := NewClientFromConfig()
+		if err != nil {
+			return err
+		}
+		resp, err := client.Get[model.PersonalAccessToken](cmd.Context(), "/api/v1/tokens/me")
+		if err != nil {
+			return err
+		}
+
+		expires := "never"
+		if resp.Data.ExpiresAt != nil {
+			expires = resp.Data.ExpiresAt.Local().Format("2006-01-02 15:04:05")
+		}
+
+		if err := PrintSuccess(cmd.OutOrStdout(), fmt.Sprintf("Authenticated as %q (scope: %s)", resp.Data.Name, resp.Data.Scope)); err != nil {
+			return fmt.Errorf("write output: %w", err)
+		}
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "  Expires: %s\n", expires); err != nil {
+			return fmt.Errorf("write output: %w", err)
+		}
+		return nil
+	},
+}
+
+// init initializes the command-line flags for the login command.
+func init() {
+	LoginCmd.Flags().StringVarP(&baseURL, "url", "u", "", "Base URL of the Yily server (e.g., https://yily.example.com)")
+	LoginCmd.Flags().StringVarP(&token, "token", "t", "", "Personal access token (omit or use '-' to be prompted without echo)")
+	_ = LoginCmd.MarkFlagRequired("url")
+}

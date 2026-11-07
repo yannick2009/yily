@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/repository"
 	"github.com/yannick2009/yily/internal/service"
@@ -40,37 +40,6 @@ func NewVariableHandler(variableService service.VariableService) VariableHandler
 	return &variableHandler{variableService}
 }
 
-// createVariableRequest represents the expected JSON body for creating a variable.
-type createVariableRequest struct {
-	Name  string `json:"name" validate:"required"`
-	Value string `json:"value"`
-}
-
-// updateVariableRequest represents the expected JSON body for updating a variable's name.
-type updateVariableRequest struct {
-	Name string `json:"name" validate:"required"`
-}
-
-// addVersionRequest represents the expected JSON body for adding a new version to a variable.
-type addVersionRequest struct {
-	Value string `json:"value" validate:"required"`
-}
-
-// setVersionActiveRequest represents the expected JSON body for setting a version's active status.
-type setVersionActiveRequest struct {
-	Active bool `json:"active"`
-}
-
-// setTagsRequest represents the expected JSON body for setting tags on a variable.
-type setTagsRequest struct {
-	TagIDs []uuid.UUID `json:"tag_ids"`
-}
-
-// variableValueResponse represents the response body for revealing a variable's decrypted value.
-type variableValueResponse struct {
-	Value string `json:"value"`
-}
-
 // Create handles POST /environments/:environmentID/variables.
 func (h *variableHandler) Create(c *echo.Context) error {
 	environmentID, ok := uuidParam(c, "environmentID")
@@ -78,7 +47,7 @@ func (h *variableHandler) Create(c *echo.Context) error {
 		return nil
 	}
 
-	var req createVariableRequest
+	var req api.CreateVariableRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}
@@ -142,7 +111,7 @@ func (h *variableHandler) GetValue(c *echo.Context) error {
 	if err != nil {
 		return respondError(c, err)
 	}
-	return httputil.NewHTTPResponse(c, http.StatusOK, "Variable value retrieved successfully", variableValueResponse{Value: value})
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Variable value retrieved successfully", api.VariableValueResponse{Value: value})
 }
 
 // GetValues handles GET /environments/:environmentID/variables/values.
@@ -190,7 +159,7 @@ func (h *variableHandler) SetName(c *echo.Context) error {
 		return nil
 	}
 
-	var req updateVariableRequest
+	var req api.UpdateVariableRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}
@@ -221,7 +190,7 @@ func (h *variableHandler) SetTags(c *echo.Context) error {
 		return nil
 	}
 
-	var req setTagsRequest
+	var req api.SetVariableTagsRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}
@@ -239,7 +208,7 @@ func (h *variableHandler) AddVersion(c *echo.Context) error {
 		return nil
 	}
 
-	var req addVersionRequest
+	var req api.AddVariableVersionRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}
@@ -286,7 +255,7 @@ func (h *variableHandler) SetVersionActive(c *echo.Context) error {
 		return nil
 	}
 
-	var req setVersionActiveRequest
+	var req api.SetVariableVersionActiveRequest
 	if !bindAndValidate(c, &req) {
 		return nil
 	}

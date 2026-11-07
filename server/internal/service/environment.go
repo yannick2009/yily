@@ -3,25 +3,14 @@ package service
 import (
 	"context"
 	"errors"
-	"time"
 	"unicode/utf8"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/repository"
 )
-
-// EnvironmentDTO is the response shape for an environment in list endpoints, including its variable count.
-type EnvironmentDTO struct {
-	ID            uuid.UUID `json:"id"`             // Unique identifier of the environment.
-	Name          string    `json:"name"`           // Name of the environment.
-	Description   string    `json:"description"`    // Description of the environment.
-	ProjectID     uuid.UUID `json:"project_id"`     // Foreign key referencing the associated project.
-	VariableCount int       `json:"variable_count"` // Number of variables in the environment.
-	CreatedAt     time.Time `json:"created_at"`     // Timestamp when the environment was created.
-	UpdatedAt     time.Time `json:"updated_at"`     // Timestamp when the environment was last updated.
-}
 
 // MaxEnvironmentDescriptionLength is the maximum number of characters allowed
 // in an environment description.
@@ -36,7 +25,7 @@ type EnvironmentService interface {
 	Create(ctx context.Context, projectID uuid.UUID, name, description string) (*model.Environment, error) // Create creates a new environment.
 	Clone(ctx context.Context, sourceEnvironmentID uuid.UUID, newName string, copyTags bool) error         // Clone creates a new environment in the same project with the source's variable names (and optionally tags) but no values; audit entries are recorded for the new environment and each copied variable.
 	GetByID(ctx context.Context, environmentID uuid.UUID) (*model.Environment, error)                      // GetByID retrieves an environment by its ID.
-	GetAll(ctx context.Context, projectID uuid.UUID) ([]EnvironmentDTO, error)                             // GetAll retrieves all environments of a project with their variable counts.
+	GetAll(ctx context.Context, projectID uuid.UUID) ([]api.EnvironmentSummaryResponse, error)             // GetAll retrieves all environments of a project with their variable counts.
 	SetName(ctx context.Context, environmentID uuid.UUID, name string) error                               // SetName updates the name of an environment.
 	SetDescription(ctx context.Context, environmentID uuid.UUID, description string) error                 // SetDescription updates the description of an environment.
 	Delete(ctx context.Context, environmentID uuid.UUID) error                                             // Delete deletes an environment.
@@ -122,20 +111,20 @@ func (s *environmentService) GetByID(ctx context.Context, environmentID uuid.UUI
 }
 
 // GetAll retrieves all environments of a project with their variable counts.
-func (s *environmentService) GetAll(ctx context.Context, projectID uuid.UUID) ([]EnvironmentDTO, error) {
+func (s *environmentService) GetAll(ctx context.Context, projectID uuid.UUID) ([]api.EnvironmentSummaryResponse, error) {
 	environments, err := s.environmentRepository.GetAll(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	dtos := make([]EnvironmentDTO, 0, len(environments))
+	dtos := make([]api.EnvironmentSummaryResponse, 0, len(environments))
 	for _, environment := range environments {
 		variableCount, err := s.variableRepository.CountByEnvironmentID(ctx, environment.ID)
 		if err != nil {
 			return nil, err
 		}
 
-		dtos = append(dtos, EnvironmentDTO{
+		dtos = append(dtos, api.EnvironmentSummaryResponse{
 			ID:            environment.ID,
 			Name:          environment.Name,
 			Description:   environment.Description,

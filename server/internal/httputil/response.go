@@ -19,3 +19,8 @@ type HTTPResponse[T any] struct {
 func NewHTTPResponse[T any](c *echo.Context, status int, message string, data T) error {
 	return c.JSON(status, HTTPResponse[T]{Status: status, Message: message, Data: data})
 }
+
+// Ok returns true if the HTTP response status code indicates success (2xx).
+func (c *HTTPResponse[T]) Ok() bool {
+	return c.Status >= 200 && c.Status < 300
+}

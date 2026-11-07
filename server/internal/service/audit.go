@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/repository"
@@ -13,7 +13,7 @@ import (
 // AuditActor identifies who performed an audited action.
 type AuditActor struct {
 	Type types.ActorType // Type is the kind of actor (user, token or system).
-	ID   uuid.UUID       // ID is the actor's UUID (uuid.Nil for "system").
+	ID   uuid.UUID       // ID is the actor's UUID (uuid.Nil() for "system").
 	Name string          // Name is the actor's display name (empty for "system").
 }
 

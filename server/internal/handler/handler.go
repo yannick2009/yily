@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/env"
@@ -98,7 +98,7 @@ func uuidParam(c *echo.Context, name string) (uuid.UUID, bool) {
 	id, err := uuid.Parse(c.Param(name))
 	if err != nil {
 		_ = respondErrorCode(c, http.StatusBadRequest, CodeInvalidUUID, "invalid "+name)
-		return uuid.Nil, false
+		return uuid.Nil(), false
 	}
 	return id, true
 }

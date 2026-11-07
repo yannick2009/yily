@@ -4,8 +4,8 @@ import (
 	"errors"
 	"os"
 
+	"github.com/glebarez/sqlite"
 	"github.com/yannick2009/yily/internal/domain/model"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +26,7 @@ func NewDB() *gorm.DB {
 		panic("failed to create database file")
 	}
 
-	db, err := gorm.Open(sqlite.Open(DatabaseFile+"?_foreign_keys=on&_busy_timeout=5000&_journal_mode=WAL&_txlock=immediate"), &gorm.Config{
+	db, err := gorm.Open(sqlite.Open(DatabaseFile+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_txlock=immediate"), &gorm.Config{
 		TranslateError: true,
 	})
 	if err != nil {
