@@ -3,6 +3,9 @@ alias l := lint
 alias t := test
 alias fn := format-nix
 
+alias bd := build-docker
+alias bc := build-cli
+
 default:
     just --list
 
@@ -21,4 +24,14 @@ test:
 
 # format the nix code
 format-nix:
-   nixfmt ./**/*.nix
+   nixfmt ./*.nix
+
+# build the docker image
+build-docker:
+    nix build .#docker
+    docker load < result
+    rm -rf result
+
+# build the cli binary
+build-cli:
+    nix build .#cli
