@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/service"
 )
@@ -12,7 +13,7 @@ import (
 func RequireWriteScope() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			scope, ok := AuthenticatedScopeFromContext(c.Request().Context())
+			scope, ok := authctx.AuthenticatedScopeFromContext(c.Request().Context())
 			if !ok {
 				return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, service.ErrUnauthorized.Error(), nil)
 			}
@@ -28,10 +29,10 @@ func RequireWriteScope() echo.MiddlewareFunc {
 func RequireSession() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			if _, ok := AuthenticatedPATFromContext(c.Request().Context()); ok {
+			if _, ok := authctx.AuthenticatedPATFromContext(c.Request().Context()); ok {
 				return httputil.NewHTTPResponse[any](c, http.StatusForbidden, "this endpoint is only accessible through the web interface", nil)
 			}
-			if _, ok := AuthenticatedSessionFromContext(c.Request().Context()); !ok {
+			if _, ok := authctx.AuthenticatedSessionFromContext(c.Request().Context()); !ok {
 				return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, service.ErrUnauthorized.Error(), nil)
 			}
 			return next(c)

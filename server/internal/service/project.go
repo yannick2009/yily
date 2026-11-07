@@ -52,7 +52,7 @@ func (s *projectService) Create(ctx context.Context, name string) (*model.Projec
 		return nil, err
 	}
 
-	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceProject, project.ID, project.Name)
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceProject, project.ID, project.Name, nil)
 
 	return project, nil
 }
@@ -95,10 +95,18 @@ func (s *projectService) GetAll(ctx context.Context) ([]api.ProjectSummaryRespon
 
 // SetName updates the name of a project.
 func (s *projectService) SetName(ctx context.Context, projectID uuid.UUID, name string) error {
+	oldName := ""
+	if project, err := s.projectRepository.GetByID(ctx, projectID); err == nil {
+		oldName = project.Name
+	}
 	if err := s.projectRepository.SetName(ctx, projectID, name); err != nil {
 		return err
 	}
-	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceProject, projectID, name)
+	var metadata map[string]string
+	if oldName != "" && oldName != name {
+		metadata = map[string]string{"old_name": oldName, "new_name": name}
+	}
+	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceProject, projectID, name, metadata)
 	return nil
 }
 
@@ -112,7 +120,7 @@ func (s *projectService) Delete(ctx context.Context, projectID uuid.UUID) error 
 		return err
 	}
 	if name != "" {
-		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceProject, projectID, name)
+		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceProject, projectID, name, nil)
 	}
 	return nil
 }
@@ -122,6 +130,6 @@ func (s *projectService) Clear(ctx context.Context) error {
 	if err := s.projectRepository.DeleteAll(ctx); err != nil {
 		return err
 	}
-	_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceProject, uuid.Nil(), "all projects")
+	_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceProject, uuid.Nil(), "all projects", nil)
 	return nil
 }

@@ -1,5 +1,7 @@
 package types
 
+import "uuid"
+
 // Action identifies what happened in an audit event.
 type Action string
 
@@ -24,6 +26,13 @@ const (
 	ActorTypeToken  ActorType = "token"  // ActorTypeToken is a Personal Access Token acting through the API.
 	ActorTypeSystem ActorType = "system" // ActorTypeSystem is an internal/automatic action without a user.
 )
+
+// AuditActor identifies who performed an audited action.
+type AuditActor struct {
+	Type ActorType // Type is the kind of actor (user, token or system).
+	ID   uuid.UUID // ID is the actor's UUID (uuid.Nil() for "system").
+	Name string    // Name is the actor's display name (empty for "system").
+}
 
 // ResourceType identifies the kind of resource an audit event concerns.
 type ResourceType string

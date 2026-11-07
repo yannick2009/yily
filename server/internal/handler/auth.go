@@ -7,9 +7,9 @@ import (
 	"uuid"
 
 	"github.com/labstack/echo/v5"
+	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
-	"github.com/yannick2009/yily/internal/middleware"
 	"github.com/yannick2009/yily/internal/service"
 )
 
@@ -100,7 +100,8 @@ func (h *authHandler) Login(c *echo.Context) error {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	_ = h.audit.RecordAs(c.Request().Context(), service.AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}, types.ActionSignedIn, "", uuid.Nil(), "")
+	ctx := authctx.WithAuthenticatedIdentity(c.Request().Context(), user, session)
+	_ = h.audit.Record(ctx, types.ActionSignedIn, "", uuid.Nil(), "", nil)
 
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Login successful", user)
 }
@@ -129,14 +130,14 @@ func (h *authHandler) Logout(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	_ = h.audit.Record(c.Request().Context(), types.ActionSignedOut, "", uuid.Nil(), "")
+	_ = h.audit.Record(c.Request().Context(), types.ActionSignedOut, "", uuid.Nil(), "", nil)
 
 	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Logout successful", nil)
 }
 
 // Me handles GET /auth/me to return the authenticated Super Admin from the request context.
 func (h *authHandler) Me(c *echo.Context) error {
-	user, ok := middleware.AuthenticatedUserFromContext(c.Request().Context())
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
 	if !ok {
 		return respondError(c, service.ErrUnauthorized)
 	}

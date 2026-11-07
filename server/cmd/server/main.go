@@ -46,7 +46,7 @@ func main() {
 	auditRepository := repository.NewAuditRepository(db)
 
 	// Services
-	auditService := service.NewAuditService(auditRepository, middleware.ActorFromContext)
+	auditService := service.NewAuditService(auditRepository)
 	authService := service.NewAuthService(userRepository, sessionRepository)
 	patService := service.NewPATService(userRepository, patRepository, auditService)
 	projectService := service.NewProjectService(projectRepository, environmentRepository, tagRepository, auditService)

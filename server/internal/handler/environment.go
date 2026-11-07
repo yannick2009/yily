@@ -189,7 +189,7 @@ func (h *environmentHandler) Import(c *echo.Context) error {
 	}
 
 	// Call the variableService to import variables from the uploaded file
-	if err := h.variableService.Import(c.Request().Context(), id, contentByte, fileType); err != nil {
+	if err := h.variableService.Import(c.Request().Context(), id, contentByte, fileType, fileHeader.Filename); err != nil {
 		return respondError(c, err)
 	}
 

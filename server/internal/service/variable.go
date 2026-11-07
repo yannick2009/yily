@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"uuid"
 
@@ -22,15 +24,15 @@ var (
 // VariableService defines the interface for variable business logic, including its versions.
 type VariableService interface {
 	// variables
-	Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error)               // Create creates a new variable with its first version.
-	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                                     // GetByID retrieves a variable by its ID.
-	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error)         // List retrieves the variables of an environment matching the given filter.
-	GetValues(ctx context.Context, environmentID uuid.UUID, names []string, version int) (map[string]string, error) // GetValues retrieves requested secret values in one call.
-	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                           // SetName updates the name of a variable.
-	Delete(ctx context.Context, variableID uuid.UUID) error                                                         // Delete deletes a variable (and its versions via cascade).
-	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                                    // SetTags replaces the set of tags associated with a variable.
-	Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType) error                // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
-	Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error)                   // Export serializes all variables of an environment into the given file format.
+	Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error)                 // Create creates a new variable with its first version.
+	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                                       // GetByID retrieves a variable by its ID.
+	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error)           // List retrieves the variables of an environment matching the given filter.
+	GetValues(ctx context.Context, environmentID uuid.UUID, names []string, version int) (map[string]string, error)   // GetValues retrieves requested secret values in one call.
+	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                             // SetName updates the name of a variable.
+	Delete(ctx context.Context, variableID uuid.UUID) error                                                           // Delete deletes a variable (and its versions via cascade).
+	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                                      // SetTags replaces the set of tags associated with a variable.
+	Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType, filename string) error // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
+	Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error)                     // Export serializes all variables of an environment into the given file format.
 
 	// versions
 	AddVersion(ctx context.Context, variableID uuid.UUID, value string) (*model.VariableVersion, error) // AddVersion adds a new active version to a variable.
@@ -76,7 +78,7 @@ func (s *variableService) Create(ctx context.Context, environmentID uuid.UUID, n
 		return nil, err
 	}
 
-	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceVariable, variable.ID, variable.Name)
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceVariable, variable.ID, variable.Name, nil)
 
 	return variable, nil
 }
@@ -124,10 +126,18 @@ func (s *variableService) List(ctx context.Context, environmentID uuid.UUID, fil
 // SetName updates the name of a variable.
 func (s *variableService) SetName(ctx context.Context, variableID uuid.UUID, name string) error {
 	normalized := normalizeVariableName(name)
+	oldName := ""
+	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
+		oldName = variable.Name
+	}
 	if err := s.variableRepository.SetName(ctx, variableID, normalized); err != nil {
 		return err
 	}
-	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceVariable, variableID, normalized)
+	var metadata map[string]string
+	if oldName != "" && oldName != normalized {
+		metadata = map[string]string{"old_name": oldName, "new_name": normalized}
+	}
+	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceVariable, variableID, normalized, metadata)
 	return nil
 }
 
@@ -141,7 +151,7 @@ func (s *variableService) Delete(ctx context.Context, variableID uuid.UUID) erro
 		return err
 	}
 	if name != "" {
-		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceVariable, variableID, name)
+		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceVariable, variableID, name, nil)
 	}
 	return nil
 }
@@ -265,7 +275,7 @@ func (s *variableService) GetValues(ctx context.Context, environmentID uuid.UUID
 		revealed = append(revealed, variable)
 	}
 	for _, variable := range revealed {
-		_ = s.audit.Record(ctx, types.ActionRevealed, types.ResourceVariable, variable.ID, variable.Name)
+		_ = s.audit.Record(ctx, types.ActionRevealed, types.ResourceVariable, variable.ID, variable.Name, nil)
 	}
 
 	return values, nil
@@ -335,7 +345,7 @@ func (s *variableService) addVersion(ctx context.Context, variableID uuid.UUID, 
 
 // Import imports variables from a file (JSON, YAML or .env) into the given environment.
 // New variables are created; existing ones get a new version only if their value changed.
-func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType) error {
+func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType, filename string) error {
 	var raw map[string]string
 	var err error
 
@@ -380,6 +390,8 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 	}
 	sort.Strings(names)
 
+	createdCount := 0
+	updatedCount := 0
 	for _, name := range names {
 		value := variables[name]
 		variable, exists := byName[name]
@@ -387,10 +399,15 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 			if _, err := s.create(ctx, environmentID, name, value); err != nil {
 				return err
 			}
+			createdCount++
 			continue
 		}
-		if err := s.applyImportValue(ctx, variable.ID, value); err != nil {
+		changed, err := s.applyImportValue(ctx, variable.ID, value)
+		if err != nil {
 			return err
+		}
+		if changed {
+			updatedCount++
 		}
 	}
 
@@ -399,7 +416,12 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 	if err != nil {
 		return err
 	}
-	_ = s.audit.Record(ctx, types.ActionImport, types.ResourceEnvironment, environmentID, environment.Name)
+	_ = s.audit.Record(ctx, types.ActionImport, types.ResourceEnvironment, environmentID, environment.Name, map[string]string{
+		"file":          filepath.Base(filename),
+		"file_type":     string(fileType),
+		"created_count": strconv.Itoa(createdCount),
+		"updated_count": strconv.Itoa(updatedCount),
+	})
 
 	return nil
 }
@@ -407,22 +429,25 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 // applyImportValue adds a new encrypted version to an existing variable when its
 // current decrypted value differs from the imported one. An empty value is a
 // no-op, so re-importing an unchanged file does not create spurious versions.
-func (s *variableService) applyImportValue(ctx context.Context, variableID uuid.UUID, value string) error {
+// It reports whether a new version was actually added.
+func (s *variableService) applyImportValue(ctx context.Context, variableID uuid.UUID, value string) (bool, error) {
 	if value == "" {
-		return nil
+		return false, nil
 	}
 
 	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
 	if err == nil {
 		if current, decErr := s.decryptVersion(version); decErr == nil && current == value {
-			return nil // unchanged
+			return false, nil // unchanged
 		}
 	} else if !errors.Is(err, repository.ErrVariableVersionNotFound) {
-		return err
+		return false, err
 	}
 
-	_, err = s.addVersion(ctx, variableID, value)
-	return err
+	if _, err := s.addVersion(ctx, variableID, value); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // Export serializes all variables of an environment (name → current decrypted value) into the given file format.
@@ -470,7 +495,10 @@ func (s *variableService) Export(ctx context.Context, environmentID uuid.UUID, f
 	if err != nil {
 		return nil, err
 	}
-	_ = s.audit.Record(ctx, types.ActionExport, types.ResourceEnvironment, environmentID, environment.Name)
+	_ = s.audit.Record(ctx, types.ActionExport, types.ResourceEnvironment, environmentID, environment.Name, map[string]string{
+		"file_type":      string(fileType),
+		"variable_count": strconv.Itoa(len(variables)),
+	})
 
 	return content, nil
 }
@@ -496,5 +524,5 @@ func (s *variableService) auditVariable(ctx context.Context, action types.Action
 	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
 		name = variable.Name
 	}
-	_ = s.audit.Record(ctx, action, types.ResourceVariable, variableID, name)
+	_ = s.audit.Record(ctx, action, types.ResourceVariable, variableID, name, nil)
 }
