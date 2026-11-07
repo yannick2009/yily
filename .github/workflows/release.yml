@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    # The Docker image is linux/amd64; add an arm64 runner and a manifest for multi-arch.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Verify VERSION matches tag
+        run: |
+          set -euo pipefail
+          version="$(cat VERSION)"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "VERSION (${version}) does not match tag (${GITHUB_REF_NAME})" >&2
+            exit 1
+          fi
+
+      - name: Build artifacts
+        run: |
+          set -euo pipefail
+          nix build .#release-assets --print-out-paths > /tmp/release-out
+          nix build .#docker --print-out-paths > /tmp/docker-out
+          {
+            echo "RELEASE_OUT=$(cat /tmp/release-out)"
+            echo "DOCKER_OUT=$(cat /tmp/docker-out)"
+          } >> "$GITHUB_ENV"
+
+      - name: Collect release assets
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cp -r "$RELEASE_OUT"/. artifacts/
+
+      - name: Push Docker image
+        run: |
+          set -euo pipefail
+          version="$(cat VERSION)"
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          sha_tag="sha-${GITHUB_SHA::7}"
+
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          docker load -i "$DOCKER_OUT"
+          docker tag "yily:${version}" "${image}:${version}"
+          docker tag "yily:${version}" "${image}:${sha_tag}"
+          docker push "${image}:${version}"
+          docker push "${image}:${sha_tag}"
+
+          # Only stable releases get the moving tags.
+          if [[ "${version}" != *-* ]]; then
+            minor="${version%.*}"
+            docker tag "yily:${version}" "${image}:${minor}"
+            docker tag "yily:${version}" "${image}:latest"
+            docker push "${image}:${minor}"
+            docker push "${image}:latest"
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
+            artifacts/checksums.txt
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
