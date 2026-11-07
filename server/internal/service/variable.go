@@ -70,8 +70,22 @@ func NewVariableService(variableRepository repository.VariableRepository, versio
 }
 
 // Create creates a new variable with its first version.
-// If the version creation fails, the variable is removed again to keep the data consistent.
 func (s *variableService) Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error) {
+	variable, err := s.create(ctx, environmentID, name, value)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceVariable, variable.ID, variable.Name)
+
+	return variable, nil
+}
+
+// create creates a new variable with its first version without recording
+// an audit event. Callers that batch many variables (e.g. import) record a single
+// aggregate event instead of one per variable.
+// If the version creation fails, the variable is removed again to keep the data consistent.
+func (s *variableService) create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error) {
 	variable := &model.Variable{
 		Name:          normalizeVariableName(name),
 		EnvironmentID: environmentID,
@@ -88,8 +102,6 @@ func (s *variableService) Create(ctx context.Context, environmentID uuid.UUID, n
 			return nil, err
 		}
 	}
-
-	_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceVariable, variable.ID, variable.Name)
 
 	return variable, nil
 }
@@ -372,7 +384,7 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 		value := variables[name]
 		variable, exists := byName[name]
 		if !exists {
-			if _, err := s.Create(ctx, environmentID, name, value); err != nil {
+			if _, err := s.create(ctx, environmentID, name, value); err != nil {
 				return err
 			}
 			continue
@@ -381,6 +393,13 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 			return err
 		}
 	}
+
+	// Record a single import event rather than one per created/updated variable.
+	environment, err := s.environmentRepository.GetByID(ctx, environmentID)
+	if err != nil {
+		return err
+	}
+	_ = s.audit.Record(ctx, types.ActionImport, types.ResourceEnvironment, environmentID, environment.Name)
 
 	return nil
 }
@@ -402,7 +421,7 @@ func (s *variableService) applyImportValue(ctx context.Context, variableID uuid.
 		return err
 	}
 
-	_, err = s.AddVersion(ctx, variableID, value)
+	_, err = s.addVersion(ctx, variableID, value)
 	return err
 }
 

@@ -9,6 +9,7 @@ const (
 	ActionDeleted   Action = "deleted"    // ActionDeleted records the deletion of a resource.
 	ActionRevealed  Action = "revealed"   // ActionRevealed records a decrypted secret value being returned.
 	ActionExport    Action = "export"     // ActionExport records an environment's variables being exported.
+	ActionImport    Action = "import"     // ActionImport records a file being imported into an environment.
 	ActionRevoked   Action = "revoked"    // ActionRevoked records the revocation of a Personal Access Token.
 	ActionRotated   Action = "rotated"    // ActionRotated records the rotation of a Personal Access Token (old revoked, new issued under the same name).
 	ActionSignedIn  Action = "signed_in"  // ActionSignedIn records a successful login.
