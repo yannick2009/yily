@@ -64,6 +64,7 @@ func main() {
 	tagHandler := handler.NewTagHandler(tagService)
 	dashboardHandler := handler.NewDashboardHandler(dashboardService)
 	auditHandler := handler.NewAuditHandler(auditService)
+	versionHandler := handler.NewVersionHandler()
 
 	// Create a new server instance
 	server := echo.New()
@@ -117,6 +118,9 @@ func main() {
 
 	// Dashboard (read)
 	readRoutes.GET("/dashboard", dashboardHandler.Get)
+
+	// Server metadata (read)
+	readRoutes.GET("/version", versionHandler.Get)
 
 	// Projects
 	readRoutes.GET("/projects", projectHandler.GetAll)

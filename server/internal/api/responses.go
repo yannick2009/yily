@@ -52,3 +52,12 @@ type CreateTagResponse struct {
 	Created []model.Tag `json:"created"`
 	Skipped []string    `json:"skipped"`
 }
+
+// VersionResponse is the build metadata exposed by GET /version.
+type VersionResponse struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	BuildDate string `json:"build_date"`
+	Go        string `json:"go"`
+	Platform  string `json:"platform"`
+}
