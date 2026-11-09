@@ -57,3 +57,10 @@ type CreateTagResponse struct {
 type VersionResponse struct {
 	Version string `json:"version"`
 }
+
+// UpdateResponse is the latest available release exposed by GET /version/update.
+type UpdateResponse struct {
+	LatestVersion   string `json:"latest_version"`
+	ReleaseURL      string `json:"release_url"`
+	UpdateAvailable bool   `json:"update_available"`
+}

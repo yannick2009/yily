@@ -5,7 +5,7 @@ import { Button, Icon } from "../components/ui";
 import { Dialog } from "../components/shared";
 import { LANGUAGES, applyLang, lang, t, type LangCode } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
-import { serverVersion } from "../store";
+import { serverVersion, updateInfo } from "../store";
 
 export function SettingsRoute() {
   const [clearAllOpen, setClearAllOpen] = createSignal(false);
@@ -62,6 +62,23 @@ export function SettingsRoute() {
           <p class="mt-1 text-xs text-ink-faint">
             {versionLabel()} · {t("about.licenseValue")}
           </p>
+
+          <Show when={updateInfo()?.update_available}>
+            <a
+              href={updateInfo()!.release_url}
+              target="_blank"
+              rel="noreferrer"
+              class="group mt-1 inline-flex items-center gap-1.5 text-xs text-ink-muted transition-colors hover:text-brand"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+              {t("about.updateAvailable", { version: `v${updateInfo()!.latest_version}` })}
+              <Icon
+                name="chevron-right"
+                size={13}
+                class="text-brand transition-transform group-hover:translate-x-0.5"
+              />
+            </a>
+          </Show>
 
           <div class="mt-4 flex items-center gap-1">
             <a
