@@ -1,21 +1,21 @@
 // Settings: language picker, about section, and the danger zone (delete everything).
 import { createResource, createSignal, For, Show } from "solid-js";
-import { projects, system } from "../api";
+import { projects } from "../api";
 import { Button, Icon } from "../components/ui";
 import { Dialog } from "../components/shared";
 import { LANGUAGES, applyLang, lang, t, type LangCode } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
+import { serverVersion } from "../store";
 
 export function SettingsRoute() {
   const [clearAllOpen, setClearAllOpen] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [projectsRes, { refetch }] = createResource(() => projects.list());
-  const [versionRes] = createResource(() => system.getVersion());
 
   // Local builds use the server's dev version; releases use the VERSION value.
   const versionLabel = () => {
-    const version = versionRes()?.version;
+    const version = serverVersion()?.version;
     if (!version) return "…";
     return version === "1.3.0-dev" || version.startsWith("v") ? version : `v${version}`;
   };

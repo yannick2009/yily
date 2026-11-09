@@ -112,13 +112,9 @@ export interface User {
 
 // --- Server metadata ---------------------------------------------------------
 
-// Build metadata returned by GET /version.
+// Server version returned by GET /version.
 export interface VersionInfo {
   version: string;
-  commit: string;
-  build_date: string;
-  go: string;
-  platform: string;
 }
 
 // --- Audit log ---------------------------------------------------------------

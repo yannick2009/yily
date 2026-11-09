@@ -113,14 +113,14 @@ func main() {
 	adminRoutes.POST("/tokens/:id/rotate", patHandler.Rotate)
 	adminRoutes.DELETE("/tokens/:id", patHandler.Revoke)
 
+	// Server version for the settings page (session-only).
+	adminRoutes.GET("/version", versionHandler.Get)
+
 	// Token introspection (read): returns metadata about the PAT used to authenticate.
 	readRoutes.GET("/tokens/me", patHandler.Me)
 
 	// Dashboard (read)
 	readRoutes.GET("/dashboard", dashboardHandler.Get)
-
-	// Server metadata (read)
-	readRoutes.GET("/version", versionHandler.Get)
 
 	// Projects
 	readRoutes.GET("/projects", projectHandler.GetAll)

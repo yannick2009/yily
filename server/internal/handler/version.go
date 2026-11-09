@@ -9,12 +9,12 @@ import (
 	"github.com/yannick2009/yily/internal/version"
 )
 
-// VersionHandler defines the interface for serving server build metadata.
+// VersionHandler defines the interface for serving the server version.
 type VersionHandler interface {
 	Get(c *echo.Context) error
 }
 
-// versionHandler handles HTTP requests for server build metadata.
+// versionHandler handles HTTP requests for the server version.
 type versionHandler struct{}
 
 // NewVersionHandler creates a new VersionHandler.
@@ -24,13 +24,7 @@ func NewVersionHandler() VersionHandler {
 
 // Get handles GET /version.
 func (h *versionHandler) Get(c *echo.Context) error {
-	info := version.Get()
-
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Version retrieved successfully", api.VersionResponse{
-		Version:   info.Number,
-		Commit:    info.Commit,
-		BuildDate: info.Date,
-		Go:        info.Go,
-		Platform:  info.Platform,
+		Version: version.Get().Number,
 	})
 }
