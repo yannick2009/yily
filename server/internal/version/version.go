@@ -10,7 +10,7 @@ import (
 
 const (
 	// Dev is used when no version was injected at build time.
-	Dev = "dev"
+	Dev = "1.3.0-dev"
 	// Unknown is used when a build attribute cannot be determined.
 	Unknown = "unknown"
 )
