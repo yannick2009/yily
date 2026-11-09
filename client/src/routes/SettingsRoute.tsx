@@ -1,7 +1,7 @@
 // Settings: language picker, about section, and the danger zone (delete everything).
 import { createResource, createSignal, For, Show } from "solid-js";
 import { projects } from "../api";
-import { Button, Icon } from "../components/ui";
+import { Button, Icon, Input } from "../components/ui";
 import { Dialog } from "../components/shared";
 import { LANGUAGES, applyLang, lang, t, type LangCode } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
@@ -9,6 +9,7 @@ import { serverVersion, updateInfo } from "../store";
 
 export function SettingsRoute() {
   const [clearAllOpen, setClearAllOpen] = createSignal(false);
+  const [confirmText, setConfirmText] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [projectsRes, { refetch }] = createResource(() => projects.list());
@@ -23,13 +24,24 @@ export function SettingsRoute() {
   // Whether there are any projects to delete; used to disable the "Delete All" button.
   const hasProjects = () => (projectsRes() ?? []).length > 0;
 
+  // Word the user must type to confirm a full wipe (localized).
+  const confirmWord = () => t("projects.deleteAllConfirmWord");
+
+  // Close the dialog and reset the typed confirmation.
+  const closeClearAll = () => {
+    setClearAllOpen(false);
+    setConfirmText("");
+    setError(null);
+  };
+
   // Clear all projects and their variables, after confirmation.
   const clearAll = async () => {
+    if (confirmText().trim() !== confirmWord()) return;
     setBusy(true);
     setError(null);
     try {
       await projects.clear();
-      setClearAllOpen(false);
+      closeClearAll();
       await refetch();
     } catch (err) {
       setError(errorMessage(err));
@@ -112,7 +124,10 @@ export function SettingsRoute() {
           <button
             type="button"
             disabled={!hasProjects()}
-            onClick={() => setClearAllOpen(true)}
+            onClick={() => {
+              setConfirmText("");
+              setClearAllOpen(true);
+            }}
             class="inline-flex h-9 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-line px-3.5 text-sm font-medium text-ink-muted transition-colors hover:border-danger-subtle hover:bg-danger-subtle hover:text-danger disabled:pointer-events-none disabled:opacity-60"
           >
             <Icon name="trash" size={15} />
@@ -123,20 +138,39 @@ export function SettingsRoute() {
 
       <Dialog
         open={clearAllOpen()}
-        onClose={() => setClearAllOpen(false)}
+        onClose={closeClearAll}
         title={t("projects.deleteAllTitle")}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setClearAllOpen(false)}>
+            <Button variant="secondary" onClick={closeClearAll}>
               {t("common.cancel")}
             </Button>
-            <Button variant="danger" onClick={clearAll} loading={busy()}>
+            <Button
+              variant="danger"
+              onClick={clearAll}
+              loading={busy()}
+              disabled={confirmText().trim() !== confirmWord()}
+            >
               {t("projects.deleteAll")}
             </Button>
           </>
         }
       >
         <p class="text-sm text-ink-muted">{t("projects.deleteAllConfirm")}</p>
+        <div class="mt-4 space-y-1.5">
+          <span class="block text-sm font-medium text-ink">
+            {t("common.confirmTypeWord", { word: confirmWord() })}
+          </span>
+          <code class="inline-block rounded-md bg-danger-subtle px-2 py-1 font-mono text-sm text-danger">
+            {confirmWord()}
+          </code>
+          <Input
+            value={confirmText()}
+            onInput={(e) => setConfirmText(e.currentTarget.value)}
+            autocomplete="off"
+            autocapitalize="none"
+          />
+        </div>
         <Show when={error()}>
           <p class="mt-3 text-sm text-danger">{error()}</p>
         </Show>

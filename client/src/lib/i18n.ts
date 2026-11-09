@@ -82,6 +82,7 @@ const messages: Record<LangCode, Messages> = {
     "common.backToProjects": "Back to projects",
     "common.deleteAria": "Delete {name}",
     "common.confirmTypeName": "To confirm, type the name below:",
+    "common.confirmTypeWord": "To confirm, type {word} below:",
     // nav
     "nav.workspace": "Workspace",
     "nav.projects": "Projects",
@@ -149,6 +150,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.deleteAllTitle": "Delete all projects",
     "projects.deleteAllConfirm":
       "This will permanently delete every project, environment, variable and version. This action cannot be undone.",
+    "projects.deleteAllConfirmWord": "DELETE",
     "projects.deleteTitle": "Delete project",
     "projects.deleteConfirm":
       "This will permanently delete {name} and all of its environments and variables. This action cannot be undone.",
@@ -409,6 +411,7 @@ const messages: Record<LangCode, Messages> = {
     "common.backToProjects": "Retour aux projets",
     "common.deleteAria": "Supprimer {name}",
     "common.confirmTypeName": "Pour confirmer, saisissez le nom ci-dessous :",
+    "common.confirmTypeWord": "Pour confirmer, saisissez {word} ci-dessous :",
     "nav.workspace": "Espace de travail",
     "nav.projects": "Projets",
     "nav.tokens": "Jetons",
@@ -471,6 +474,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.deleteAllTitle": "Supprimer tous les projets",
     "projects.deleteAllConfirm":
       "Ceci supprimera définitivement tous les projets, environnements, variables et versions. Cette action est irréversible.",
+    "projects.deleteAllConfirmWord": "SUPPRIMER",
     "projects.deleteTitle": "Supprimer le projet",
     "projects.deleteConfirm":
       "Ceci supprimera définitivement {name} ainsi que tous ses environnements et variables. Cette action est irréversible.",
@@ -731,6 +735,7 @@ const messages: Record<LangCode, Messages> = {
     "common.backToProjects": "Volver a los proyectos",
     "common.deleteAria": "Eliminar {name}",
     "common.confirmTypeName": "Para confirmar, escribe el nombre a continuación:",
+    "common.confirmTypeWord": "Para confirmar, escribe {word} a continuación:",
     "nav.workspace": "Espacio de trabajo",
     "nav.projects": "Proyectos",
     "nav.tokens": "Tokens",
@@ -793,6 +798,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.deleteAllTitle": "Eliminar todos los proyectos",
     "projects.deleteAllConfirm":
       "Esto eliminará permanentemente todos los proyectos, entornos, variables y versiones. Esta acción no se puede deshacer.",
+    "projects.deleteAllConfirmWord": "ELIMINAR",
     "projects.deleteTitle": "Eliminar proyecto",
     "projects.deleteConfirm":
       "Esto eliminará permanentemente {name} y todos sus entornos y variables. Esta acción no se puede deshacer.",
@@ -1038,6 +1044,7 @@ const messages: Record<LangCode, Messages> = {
     "common.backToProjects": "Zurück zu den Projekten",
     "common.deleteAria": "{name} löschen",
     "common.confirmTypeName": "Zur Bestätigung den Namen unten eingeben:",
+    "common.confirmTypeWord": "Zur Bestätigung {word} unten eingeben:",
     "nav.workspace": "Arbeitsbereich",
     "nav.projects": "Projekte",
     "nav.tokens": "Tokens",
@@ -1101,6 +1108,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.deleteAllTitle": "Alle Projekte löschen",
     "projects.deleteAllConfirm":
       "Dies löscht alle Projekte, Umgebungen, Variablen und Versionen dauerhaft. Diese Aktion kann nicht rückgängig gemacht werden.",
+    "projects.deleteAllConfirmWord": "LÖSCHEN",
     "projects.deleteTitle": "Projekt löschen",
     "projects.deleteConfirm":
       "Dies löscht {name} sowie alle seine Umgebungen und Variablen dauerhaft. Diese Aktion kann nicht rückgängig gemacht werden.",
@@ -1349,6 +1357,7 @@ const messages: Record<LangCode, Messages> = {
     "common.backToProjects": "Torna ai progetti",
     "common.deleteAria": "Elimina {name}",
     "common.confirmTypeName": "Per confermare, digita il nome qui sotto:",
+    "common.confirmTypeWord": "Per confermare, digita {word} qui sotto:",
     "nav.workspace": "Area di lavoro",
     "nav.projects": "Progetti",
     "nav.tokens": "Token",
@@ -1411,6 +1420,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.deleteAllTitle": "Elimina tutti i progetti",
     "projects.deleteAllConfirm":
       "Questo eliminerà definitivamente tutti i progetti, gli ambienti, le variabili e le versioni. Questa azione non può essere annullata.",
+    "projects.deleteAllConfirmWord": "ELIMINA",
     "projects.deleteTitle": "Elimina progetto",
     "projects.deleteConfirm":
       "Questo eliminerà definitivamente {name} e tutti i suoi ambienti e variabili. Questa azione non può essere annullata.",
@@ -1658,6 +1668,7 @@ const messages: Record<LangCode, Messages> = {
     "common.backToProjects": "Voltar aos projetos",
     "common.deleteAria": "Excluir {name}",
     "common.confirmTypeName": "Para confirmar, digite o nome abaixo:",
+    "common.confirmTypeWord": "Para confirmar, digite {word} abaixo:",
     "nav.workspace": "Área de trabalho",
     "nav.projects": "Projetos",
     "nav.tokens": "Tokens",
@@ -1720,6 +1731,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.deleteAllTitle": "Excluir todos os projetos",
     "projects.deleteAllConfirm":
       "Isso excluirá permanentemente todos os projetos, ambientes, variáveis e versões. Esta ação não pode ser desfeita.",
+    "projects.deleteAllConfirmWord": "EXCLUIR",
     "projects.deleteTitle": "Excluir projeto",
     "projects.deleteConfirm":
       "Isso excluirá permanentemente {name} e todos os seus ambientes e variáveis. Esta ação não pode ser desfeita.",
@@ -1964,6 +1976,7 @@ const messages: Record<LangCode, Messages> = {
     "common.backToProjects": "Назад к проектам",
     "common.deleteAria": "Удалить {name}",
     "common.confirmTypeName": "Для подтверждения введите имя ниже:",
+    "common.confirmTypeWord": "Для подтверждения введите {word} ниже:",
     "nav.workspace": "Рабочая область",
     "nav.projects": "Проекты",
     "nav.tokens": "Токены",
@@ -2026,6 +2039,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.deleteAllTitle": "Удалить все проекты",
     "projects.deleteAllConfirm":
       "Это навсегда удалит все проекты, окружения, переменные и версии. Это действие необратимо.",
+    "projects.deleteAllConfirmWord": "УДАЛИТЬ",
     "projects.deleteTitle": "Удалить проект",
     "projects.deleteConfirm":
       "Это навсегда удалит {name} вместе со всеми его окружениями и переменными. Это действие необратимо.",
@@ -2273,6 +2287,7 @@ const messages: Record<LangCode, Messages> = {
     "common.backToProjects": "返回项目",
     "common.deleteAria": "删除 {name}",
     "common.confirmTypeName": "要确认，请在下方输入名称：",
+    "common.confirmTypeWord": "要确认，请在下方输入 {word}：",
     "nav.workspace": "工作区",
     "nav.projects": "项目",
     "nav.tokens": "令牌",
@@ -2333,6 +2348,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.deleteAll": "删除全部",
     "projects.deleteAllTitle": "删除所有项目",
     "projects.deleteAllConfirm": "这将永久删除所有项目、环境、变量和版本。此操作无法撤销。",
+    "projects.deleteAllConfirmWord": "删除",
     "projects.deleteTitle": "删除项目",
     "projects.deleteConfirm": "这将永久删除 {name} 及其所有环境与变量。此操作无法撤销。",
     "projects.environments.one": "{count} 个环境",
@@ -2570,6 +2586,7 @@ const messages: Record<LangCode, Messages> = {
     "common.backToProjects": "プロジェクトに戻る",
     "common.deleteAria": "{name} を削除",
     "common.confirmTypeName": "確認するには、下に名前を入力してください：",
+    "common.confirmTypeWord": "確認するには、下に {word} と入力してください：",
     "nav.workspace": "ワークスペース",
     "nav.projects": "プロジェクト",
     "nav.tokens": "トークン",
@@ -2632,6 +2649,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.deleteAllTitle": "すべてのプロジェクトを削除",
     "projects.deleteAllConfirm":
       "これにより、すべてのプロジェクト、環境、変数、バージョンが完全に削除されます。この操作は取り消せません。",
+    "projects.deleteAllConfirmWord": "削除",
     "projects.deleteTitle": "プロジェクトを削除",
     "projects.deleteConfirm":
       "これにより {name} とそのすべての環境・変数が完全に削除されます。この操作は取り消せません。",
@@ -2877,6 +2895,7 @@ const messages: Record<LangCode, Messages> = {
     "common.backToProjects": "프로젝트로 돌아가기",
     "common.deleteAria": "{name} 삭제",
     "common.confirmTypeName": "확인하려면 아래에 이름을 입력하세요:",
+    "common.confirmTypeWord": "확인하려면 아래에 {word}을(를) 입력하세요:",
     "nav.workspace": "작업 공간",
     "nav.projects": "프로젝트",
     "nav.tokens": "토큰",
@@ -2939,6 +2958,7 @@ const messages: Record<LangCode, Messages> = {
     "projects.deleteAllTitle": "모든 프로젝트 삭제",
     "projects.deleteAllConfirm":
       "이 작업은 모든 프로젝트, 환경, 변수, 버전을 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다.",
+    "projects.deleteAllConfirmWord": "삭제",
     "projects.deleteTitle": "프로젝트 삭제",
     "projects.deleteConfirm":
       "이 작업은 {name}과(와) 모든 환경 및 변수를 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다.",
