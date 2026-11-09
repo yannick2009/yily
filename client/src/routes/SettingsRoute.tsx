@@ -1,6 +1,6 @@
 // Settings: language picker, about section, and the danger zone (delete everything).
 import { createResource, createSignal, For, Show } from "solid-js";
-import { projects } from "../api";
+import { projects, system } from "../api";
 import { Button, Icon } from "../components/ui";
 import { Dialog } from "../components/shared";
 import { LANGUAGES, applyLang, lang, t, type LangCode } from "../lib/i18n";
@@ -11,6 +11,14 @@ export function SettingsRoute() {
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [projectsRes, { refetch }] = createResource(() => projects.list());
+  const [versionRes] = createResource(() => system.getVersion());
+
+  // Local builds use the server's dev version; releases use the VERSION value.
+  const versionLabel = () => {
+    const version = versionRes()?.version;
+    if (!version) return "…";
+    return version === "1.3.0-dev" || version.startsWith("v") ? version : `v${version}`;
+  };
 
   // Whether there are any projects to delete; used to disable the "Delete All" button.
   const hasProjects = () => (projectsRes() ?? []).length > 0;
@@ -51,7 +59,9 @@ export function SettingsRoute() {
         <div class="mt-4 flex flex-col items-center text-center">
           <img src="/logo.svg" alt="Yily" class="h-16 w-auto" />
           <p class="mt-2 text-sm text-ink-muted">{t("about.tagline")}</p>
-          <p class="mt-1 text-xs text-ink-faint">v0.1.0 · {t("about.licenseValue")}</p>
+          <p class="mt-1 text-xs text-ink-faint">
+            {versionLabel()} · {t("about.licenseValue")}
+          </p>
 
           <div class="mt-4 flex items-center gap-1">
             <a

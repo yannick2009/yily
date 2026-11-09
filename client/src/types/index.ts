@@ -110,6 +110,17 @@ export interface User {
   updated_at?: string;
 }
 
+// --- Server metadata ---------------------------------------------------------
+
+// Build metadata returned by GET /version.
+export interface VersionInfo {
+  version: string;
+  commit: string;
+  build_date: string;
+  go: string;
+  platform: string;
+}
+
 // --- Audit log ---------------------------------------------------------------
 
 export type ActorType = "user" | "token" | "system";
