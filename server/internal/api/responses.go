@@ -52,3 +52,15 @@ type CreateTagResponse struct {
 	Created []model.Tag `json:"created"`
 	Skipped []string    `json:"skipped"`
 }
+
+// VersionResponse is the server version exposed by GET /version.
+type VersionResponse struct {
+	Version string `json:"version"`
+}
+
+// UpdateResponse is the latest available release exposed by GET /version/update.
+type UpdateResponse struct {
+	LatestVersion   string `json:"latest_version"`
+	ReleaseURL      string `json:"release_url"`
+	UpdateAvailable bool   `json:"update_available"`
+}

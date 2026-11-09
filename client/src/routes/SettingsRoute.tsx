@@ -5,12 +5,20 @@ import { Button, Icon } from "../components/ui";
 import { Dialog } from "../components/shared";
 import { LANGUAGES, applyLang, lang, t, type LangCode } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
+import { serverVersion, updateInfo } from "../store";
 
 export function SettingsRoute() {
   const [clearAllOpen, setClearAllOpen] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [projectsRes, { refetch }] = createResource(() => projects.list());
+
+  // Local builds use the server's dev version; releases use the VERSION value.
+  const versionLabel = () => {
+    const version = serverVersion()?.version;
+    if (!version) return "…";
+    return version === "1.3.0-dev" || version.startsWith("v") ? version : `v${version}`;
+  };
 
   // Whether there are any projects to delete; used to disable the "Delete All" button.
   const hasProjects = () => (projectsRes() ?? []).length > 0;
@@ -51,7 +59,26 @@ export function SettingsRoute() {
         <div class="mt-4 flex flex-col items-center text-center">
           <img src="/logo.svg" alt="Yily" class="h-16 w-auto" />
           <p class="mt-2 text-sm text-ink-muted">{t("about.tagline")}</p>
-          <p class="mt-1 text-xs text-ink-faint">v0.1.0 · {t("about.licenseValue")}</p>
+          <p class="mt-1 text-xs text-ink-faint">
+            {versionLabel()} · {t("about.licenseValue")}
+          </p>
+
+          <Show when={updateInfo()?.update_available}>
+            <a
+              href={updateInfo()!.release_url}
+              target="_blank"
+              rel="noreferrer"
+              class="group mt-1 inline-flex items-center gap-1.5 text-xs text-ink-muted transition-colors hover:text-brand"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+              {t("about.updateAvailable", { version: `v${updateInfo()!.latest_version}` })}
+              <Icon
+                name="chevron-right"
+                size={13}
+                class="text-brand transition-transform group-hover:translate-x-0.5"
+              />
+            </a>
+          </Show>
 
           <div class="mt-4 flex items-center gap-1">
             <a

@@ -110,6 +110,20 @@ export interface User {
   updated_at?: string;
 }
 
+// --- Server metadata ---------------------------------------------------------
+
+// Server version returned by GET /version.
+export interface VersionInfo {
+  version: string;
+}
+
+// Latest release information returned by GET /version/update.
+export interface UpdateInfo {
+  latest_version: string;
+  release_url: string;
+  update_available: boolean;
+}
+
 // --- Audit log ---------------------------------------------------------------
 
 export type ActorType = "user" | "token" | "system";

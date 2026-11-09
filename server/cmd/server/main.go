@@ -64,6 +64,7 @@ func main() {
 	tagHandler := handler.NewTagHandler(tagService)
 	dashboardHandler := handler.NewDashboardHandler(dashboardService)
 	auditHandler := handler.NewAuditHandler(auditService)
+	versionHandler := handler.NewVersionHandler()
 
 	// Create a new server instance
 	server := echo.New()
@@ -111,6 +112,10 @@ func main() {
 	adminRoutes.GET("/tokens", patHandler.GetAll)
 	adminRoutes.POST("/tokens/:id/rotate", patHandler.Rotate)
 	adminRoutes.DELETE("/tokens/:id", patHandler.Revoke)
+
+	// Server version and update information for the settings page (session-only).
+	adminRoutes.GET("/version", versionHandler.Get)
+	adminRoutes.GET("/version/update", versionHandler.GetUpdate)
 
 	// Token introspection (read): returns metadata about the PAT used to authenticate.
 	readRoutes.GET("/tokens/me", patHandler.Me)
