@@ -37,6 +37,125 @@ For this project, we have a monorepo structure that contains both the server and
 
 The `client` contains the web interface, while the `server` contains the API, the command-line interface, and the application's internal packages.
 
+## Installation
+
+### Docker
+
+A `linux/amd64` image is published to the GitHub Container Registry. Generate the master key once and keep it somewhere safe — if it is lost, the stored secrets become unrecoverable:
+
+```bash
+echo "YILY_MASTER_KEY=$(openssl rand -base64 32)" > yily.env
+chmod 600 yily.env
+```
+
+Run the container:
+
+```bash
+docker run -d \
+  --name yily \
+  --restart unless-stopped \
+  -p 16529:16529 \
+  -v yily-data:/data \
+  --env-file yily.env \
+  ghcr.io/yannick2009/yily:1.0.0-beta.1
+```
+
+The server listens on port `16529` and serves the web interface at `http://localhost:16529`. Its SQLite database lives in the `yily-data` volume under `/data/instance`. Keep both the volume and `yily.env` safe.
+
+With Docker Compose:
+
+```yaml
+services:
+  yily:
+    image: ghcr.io/yannick2009/yily:1.0.0-beta.1
+    container_name: yily
+    restart: unless-stopped
+    ports:
+      - "16529:16529"
+    volumes:
+      - yily-data:/data
+    env_file:
+      - yily.env
+
+volumes:
+  yily-data:
+```
+
+```bash
+docker compose up -d
+```
+
+> The image is currently `linux/amd64` only. On ARM hosts, add `--platform linux/amd64` to `docker run` (or `platform: linux/amd64` to the Compose service); Docker will use emulation. The `latest` tag is only published for stable releases, so pin `1.0.0-beta.1` until a stable version exists.
+
+### Server binary (Linux)
+
+Docker is the recommended way to run the server. If Docker is not available, the release also ships a `linux/amd64` archive containing the `yily` binary and the `dist/` web client. The `dist/` directory must stay next to the binary.
+
+```bash
+curl -fsSLO https://github.com/yannick2009/yily/releases/download/v1.0.0-beta.1/yily_1.0.0-beta.1_linux_amd64.tar.gz
+curl -fsSLO https://github.com/yannick2009/yily/releases/download/v1.0.0-beta.1/checksums.txt
+sha256sum -c checksums.txt --ignore-missing
+
+tar -xzf yily_1.0.0-beta.1_linux_amd64.tar.gz
+cd yily_1.0.0-beta.1_linux_amd64
+chmod -R u+w dist  # the web client is read-only in the archive
+```
+
+Generate the master key once and keep it safe — if it is lost, the stored secrets become unrecoverable:
+
+```bash
+echo "YILY_MASTER_KEY=$(openssl rand -base64 32)" > yily.env
+chmod 600 yily.env
+```
+
+Run the server:
+
+```bash
+set -a
+. ./yily.env
+set +a
+./yily
+```
+
+The server listens on `http://localhost:16529`. Its SQLite database is created in `instance/` under the working directory. To upgrade, extract the new archive elsewhere and copy `yily` and `dist/` into the existing directory, keeping `instance/` and `yily.env`. If a `dist/` directory is read-only (older archives), run `chmod -R u+w dist` first. For a long-running service, run it under systemd or another process manager with the extracted directory as `WorkingDirectory`.
+
+### CLI
+
+Install `yily-cli` from the latest GitHub release on Linux or macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yannick2009/yily/main/scripts/install.sh | bash -s -- --pre-release
+```
+
+> There is no stable release yet, so `--pre-release` is required. Once a stable version exists, omit it to install the latest stable release.
+
+The binary is installed in `~/.local/bin`. Run the script as your user (it refuses to run as root). When `~/.local/bin` is not in your `PATH`, the script prints the line to add; pass `--update-path` to update `~/.bashrc` and `~/.zshrc` automatically.
+
+| Option | Description |
+|--------|-------------|
+| `--version <v>` | Install a specific version (e.g. `1.0.0-beta.1`). |
+| `--pre-release` | Include prereleases when resolving the latest version. |
+| `--update-path` | Add `~/.local/bin` to `PATH` in `~/.bashrc` and `~/.zshrc`. |
+
+The CLI can also update or remove itself:
+
+```bash
+yily-cli upgrade --pre-release      # upgrade to the latest release (prereleases included)
+yily-cli upgrade --version 1.0.0-beta.1
+yily-cli uninstall                  # remove the binary (asks for confirmation)
+yily-cli uninstall --yes --purge    # also remove the saved login configuration
+```
+
+`uninstall` leaves the `PATH` entry added by the install script untouched.
+
+To review the script before running it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yannick2009/yily/main/scripts/install.sh -o install.sh
+less install.sh
+bash install.sh --pre-release
+```
+
 ## Development environment
 
 The project pins its system toolchain (Go, Node.js, linters, task runner…) through its Nix flake, and its JavaScript toolchain — including **vite-plus** — through `client/package.json`. To enter the dev shell:
