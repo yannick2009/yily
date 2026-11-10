@@ -142,6 +142,7 @@ func (c *Client) request(ctx context.Context, method, url string, body []byte, c
 	}
 
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "yily-cli")
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}

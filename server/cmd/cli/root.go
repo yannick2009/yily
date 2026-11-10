@@ -23,6 +23,8 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.SetVersionTemplate("{{.Name}} {{.Version}}\n")
 	rootCmd.AddCommand(cli.VersionCmd)
+	rootCmd.AddCommand(cli.UpgradeCmd)
+	rootCmd.AddCommand(cli.UninstallCmd)
 	rootCmd.AddCommand(cli.LoginCmd)
 	rootCmd.AddCommand(cli.LogoutCmd)
 	rootCmd.AddCommand(cli.WhoamiCmd)
