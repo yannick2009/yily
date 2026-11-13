@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/httputil"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/service"
 )
 
@@ -28,7 +29,7 @@ func NewTagHandler(tagService service.TagService) TagHandler {
 
 // Create handles POST /projects/:projectID/tags. The body may carry either a single "name" (legacy) or a "names" array; empty values and duplicates are ignored. Existing names are reported in `skipped` and never surface as errors.
 func (h *tagHandler) Create(c *echo.Context) error {
-	projectID, ok := uuidParam(c, "projectID")
+	projectID, ok := idParam(c, "projectID", id.PrefixProject)
 	if !ok {
 		return nil
 	}
@@ -58,7 +59,7 @@ func (h *tagHandler) Create(c *echo.Context) error {
 
 // GetAll handles GET /projects/:projectID/tags.
 func (h *tagHandler) GetAll(c *echo.Context) error {
-	projectID, ok := uuidParam(c, "projectID")
+	projectID, ok := idParam(c, "projectID", id.PrefixProject)
 	if !ok {
 		return nil
 	}
@@ -72,11 +73,11 @@ func (h *tagHandler) GetAll(c *echo.Context) error {
 
 // Delete handles DELETE /projects/:projectID/tags/:tagID.
 func (h *tagHandler) Delete(c *echo.Context) error {
-	projectID, ok := uuidParam(c, "projectID")
+	projectID, ok := idParam(c, "projectID", id.PrefixProject)
 	if !ok {
 		return nil
 	}
-	tagID, ok := uuidParam(c, "tagID")
+	tagID, ok := idParam(c, "tagID", id.PrefixTag)
 	if !ok {
 		return nil
 	}

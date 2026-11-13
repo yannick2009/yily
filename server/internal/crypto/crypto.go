@@ -9,7 +9,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"uuid"
+
+	"github.com/yannick2009/yily/internal/id"
 )
 
 const (
@@ -25,7 +26,7 @@ var (
 )
 
 // Encrypt encrypts plaintext using AES-256-GCM and returns a versioned envelope
-func Encrypt(plaintext string, masterKey []byte, variableID uuid.UUID, version int) (string, error) {
+func Encrypt(plaintext string, masterKey []byte, variableID id.ID, version int) (string, error) {
 	if len(masterKey) != keySize {
 		return "", ErrInvalidKeyLength
 	}
@@ -55,7 +56,7 @@ func Encrypt(plaintext string, masterKey []byte, variableID uuid.UUID, version i
 }
 
 // Decrypt authenticates and decrypts an envelope using AES-256-GCM.
-func Decrypt(payload string, masterKey []byte, variableID uuid.UUID, version int) (string, error) {
+func Decrypt(payload string, masterKey []byte, variableID id.ID, version int) (string, error) {
 	if len(masterKey) != keySize {
 		return "", ErrInvalidKeyLength
 	}
@@ -99,6 +100,6 @@ func Decrypt(payload string, masterKey []byte, variableID uuid.UUID, version int
 }
 
 // buildAAD constructs the authenticated data bound to a variable and its version.
-func buildAAD(variableID uuid.UUID, version int) []byte {
+func buildAAD(variableID id.ID, version int) []byte {
 	return []byte(fmt.Sprintf("yily:%s:%d", variableID, version))
 }

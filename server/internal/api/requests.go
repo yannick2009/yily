@@ -1,6 +1,6 @@
 package api
 
-import "uuid"
+import "github.com/yannick2009/yily/internal/id"
 
 // CreateProjectRequest is the JSON body for creating a project.
 type CreateProjectRequest struct {
@@ -57,7 +57,7 @@ type SetVariableVersionActiveRequest struct {
 
 // SetVariableTagsRequest is the JSON body for replacing a variable's tags.
 type SetVariableTagsRequest struct {
-	TagIDs []uuid.UUID `json:"tag_ids"`
+	TagIDs []id.ID `json:"tag_ids"`
 }
 
 // CreateTagRequest is the JSON body for creating one or more tags.

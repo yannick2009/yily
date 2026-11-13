@@ -356,7 +356,7 @@ const messages: Record<LangCode, Messages> = {
     // --- Errors (en) ---
     "errors.INTERNAL_ERROR": "Something went wrong. Please try again.",
     "errors.BAD_REQUEST": "Invalid request.",
-    "errors.INVALID_UUID": "Invalid identifier.",
+    "errors.INVALID_ID": "Invalid identifier.",
     "errors.VALIDATION_FAILED": "Validation failed.",
     "errors.INVALID_REQUEST_BODY": "Invalid request body.",
     "errors.FILE_PARSE_FAILED": "Could not parse the uploaded file.",
@@ -681,7 +681,7 @@ const messages: Record<LangCode, Messages> = {
     // --- Errors (fr) ---
     "errors.INTERNAL_ERROR": "Une erreur est survenue. Veuillez réessayer.",
     "errors.BAD_REQUEST": "Requête invalide.",
-    "errors.INVALID_UUID": "Identifiant invalide.",
+    "errors.INVALID_ID": "Identifiant invalide.",
     "errors.VALIDATION_FAILED": "Validation échouée.",
     "errors.INVALID_REQUEST_BODY": "Corps de requête invalide.",
     "errors.FILE_PARSE_FAILED": "Impossible d'analyser le fichier téléversé.",
@@ -990,7 +990,7 @@ const messages: Record<LangCode, Messages> = {
     // --- Errors (es) ---
     "errors.INTERNAL_ERROR": "Algo salió mal. Inténtalo de nuevo.",
     "errors.BAD_REQUEST": "Solicitud no válida.",
-    "errors.INVALID_UUID": "Identificador no válido.",
+    "errors.INVALID_ID": "Identificador no válido.",
     "errors.VALIDATION_FAILED": "La validación falló.",
     "errors.INVALID_REQUEST_BODY": "Cuerpo de solicitud no válido.",
     "errors.FILE_PARSE_FAILED": "No se pudo analizar el archivo subido.",
@@ -1302,7 +1302,7 @@ const messages: Record<LangCode, Messages> = {
     // --- Errors (de) ---
     "errors.INTERNAL_ERROR": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     "errors.BAD_REQUEST": "Ungültige Anfrage.",
-    "errors.INVALID_UUID": "Ungültige Kennung.",
+    "errors.INVALID_ID": "Ungültige Kennung.",
     "errors.VALIDATION_FAILED": "Validierung fehlgeschlagen.",
     "errors.INVALID_REQUEST_BODY": "Ungültiger Anfrageinhalt.",
     "errors.FILE_PARSE_FAILED": "Die hochgeladene Datei konnte nicht verarbeitet werden.",
@@ -1614,7 +1614,7 @@ const messages: Record<LangCode, Messages> = {
     // --- Errors (it) ---
     "errors.INTERNAL_ERROR": "Qualcosa è andato storto. Riprova.",
     "errors.BAD_REQUEST": "Richiesta non valida.",
-    "errors.INVALID_UUID": "Identificativo non valido.",
+    "errors.INVALID_ID": "Identificativo non valido.",
     "errors.VALIDATION_FAILED": "Validazione fallita.",
     "errors.INVALID_REQUEST_BODY": "Corpo della richiesta non valido.",
     "errors.FILE_PARSE_FAILED": "Impossibile analizzare il file caricato.",
@@ -1922,7 +1922,7 @@ const messages: Record<LangCode, Messages> = {
     // --- Errors (pt) ---
     "errors.INTERNAL_ERROR": "Algo deu errado. Tente novamente.",
     "errors.BAD_REQUEST": "Solicitação inválida.",
-    "errors.INVALID_UUID": "Identificador inválido.",
+    "errors.INVALID_ID": "Identificador inválido.",
     "errors.VALIDATION_FAILED": "A validação falhou.",
     "errors.INVALID_REQUEST_BODY": "Corpo da solicitação inválido.",
     "errors.FILE_PARSE_FAILED": "Não foi possível analisar o arquivo enviado.",
@@ -2233,7 +2233,7 @@ const messages: Record<LangCode, Messages> = {
     // --- Errors (ru) ---
     "errors.INTERNAL_ERROR": "Что-то пошло не так. Попробуйте ещё раз.",
     "errors.BAD_REQUEST": "Неверный запрос.",
-    "errors.INVALID_UUID": "Неверный идентификатор.",
+    "errors.INVALID_ID": "Неверный идентификатор.",
     "errors.VALIDATION_FAILED": "Проверка не пройдена.",
     "errors.INVALID_REQUEST_BODY": "Неверное тело запроса.",
     "errors.FILE_PARSE_FAILED": "Не удалось обработать загруженный файл.",
@@ -2532,7 +2532,7 @@ const messages: Record<LangCode, Messages> = {
     // --- Errors (zh) ---
     "errors.INTERNAL_ERROR": "出了点问题，请重试。",
     "errors.BAD_REQUEST": "无效请求。",
-    "errors.INVALID_UUID": "无效的标识符。",
+    "errors.INVALID_ID": "无效的标识符。",
     "errors.VALIDATION_FAILED": "验证失败。",
     "errors.INVALID_REQUEST_BODY": "无效的请求体。",
     "errors.FILE_PARSE_FAILED": "无法解析上传的文件。",
@@ -2841,7 +2841,7 @@ const messages: Record<LangCode, Messages> = {
     // --- Errors (ja) ---
     "errors.INTERNAL_ERROR": "問題が発生しました。もう一度お試しください。",
     "errors.BAD_REQUEST": "無効なリクエストです。",
-    "errors.INVALID_UUID": "無効な識別子です。",
+    "errors.INVALID_ID": "無効な識別子です。",
     "errors.VALIDATION_FAILED": "検証に失敗しました。",
     "errors.INVALID_REQUEST_BODY": "リクエスト本文が無効です。",
     "errors.FILE_PARSE_FAILED": "アップロードされたファイルを解析できませんでした。",
@@ -3147,7 +3147,7 @@ const messages: Record<LangCode, Messages> = {
     // --- Errors (ko) ---
     "errors.INTERNAL_ERROR": "문제가 발생했습니다. 다시 시도해 주세요.",
     "errors.BAD_REQUEST": "잘못된 요청입니다.",
-    "errors.INVALID_UUID": "잘못된 식별자입니다.",
+    "errors.INVALID_ID": "잘못된 식별자입니다.",
     "errors.VALIDATION_FAILED": "유효성 검사에 실패했습니다.",
     "errors.INVALID_REQUEST_BODY": "잘못된 요청 본문입니다.",
     "errors.FILE_PARSE_FAILED": "업로드된 파일을 분석할 수 없습니다.",

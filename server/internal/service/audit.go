@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"time"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
@@ -31,9 +31,9 @@ type AuditList struct {
 
 // AuditService defines the interface for recording and listing audit events.
 type AuditService interface {
-	Record(ctx context.Context, action types.Action, resourceType types.ResourceType, resourceID uuid.UUID, resourceName string, metadata map[string]string) error // Record appends an event attributed to the actor resolved from ctx; metadata is nil when there is nothing extra to record.
-	List(ctx context.Context, filter AuditFilter) (*AuditList, error)                                                                                              // List returns a page of audit events.
-	Export(ctx context.Context, filter AuditFilter) ([]model.AuditEvent, error)                                                                                    // Export returns every audit event matching the filter, oldest first.
+	Record(ctx context.Context, action types.Action, resourceType types.ResourceType, resourceID id.ID, resourceName string, metadata map[string]string) error // Record appends an event attributed to the actor resolved from ctx; metadata is nil when there is nothing extra to record.
+	List(ctx context.Context, filter AuditFilter) (*AuditList, error)                                                                                          // List returns a page of audit events.
+	Export(ctx context.Context, filter AuditFilter) ([]model.AuditEvent, error)                                                                                // Export returns every audit event matching the filter, oldest first.
 }
 
 // auditService implements AuditService.
@@ -47,7 +47,7 @@ func NewAuditService(auditRepository repository.AuditRepository) AuditService {
 }
 
 // Record appends an audit event attributed to the actor resolved from the request context via the injected resolver. metadata is optional (nil for none) and is serialized as JSON into the event.
-func (s *auditService) Record(ctx context.Context, action types.Action, resourceType types.ResourceType, resourceID uuid.UUID, resourceName string, metadata map[string]string) error {
+func (s *auditService) Record(ctx context.Context, action types.Action, resourceType types.ResourceType, resourceID id.ID, resourceName string, metadata map[string]string) error {
 	var metadataJSON string
 	if len(metadata) > 0 {
 		if raw, err := json.Marshal(metadata); err == nil {

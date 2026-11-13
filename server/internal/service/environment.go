@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"unicode/utf8"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
@@ -22,13 +22,13 @@ var ErrEnvironmentDescriptionTooLong = errors.New("environment description must 
 
 // EnvironmentService defines the interface for environment business logic.
 type EnvironmentService interface {
-	Create(ctx context.Context, projectID uuid.UUID, name, description string) (*model.Environment, error) // Create creates a new environment.
-	Clone(ctx context.Context, sourceEnvironmentID uuid.UUID, newName string, copyTags bool) error         // Clone creates a new environment in the same project with the source's variable names (and optionally tags) but no values; audit entries are recorded for the new environment and each copied variable.
-	GetByID(ctx context.Context, environmentID uuid.UUID) (*model.Environment, error)                      // GetByID retrieves an environment by its ID.
-	GetAll(ctx context.Context, projectID uuid.UUID) ([]api.EnvironmentSummaryResponse, error)             // GetAll retrieves all environments of a project with their variable counts.
-	SetName(ctx context.Context, environmentID uuid.UUID, name string) error                               // SetName updates the name of an environment.
-	SetDescription(ctx context.Context, environmentID uuid.UUID, description string) error                 // SetDescription updates the description of an environment.
-	Delete(ctx context.Context, environmentID uuid.UUID) error                                             // Delete deletes an environment.
+	Create(ctx context.Context, projectID id.ID, name, description string) (*model.Environment, error) // Create creates a new environment.
+	Clone(ctx context.Context, sourceEnvironmentID id.ID, newName string, copyTags bool) error         // Clone creates a new environment in the same project with the source's variable names (and optionally tags) but no values; audit entries are recorded for the new environment and each copied variable.
+	GetByID(ctx context.Context, environmentID id.ID) (*model.Environment, error)                      // GetByID retrieves an environment by its ID.
+	GetAll(ctx context.Context, projectID id.ID) ([]api.EnvironmentSummaryResponse, error)             // GetAll retrieves all environments of a project with their variable counts.
+	SetName(ctx context.Context, environmentID id.ID, name string) error                               // SetName updates the name of an environment.
+	SetDescription(ctx context.Context, environmentID id.ID, description string) error                 // SetDescription updates the description of an environment.
+	Delete(ctx context.Context, environmentID id.ID) error                                             // Delete deletes an environment.
 }
 
 // environmentService implements EnvironmentService.
@@ -44,7 +44,7 @@ func NewEnvironmentService(environmentRepository repository.EnvironmentRepositor
 }
 
 // Create creates a new environment.
-func (s *environmentService) Create(ctx context.Context, projectID uuid.UUID, name, description string) (*model.Environment, error) {
+func (s *environmentService) Create(ctx context.Context, projectID id.ID, name, description string) (*model.Environment, error) {
 	if err := validateDescription(description); err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (s *environmentService) Create(ctx context.Context, projectID uuid.UUID, na
 }
 
 // Clone creates a new environment in the same project as the source and copies every variable structure (name, and optionally tags). Values are not copied; cloned variables have no versions and therefore show Active=false until a value is set.
-func (s *environmentService) Clone(ctx context.Context, sourceEnvironmentID uuid.UUID, newName string, copyTags bool) error {
+func (s *environmentService) Clone(ctx context.Context, sourceEnvironmentID id.ID, newName string, copyTags bool) error {
 	source, err := s.environmentRepository.GetByID(ctx, sourceEnvironmentID)
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ func (s *environmentService) Clone(ctx context.Context, sourceEnvironmentID uuid
 		}
 
 		if copyTags && len(src.Tags) > 0 {
-			tagIDs := make([]uuid.UUID, 0, len(src.Tags))
+			tagIDs := make([]id.ID, 0, len(src.Tags))
 			for _, tag := range src.Tags {
 				tagIDs = append(tagIDs, tag.ID)
 			}
@@ -106,12 +106,12 @@ func (s *environmentService) Clone(ctx context.Context, sourceEnvironmentID uuid
 }
 
 // GetByID retrieves an environment by its ID.
-func (s *environmentService) GetByID(ctx context.Context, environmentID uuid.UUID) (*model.Environment, error) {
+func (s *environmentService) GetByID(ctx context.Context, environmentID id.ID) (*model.Environment, error) {
 	return s.environmentRepository.GetByID(ctx, environmentID)
 }
 
 // GetAll retrieves all environments of a project with their variable counts.
-func (s *environmentService) GetAll(ctx context.Context, projectID uuid.UUID) ([]api.EnvironmentSummaryResponse, error) {
+func (s *environmentService) GetAll(ctx context.Context, projectID id.ID) ([]api.EnvironmentSummaryResponse, error) {
 	environments, err := s.environmentRepository.GetAll(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func (s *environmentService) GetAll(ctx context.Context, projectID uuid.UUID) ([
 }
 
 // SetName updates the name of an environment.
-func (s *environmentService) SetName(ctx context.Context, environmentID uuid.UUID, name string) error {
+func (s *environmentService) SetName(ctx context.Context, environmentID id.ID, name string) error {
 	oldName := ""
 	if environment, err := s.environmentRepository.GetByID(ctx, environmentID); err == nil {
 		oldName = environment.Name
@@ -156,7 +156,7 @@ func (s *environmentService) SetName(ctx context.Context, environmentID uuid.UUI
 }
 
 // SetDescription updates the description of an environment.
-func (s *environmentService) SetDescription(ctx context.Context, environmentID uuid.UUID, description string) error {
+func (s *environmentService) SetDescription(ctx context.Context, environmentID id.ID, description string) error {
 	if err := validateDescription(description); err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (s *environmentService) SetDescription(ctx context.Context, environmentID u
 }
 
 // Delete deletes an environment.
-func (s *environmentService) Delete(ctx context.Context, environmentID uuid.UUID) error {
+func (s *environmentService) Delete(ctx context.Context, environmentID id.ID) error {
 	name := ""
 	if environment, err := s.environmentRepository.GetByID(ctx, environmentID); err == nil {
 		name = environment.Name

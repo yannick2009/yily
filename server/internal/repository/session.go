@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"time"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +19,7 @@ type SessionRepository interface {
 	Create(ctx context.Context, session *model.Session) error                           // Create persists a new session storing only its SHA-256 token hash.
 	GetByTokenHash(ctx context.Context, tokenHash string) (*model.Session, error)       // GetByTokenHash retrieves a session by its SHA-256 hash.
 	RevokeByTokenHash(ctx context.Context, tokenHash string, revokedAt time.Time) error // RevokeByTokenHash marks a session as revoked by its SHA-256 hash.
-	TouchActivity(ctx context.Context, sessionID uuid.UUID, activityAt time.Time) error // TouchActivity updates the session's last activity timestamp.
+	TouchActivity(ctx context.Context, sessionID id.ID, activityAt time.Time) error     // TouchActivity updates the session's last activity timestamp.
 }
 
 // sessionRepository implements SessionRepository.
@@ -72,7 +72,7 @@ func (r *sessionRepository) RevokeByTokenHash(ctx context.Context, tokenHash str
 }
 
 // TouchActivity updates the last_activity_at timestamp of a session to track inactivity expiration.
-func (r *sessionRepository) TouchActivity(ctx context.Context, sessionID uuid.UUID, activityAt time.Time) error {
+func (r *sessionRepository) TouchActivity(ctx context.Context, sessionID id.ID, activityAt time.Time) error {
 	_, err := gorm.G[model.Session](r.DB).Where("id = ?", sessionID).Update(ctx, "last_activity_at", activityAt)
 	return err
 }

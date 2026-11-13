@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	"uuid"
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/authctx"
@@ -101,7 +100,7 @@ func (h *authHandler) Login(c *echo.Context) error {
 	})
 
 	ctx := authctx.WithAuthenticatedIdentity(c.Request().Context(), user, session)
-	_ = h.audit.Record(ctx, types.ActionSignedIn, "", uuid.Nil(), "", nil)
+	_ = h.audit.Record(ctx, types.ActionSignedIn, "", "", "", nil)
 
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Login successful", user)
 }
@@ -130,7 +129,7 @@ func (h *authHandler) Logout(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	_ = h.audit.Record(c.Request().Context(), types.ActionSignedOut, "", uuid.Nil(), "", nil)
+	_ = h.audit.Record(c.Request().Context(), types.ActionSignedOut, "", "", "", nil)
 
 	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Logout successful", nil)
 }

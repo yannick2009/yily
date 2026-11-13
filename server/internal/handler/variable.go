@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/httputil"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/repository"
 	"github.com/yannick2009/yily/internal/service"
 )
@@ -41,7 +42,7 @@ func NewVariableHandler(variableService service.VariableService) VariableHandler
 
 // Create handles POST /environments/:environmentID/variables.
 func (h *variableHandler) Create(c *echo.Context) error {
-	environmentID, ok := uuidParam(c, "environmentID")
+	environmentID, ok := idParam(c, "environmentID", id.PrefixEnvironment)
 	if !ok {
 		return nil
 	}
@@ -61,16 +62,16 @@ func (h *variableHandler) Create(c *echo.Context) error {
 
 // List handles GET /environments/:environmentID/variables.
 // Optional "search" (case-insensitive substring on name) and "tag_ids"
-// (comma-separated UUIDs) query parameters filter the result.
+// (comma-separated tag identifiers) query parameters filter the result.
 func (h *variableHandler) List(c *echo.Context) error {
-	environmentID, ok := uuidParam(c, "environmentID")
+	environmentID, ok := idParam(c, "environmentID", id.PrefixEnvironment)
 	if !ok {
 		return nil
 	}
 
 	tagIDs, err := parseTagIDs(c)
 	if err != nil {
-		return respondErrorCode(c, http.StatusBadRequest, CodeInvalidUUID, "invalid tag_ids")
+		return respondErrorCode(c, http.StatusBadRequest, CodeInvalidID, "invalid tag_ids")
 	}
 
 	variables, err := h.variableService.List(c.Request().Context(), environmentID, service.VariableListFilter{
@@ -87,7 +88,7 @@ func (h *variableHandler) List(c *echo.Context) error {
 
 // GetByID handles GET /variables/:id.
 func (h *variableHandler) GetByID(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixVariable)
 	if !ok {
 		return nil
 	}
@@ -101,7 +102,7 @@ func (h *variableHandler) GetByID(c *echo.Context) error {
 
 // GetValue handles GET /variables/:id/value.
 func (h *variableHandler) GetValue(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixVariable)
 	if !ok {
 		return nil
 	}
@@ -117,7 +118,7 @@ func (h *variableHandler) GetValue(c *echo.Context) error {
 // The JSON body selects each variable individually, so one request can mix
 // active and historical versions.
 func (h *variableHandler) GetValues(c *echo.Context) error {
-	environmentID, ok := uuidParam(c, "environmentID")
+	environmentID, ok := idParam(c, "environmentID", id.PrefixEnvironment)
 	if !ok {
 		return nil
 	}
@@ -147,7 +148,7 @@ func (h *variableHandler) GetValues(c *echo.Context) error {
 
 // SetName handles PATCH /variables/:id.
 func (h *variableHandler) SetName(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixVariable)
 	if !ok {
 		return nil
 	}
@@ -165,7 +166,7 @@ func (h *variableHandler) SetName(c *echo.Context) error {
 
 // Delete handles DELETE /variables/:id.
 func (h *variableHandler) Delete(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixVariable)
 	if !ok {
 		return nil
 	}
@@ -178,7 +179,7 @@ func (h *variableHandler) Delete(c *echo.Context) error {
 
 // SetTags handles PUT /variables/:id/tags.
 func (h *variableHandler) SetTags(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	variableID, ok := idParam(c, "id", id.PrefixVariable)
 	if !ok {
 		return nil
 	}
@@ -188,7 +189,13 @@ func (h *variableHandler) SetTags(c *echo.Context) error {
 		return nil
 	}
 
-	if err := h.variableService.SetTags(c.Request().Context(), id, req.TagIDs); err != nil {
+	for _, tagID := range req.TagIDs {
+		if !id.Match(id.PrefixTag, tagID.String()) {
+			return respondErrorCode(c, http.StatusBadRequest, CodeInvalidID, "invalid tag_ids")
+		}
+	}
+
+	if err := h.variableService.SetTags(c.Request().Context(), variableID, req.TagIDs); err != nil {
 		return respondError(c, err)
 	}
 	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Variable tags updated successfully", nil)
@@ -196,7 +203,7 @@ func (h *variableHandler) SetTags(c *echo.Context) error {
 
 // AddVersion handles POST /variables/:id/versions.
 func (h *variableHandler) AddVersion(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixVariable)
 	if !ok {
 		return nil
 	}
@@ -215,7 +222,7 @@ func (h *variableHandler) AddVersion(c *echo.Context) error {
 
 // GetAllVersions handles GET /variables/:id/versions.
 func (h *variableHandler) GetAllVersions(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixVariable)
 	if !ok {
 		return nil
 	}
@@ -229,7 +236,7 @@ func (h *variableHandler) GetAllVersions(c *echo.Context) error {
 
 // GetCurrentVersion handles GET /variables/:id/versions/current.
 func (h *variableHandler) GetCurrentVersion(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixVariable)
 	if !ok {
 		return nil
 	}
@@ -243,7 +250,7 @@ func (h *variableHandler) GetCurrentVersion(c *echo.Context) error {
 
 // SetVersionActive handles PATCH /variables/:id/versions/:versionID.
 func (h *variableHandler) SetVersionActive(c *echo.Context) error {
-	versionID, ok := uuidParam(c, "versionID")
+	versionID, ok := idParam(c, "versionID", id.PrefixVersion)
 	if !ok {
 		return nil
 	}
@@ -261,7 +268,7 @@ func (h *variableHandler) SetVersionActive(c *echo.Context) error {
 
 // ClearValue handles DELETE /variables/:id/value.
 func (h *variableHandler) ClearValue(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixVariable)
 	if !ok {
 		return nil
 	}

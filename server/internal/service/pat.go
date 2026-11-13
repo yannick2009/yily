@@ -5,11 +5,11 @@ import (
 	"errors"
 	"strings"
 	"time"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/crypto"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
@@ -32,11 +32,11 @@ var (
 
 // PATService defines the interface for Personal Access Token creation, validation, listing, rotation, and revocation.
 type PATService interface {
-	Create(ctx context.Context, userID uuid.UUID, name string, scope types.PATScope, ttl time.Duration) (string, *model.PersonalAccessToken, error) // Create generates a new PAT with the given scope, stores only its SHA-256 hash, and returns the raw token once.
-	Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UUID, ttl time.Duration) (string, *model.PersonalAccessToken, error)                   // Rotate revokes an existing PAT and issues a new one under the same name and scope, returning the raw replacement token once.
-	Validate(ctx context.Context, rawToken string) (*model.User, *model.PersonalAccessToken, error)                                                 // Validate verifies a raw PAT against its stored SHA-256 hash and loads the owning user.
-	GetAll(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error)                                                              // GetAll lists all PATs belonging to a user without exposing raw tokens or hashes.
-	Revoke(ctx context.Context, userID uuid.UUID, patID uuid.UUID) error                                                                            // Revoke marks a user's PAT as revoked by its ID.
+	Create(ctx context.Context, userID id.ID, name string, scope types.PATScope, ttl time.Duration) (string, *model.PersonalAccessToken, error) // Create generates a new PAT with the given scope, stores only its SHA-256 hash, and returns the raw token once.
+	Rotate(ctx context.Context, userID id.ID, patID id.ID, ttl time.Duration) (string, *model.PersonalAccessToken, error)                       // Rotate revokes an existing PAT and issues a new one under the same name and scope, returning the raw replacement token once.
+	Validate(ctx context.Context, rawToken string) (*model.User, *model.PersonalAccessToken, error)                                             // Validate verifies a raw PAT against its stored SHA-256 hash and loads the owning user.
+	GetAll(ctx context.Context, userID id.ID) ([]model.PersonalAccessToken, error)                                                              // GetAll lists all PATs belonging to a user without exposing raw tokens or hashes.
+	Revoke(ctx context.Context, userID id.ID, patID id.ID) error                                                                                // Revoke marks a user's PAT as revoked by its ID.
 }
 
 // patService implements PATService.
@@ -70,7 +70,7 @@ func patMetadata(scope types.PATScope, expiresAt *time.Time) map[string]string {
 
 // Create generates a 256-bit PAT with the "yily_" prefix, persists only its SHA-256 hash in SQLite, and returns the raw token once.
 // A write-scoped PAT must have a positive TTL within MaxPATTTL. A read-scoped PAT may omit the TTL (ttl == 0) for a non-expiring token.
-func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, scope types.PATScope, ttl time.Duration) (string, *model.PersonalAccessToken, error) {
+func (s *patService) Create(ctx context.Context, userID id.ID, name string, scope types.PATScope, ttl time.Duration) (string, *model.PersonalAccessToken, error) {
 	trimmedName := strings.TrimSpace(name)
 	if trimmedName == "" {
 		return "", nil, ErrInvalidPATName
@@ -120,7 +120,7 @@ func (s *patService) Create(ctx context.Context, userID uuid.UUID, name string, 
 }
 
 // Rotate revokes an existing PAT belonging to the user and issues a replacement under the same name and scope with a fresh TTL. The raw token is returned exactly once.
-func (s *patService) Rotate(ctx context.Context, userID uuid.UUID, patID uuid.UUID, ttl time.Duration) (string, *model.PersonalAccessToken, error) {
+func (s *patService) Rotate(ctx context.Context, userID id.ID, patID id.ID, ttl time.Duration) (string, *model.PersonalAccessToken, error) {
 	if ttl < 0 || ttl > MaxPATTTL {
 		return "", nil, ErrInvalidPATExpiration
 	}
@@ -216,12 +216,12 @@ func (s *patService) Validate(ctx context.Context, rawToken string) (*model.User
 }
 
 // GetAll retrieves all PAT metadata belonging to a user without exposing raw tokens or SHA-256 hashes.
-func (s *patService) GetAll(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error) {
+func (s *patService) GetAll(ctx context.Context, userID id.ID) ([]model.PersonalAccessToken, error) {
 	return s.patRepository.GetAllByUserID(ctx, userID)
 }
 
 // Revoke marks a user's active PAT as revoked in SQLite so it can no longer authenticate API requests.
-func (s *patService) Revoke(ctx context.Context, userID uuid.UUID, patID uuid.UUID) error {
+func (s *patService) Revoke(ctx context.Context, userID id.ID, patID id.ID) error {
 	name := ""
 	if pat, err := s.patRepository.GetByID(ctx, patID); err == nil {
 		name = pat.Name

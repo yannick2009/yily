@@ -48,7 +48,7 @@ v1:<base64_nonce>:<base64_ciphertext_and_tag>
 To construct the deterministic AAD, `variable_id` and `version` must be determined **before** encryption occurs:
 
 ```text
-1. Determine VariableID (UUID) and Version (int)
+1. Determine VariableID (id.ID) and Version (int)
        ↓
 2. Build AAD: "yily:<variable_id>:<version>"
        ↓
@@ -70,15 +70,15 @@ A dedicated package `server/internal/crypto` using standard library primitives (
 ```go
 package crypto
 
-import "github.com/google/uuid"
+import "github.com/yannick2009/yily/internal/id"
 
 // Encrypt encrypts a secret value using AES-256-GCM with contextual AAD.
 // masterKey must be exactly 32 bytes.
-func Encrypt(plaintext string, masterKey []byte, variableID uuid.UUID, version int) (string, error)
+func Encrypt(plaintext string, masterKey []byte, variableID id.ID, version int) (string, error)
 
 // Decrypt authenticates and decrypts an encrypted payload using AES-256-GCM.
 // masterKey must be exactly 32 bytes.
-func Decrypt(payload string, masterKey []byte, variableID uuid.UUID, version int) (string, error)
+func Decrypt(payload string, masterKey []byte, variableID id.ID, version int) (string, error)
 ```
 
 ---

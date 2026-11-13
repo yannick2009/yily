@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"errors"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 	"gorm.io/gorm"
 )
 
@@ -15,12 +15,12 @@ var (
 
 // ProjectRepository defines the interface for interacting with project data in the database.
 type ProjectRepository interface {
-	Create(ctx context.Context, project *model.Project) error                 // Create creates a new project in the database.
-	SetName(ctx context.Context, projectID uuid.UUID, name string) error      // SetName updates the name of an existing project in the database.
-	Delete(ctx context.Context, projectID uuid.UUID) error                    // Delete deletes a project from the database by its ID.
-	GetByID(ctx context.Context, projectID uuid.UUID) (*model.Project, error) // GetByID retrieves a project from the database by its ID.
-	GetAll(ctx context.Context) ([]model.Project, error)                      // GetAll retrieves all projects from the database.
-	DeleteAll(ctx context.Context) error                                      // DeleteAll deletes all projects from the database.
+	Create(ctx context.Context, project *model.Project) error             // Create creates a new project in the database.
+	SetName(ctx context.Context, projectID id.ID, name string) error      // SetName updates the name of an existing project in the database.
+	Delete(ctx context.Context, projectID id.ID) error                    // Delete deletes a project from the database by its ID.
+	GetByID(ctx context.Context, projectID id.ID) (*model.Project, error) // GetByID retrieves a project from the database by its ID.
+	GetAll(ctx context.Context) ([]model.Project, error)                  // GetAll retrieves all projects from the database.
+	DeleteAll(ctx context.Context) error                                  // DeleteAll deletes all projects from the database.
 }
 
 // projectRepository is a struct that implements the ProjectRepository interface.
@@ -39,19 +39,19 @@ func (r *projectRepository) Create(ctx context.Context, project *model.Project) 
 }
 
 // SetName updates the name of an existing project in the database.
-func (r *projectRepository) SetName(ctx context.Context, projectID uuid.UUID, name string) error {
+func (r *projectRepository) SetName(ctx context.Context, projectID id.ID, name string) error {
 	_, err := gorm.G[model.Project](r.DB).Where("id = ?", projectID).Update(ctx, "name", name)
 	return err
 }
 
 // Delete deletes a project from the database by its ID.
-func (r *projectRepository) Delete(ctx context.Context, projectID uuid.UUID) error {
+func (r *projectRepository) Delete(ctx context.Context, projectID id.ID) error {
 	_, err := gorm.G[model.Project](r.DB).Where("id = ?", projectID).Delete(ctx)
 	return err
 }
 
 // GetByID retrieves a project from the database by its ID.
-func (r *projectRepository) GetByID(ctx context.Context, projectID uuid.UUID) (*model.Project, error) {
+func (r *projectRepository) GetByID(ctx context.Context, projectID id.ID) (*model.Project, error) {
 	project := new(model.Project)
 	if err := r.DB.WithContext(ctx).Where("id = ?", projectID).First(project).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

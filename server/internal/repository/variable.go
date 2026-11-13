@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 	"gorm.io/gorm"
 )
 
@@ -17,15 +17,15 @@ var (
 
 // VariableRepository defines the interface for interacting with variable data in the database.
 type VariableRepository interface {
-	Create(ctx context.Context, variable *model.Variable) error                                             // Create creates a new variable in the database.
-	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                   // SetName updates the name of an existing variable in the database.
-	Delete(ctx context.Context, variableID uuid.UUID) error                                                 // Delete deletes a variable from the database by its ID.
-	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                             // GetByID retrieves a variable from the database by its ID.
-	GetByNames(ctx context.Context, environmentID uuid.UUID, names []string) ([]model.Variable, error)      // GetByNames retrieves variables by their names in an environment.
-	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) // List retrieves all variables of an environment matching the given filter.
-	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error)                               // CountByProjectID counts the variables across all environments of a project.
-	CountByEnvironmentID(ctx context.Context, environmentID uuid.UUID) (int64, error)                       // CountByEnvironmentID counts the variables of an environment.
-	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                            // SetTags replaces the set of tags associated with a variable.
+	Create(ctx context.Context, variable *model.Variable) error                                         // Create creates a new variable in the database.
+	SetName(ctx context.Context, variableID id.ID, name string) error                                   // SetName updates the name of an existing variable in the database.
+	Delete(ctx context.Context, variableID id.ID) error                                                 // Delete deletes a variable from the database by its ID.
+	GetByID(ctx context.Context, variableID id.ID) (*model.Variable, error)                             // GetByID retrieves a variable from the database by its ID.
+	GetByNames(ctx context.Context, environmentID id.ID, names []string) ([]model.Variable, error)      // GetByNames retrieves variables by their names in an environment.
+	List(ctx context.Context, environmentID id.ID, filter VariableListFilter) ([]model.Variable, error) // List retrieves all variables of an environment matching the given filter.
+	CountByProjectID(ctx context.Context, projectID id.ID) (int64, error)                               // CountByProjectID counts the variables across all environments of a project.
+	CountByEnvironmentID(ctx context.Context, environmentID id.ID) (int64, error)                       // CountByEnvironmentID counts the variables of an environment.
+	SetTags(ctx context.Context, variableID id.ID, tagIDs []id.ID) error                                // SetTags replaces the set of tags associated with a variable.
 }
 
 // VariableSortField identifies a supported sort column for variable listing.
@@ -47,7 +47,7 @@ const (
 // VariableListFilter filters the variable listing of an environment.
 type VariableListFilter struct {
 	Search string            // Search matches variable names case-insensitively (empty for no filter).
-	TagIDs []uuid.UUID       // TagIDs filters to variables that have at least one of these tags (empty for no filter).
+	TagIDs []id.ID           // TagIDs filters to variables that have at least one of these tags (empty for no filter).
 	Sort   VariableSortField // Sort column; defaults to name when empty.
 	Order  VariableSortOrder // Order direction; defaults to ascending when empty.
 }
@@ -74,7 +74,7 @@ func (r *variableRepository) Create(ctx context.Context, variable *model.Variabl
 }
 
 // SetName updates the name of an existing variable in the database.
-func (r *variableRepository) SetName(ctx context.Context, variableID uuid.UUID, name string) error {
+func (r *variableRepository) SetName(ctx context.Context, variableID id.ID, name string) error {
 	_, err := gorm.G[model.Variable](r.DB).Where("id = ?", variableID).Update(ctx, "name", name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -86,13 +86,13 @@ func (r *variableRepository) SetName(ctx context.Context, variableID uuid.UUID, 
 }
 
 // Delete deletes a variable from the database by its ID.
-func (r *variableRepository) Delete(ctx context.Context, variableID uuid.UUID) error {
+func (r *variableRepository) Delete(ctx context.Context, variableID id.ID) error {
 	_, err := gorm.G[model.Variable](r.DB).Where("id = ?", variableID).Delete(ctx)
 	return err
 }
 
 // GetByID retrieves a variable from the database by its ID, including its tags.
-func (r *variableRepository) GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error) {
+func (r *variableRepository) GetByID(ctx context.Context, variableID id.ID) (*model.Variable, error) {
 	variable := new(model.Variable)
 	if err := r.DB.WithContext(ctx).Preload("Tags", orderTags).Where("id = ?", variableID).First(variable).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -104,7 +104,7 @@ func (r *variableRepository) GetByID(ctx context.Context, variableID uuid.UUID) 
 }
 
 // GetByNames retrieves variables with exact names from the given environment.
-func (r *variableRepository) GetByNames(ctx context.Context, environmentID uuid.UUID, names []string) ([]model.Variable, error) {
+func (r *variableRepository) GetByNames(ctx context.Context, environmentID id.ID, names []string) ([]model.Variable, error) {
 	if len(names) == 0 {
 		return []model.Variable{}, nil
 	}
@@ -119,7 +119,7 @@ func (r *variableRepository) GetByNames(ctx context.Context, environmentID uuid.
 }
 
 // CountByProjectID counts the variables across all environments of a project.
-func (r *variableRepository) CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error) {
+func (r *variableRepository) CountByProjectID(ctx context.Context, projectID id.ID) (int64, error) {
 	var count int64
 	if err := r.DB.WithContext(ctx).
 		Model(&model.Variable{}).
@@ -132,7 +132,7 @@ func (r *variableRepository) CountByProjectID(ctx context.Context, projectID uui
 }
 
 // CountByEnvironmentID counts the variables of an environment.
-func (r *variableRepository) CountByEnvironmentID(ctx context.Context, environmentID uuid.UUID) (int64, error) {
+func (r *variableRepository) CountByEnvironmentID(ctx context.Context, environmentID id.ID) (int64, error) {
 	var count int64
 	if err := r.DB.WithContext(ctx).Model(&model.Variable{}).Where("environment_id = ?", environmentID).Count(&count).Error; err != nil {
 		return 0, err
@@ -143,7 +143,7 @@ func (r *variableRepository) CountByEnvironmentID(ctx context.Context, environme
 // List retrieves all variables of the given environment matching the filter,
 // including their tags and active-value status. Variable names are stored
 // uppercase, so the search term is normalized to match them.
-func (r *variableRepository) List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) {
+func (r *variableRepository) List(ctx context.Context, environmentID id.ID, filter VariableListFilter) ([]model.Variable, error) {
 	query := r.DB.WithContext(ctx).Preload("Tags", orderTags).Where("environment_id = ?", environmentID).Order(variableSortClause(filter.Sort, filter.Order))
 
 	if search := strings.ToUpper(strings.TrimSpace(filter.Search)); search != "" {
@@ -173,12 +173,12 @@ func (r *variableRepository) markActive(ctx context.Context, variables []model.V
 		return nil
 	}
 
-	ids := make([]uuid.UUID, 0, len(variables))
+	ids := make([]id.ID, 0, len(variables))
 	for _, v := range variables {
 		ids = append(ids, v.ID)
 	}
 
-	var activeIDs []uuid.UUID
+	var activeIDs []id.ID
 	if err := r.DB.WithContext(ctx).
 		Model(&model.VariableVersion{}).
 		Where("variable_id IN ? AND active = ?", ids, true).
@@ -187,7 +187,7 @@ func (r *variableRepository) markActive(ctx context.Context, variables []model.V
 		return err
 	}
 
-	active := make(map[uuid.UUID]bool, len(activeIDs))
+	active := make(map[id.ID]bool, len(activeIDs))
 	for _, id := range activeIDs {
 		active[id] = true
 	}
@@ -199,7 +199,7 @@ func (r *variableRepository) markActive(ctx context.Context, variables []model.V
 }
 
 // SetTags replaces the set of tags associated with a variable.
-func (r *variableRepository) SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error {
+func (r *variableRepository) SetTags(ctx context.Context, variableID id.ID, tagIDs []id.ID) error {
 	// Resolve the variable's project via its environment to scope the tags.
 	v, err := gorm.G[model.Variable](r.DB).Where("id = ?", variableID).First(ctx)
 	if err != nil {

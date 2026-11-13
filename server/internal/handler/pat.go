@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"slices"
 	"time"
-	"uuid"
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/service"
 )
 
@@ -46,8 +46,8 @@ type rotatePATRequest struct {
 
 // CreatePATResponse represents the one-time creation response that includes the raw "yily_<token>" value.
 type CreatePATResponse struct {
-	ID        uuid.UUID      `json:"id"`                   // Unique identifier of the created PAT
-	UserID    uuid.UUID      `json:"user_id"`              // ID of the User owning the PAT
+	ID        id.ID          `json:"id"`                   // Unique identifier of the created PAT
+	UserID    id.ID          `json:"user_id"`              // ID of the User owning the PAT
 	Name      string         `json:"name"`                 // Human-readable label of the PAT
 	Scope     types.PATScope `json:"scope"`                // Permission scope granted to the PAT
 	Token     string         `json:"token"`                // Raw "yily_<token>" returned only once at creation time
@@ -123,7 +123,7 @@ func (h *patHandler) Revoke(c *echo.Context) error {
 		return respondError(c, service.ErrUnauthorized)
 	}
 
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixPAT)
 	if !ok {
 		return nil
 	}
@@ -142,7 +142,7 @@ func (h *patHandler) Rotate(c *echo.Context) error {
 		return httputil.NewHTTPResponse[any](c, http.StatusUnauthorized, service.ErrUnauthorized.Error(), nil)
 	}
 
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixPAT)
 	if !ok {
 		return nil
 	}

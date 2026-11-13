@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"time"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 	"gorm.io/gorm"
 )
 
@@ -16,13 +16,13 @@ var (
 
 // PATRepository defines the interface for Personal Access Token persistence.
 type PATRepository interface {
-	Create(ctx context.Context, pat *model.PersonalAccessToken) error                          // Create persists a new PAT storing only its SHA-256 hash.
-	GetByTokenHash(ctx context.Context, tokenHash string) (*model.PersonalAccessToken, error)  // GetByTokenHash retrieves a PAT by its SHA-256 hash during Bearer authentication.
-	GetByID(ctx context.Context, id uuid.UUID) (*model.PersonalAccessToken, error)             // GetByID retrieves a PAT by its ID.
-	GetAllByUserID(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error) // GetAllByUserID retrieves all PAT metadata belonging to a user.
-	CountByUserID(ctx context.Context, userID uuid.UUID) (int64, error)                        // CountByUserID counts the PATs belonging to a user.
-	RevokeByID(ctx context.Context, id uuid.UUID, userID uuid.UUID, revokedAt time.Time) error // RevokeByID marks a user's PAT as revoked by its ID.
-	TouchLastUsed(ctx context.Context, id uuid.UUID, lastUsedAt time.Time) error               // TouchLastUsed updates the LastUsedAt timestamp of a PAT after a successful authentication.
+	Create(ctx context.Context, pat *model.PersonalAccessToken) error                         // Create persists a new PAT storing only its SHA-256 hash.
+	GetByTokenHash(ctx context.Context, tokenHash string) (*model.PersonalAccessToken, error) // GetByTokenHash retrieves a PAT by its SHA-256 hash during Bearer authentication.
+	GetByID(ctx context.Context, id id.ID) (*model.PersonalAccessToken, error)                // GetByID retrieves a PAT by its ID.
+	GetAllByUserID(ctx context.Context, userID id.ID) ([]model.PersonalAccessToken, error)    // GetAllByUserID retrieves all PAT metadata belonging to a user.
+	CountByUserID(ctx context.Context, userID id.ID) (int64, error)                           // CountByUserID counts the PATs belonging to a user.
+	RevokeByID(ctx context.Context, id id.ID, userID id.ID, revokedAt time.Time) error        // RevokeByID marks a user's PAT as revoked by its ID.
+	TouchLastUsed(ctx context.Context, id id.ID, lastUsedAt time.Time) error                  // TouchLastUsed updates the LastUsedAt timestamp of a PAT after a successful authentication.
 }
 
 // patRepository implements PATRepository.
@@ -53,7 +53,7 @@ func (r *patRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*
 }
 
 // GetByID retrieves a PAT by its ID.
-func (r *patRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.PersonalAccessToken, error) {
+func (r *patRepository) GetByID(ctx context.Context, id id.ID) (*model.PersonalAccessToken, error) {
 	pat := new(model.PersonalAccessToken)
 	if err := r.DB.WithContext(ctx).Where("id = ?", id).First(pat).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -65,12 +65,12 @@ func (r *patRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Perso
 }
 
 // GetAllByUserID retrieves all PATs belonging to a user ordered by creation date descending.
-func (r *patRepository) GetAllByUserID(ctx context.Context, userID uuid.UUID) ([]model.PersonalAccessToken, error) {
+func (r *patRepository) GetAllByUserID(ctx context.Context, userID id.ID) ([]model.PersonalAccessToken, error) {
 	return gorm.G[model.PersonalAccessToken](r.DB).Where("user_id = ?", userID).Order("created_at DESC").Find(ctx)
 }
 
 // CountByUserID counts the PATs belonging to a user.
-func (r *patRepository) CountByUserID(ctx context.Context, userID uuid.UUID) (int64, error) {
+func (r *patRepository) CountByUserID(ctx context.Context, userID id.ID) (int64, error) {
 	var count int64
 	if err := r.DB.WithContext(ctx).Model(&model.PersonalAccessToken{}).Where("user_id = ?", userID).Count(&count).Error; err != nil {
 		return 0, err
@@ -79,7 +79,7 @@ func (r *patRepository) CountByUserID(ctx context.Context, userID uuid.UUID) (in
 }
 
 // TouchLastUsed records a successful authentication by setting last_used_at on the PAT.
-func (r *patRepository) TouchLastUsed(ctx context.Context, id uuid.UUID, lastUsedAt time.Time) error {
+func (r *patRepository) TouchLastUsed(ctx context.Context, id id.ID, lastUsedAt time.Time) error {
 	return r.DB.WithContext(ctx).
 		Model(&model.PersonalAccessToken{}).
 		Where("id = ?", id).
@@ -87,7 +87,7 @@ func (r *patRepository) TouchLastUsed(ctx context.Context, id uuid.UUID, lastUse
 }
 
 // RevokeByID sets revoked_at on an active PAT owned by the user, or returns ErrPATNotFound if the ID does not belong to them.
-func (r *patRepository) RevokeByID(ctx context.Context, id uuid.UUID, userID uuid.UUID, revokedAt time.Time) error {
+func (r *patRepository) RevokeByID(ctx context.Context, id id.ID, userID id.ID, revokedAt time.Time) error {
 	res := r.DB.WithContext(ctx).
 		Model(&model.PersonalAccessToken{}).
 		Where("id = ? AND user_id = ? AND revoked_at IS NULL", id, userID).
