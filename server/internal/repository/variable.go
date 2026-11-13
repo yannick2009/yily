@@ -94,7 +94,7 @@ func (r *variableRepository) Delete(ctx context.Context, variableID uuid.UUID) e
 // GetByID retrieves a variable from the database by its ID, including its tags.
 func (r *variableRepository) GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error) {
 	variable := new(model.Variable)
-	if err := r.DB.WithContext(ctx).Preload("Tags").Where("id = ?", variableID).First(variable).Error; err != nil {
+	if err := r.DB.WithContext(ctx).Preload("Tags", orderTags).Where("id = ?", variableID).First(variable).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrVariableNotFound
 		}
@@ -144,7 +144,7 @@ func (r *variableRepository) CountByEnvironmentID(ctx context.Context, environme
 // including their tags and active-value status. Variable names are stored
 // uppercase, so the search term is normalized to match them.
 func (r *variableRepository) List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) {
-	query := r.DB.WithContext(ctx).Preload("Tags").Where("environment_id = ?", environmentID).Order(variableSortClause(filter.Sort, filter.Order))
+	query := r.DB.WithContext(ctx).Preload("Tags", orderTags).Where("environment_id = ?", environmentID).Order(variableSortClause(filter.Sort, filter.Order))
 
 	if search := strings.ToUpper(strings.TrimSpace(filter.Search)); search != "" {
 		query = query.Where("name LIKE ?", "%"+search+"%")
@@ -236,6 +236,12 @@ func (r *variableRepository) SetTags(ctx context.Context, variableID uuid.UUID, 
 	}
 
 	return r.DB.Model(&variable).Association("Tags").Replace(tags)
+}
+
+// orderTags sorts preloaded tags alphabetically (case-insensitive, then by ID as
+// a deterministic tiebreaker) so every API response exposes the same stable order.
+func orderTags(db *gorm.DB) *gorm.DB {
+	return db.Order("LOWER(tags.name) ASC, tags.id ASC")
 }
 
 // variableSortClause maps a sort field + order to a SQL ORDER BY clause. Unknown values fall back to name ascending to keep listings deterministic.
