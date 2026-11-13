@@ -7,7 +7,7 @@ import { t } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
 import { createRevealController } from "../lib/reveal";
 import { copyToClipboard } from "../lib/clipboard";
-import { Button, Icon, Input } from "../components/ui";
+import { Button, ChipButton, Icon, Input } from "../components/ui";
 import { EmptyState } from "../components/shared";
 import {
   CreateVariableDialog,
@@ -319,18 +319,9 @@ export function EnvironmentRoute() {
                     {(tag) => {
                       const active = () => selectedTags().includes(tag.id);
                       return (
-                        <button
-                          type="button"
-                          onClick={() => toggleTag(tag.id)}
-                          class={[
-                            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                            active()
-                              ? "bg-brand text-on-brand"
-                              : "bg-surface-2 text-ink-muted hover:text-ink",
-                          ].join(" ")}
-                        >
+                        <ChipButton active={active()} onClick={() => toggleTag(tag.id)}>
                           {tag.name}
-                        </button>
+                        </ChipButton>
                       );
                     }}
                   </For>

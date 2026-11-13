@@ -8,7 +8,7 @@ import { createRevealController } from "../lib/reveal";
 import { normalizeVariableName } from "../lib/variable";
 import { formatDate } from "../lib/date";
 import { copyToClipboard } from "../lib/clipboard";
-import { Badge, Button, Card, Icon, Input, Textarea } from "../components/ui";
+import { Button, Card, Chip, Icon, Input, Textarea } from "../components/ui";
 import { Dialog, EmptyState, Field, RevealCountdown, ValueGenerator } from "../components/shared";
 
 export function VariableDetailRoute() {
@@ -231,9 +231,7 @@ export function VariableDetailRoute() {
                 />
               </Show>
               <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                <For each={variableTags()}>
-                  {(tag) => <Badge variant="brand">{tag.name}</Badge>}
-                </For>
+                <For each={variableTags()}>{(tag) => <Chip variant="brand">{tag.name}</Chip>}</For>
                 <Button size="sm" variant="ghost" icon="tag" onClick={openTags}>
                   {t("variable.editTags")}
                 </Button>
@@ -252,9 +250,9 @@ export function VariableDetailRoute() {
               <h2 class="text-sm font-semibold text-ink">{t("variable.currentValue")}</h2>
               <div class="flex items-center gap-2">
                 <Show when={currentVersion()}>
-                  <Badge variant="brand">
+                  <Chip variant="brand">
                     {t("variable.version", { n: currentVersion()!.version })}
-                  </Badge>
+                  </Chip>
                 </Show>
                 <Show when={currentVersion()}>
                   <Button size="sm" variant="ghost" onClick={() => setClearOpen(true)}>
@@ -342,9 +340,9 @@ export function VariableDetailRoute() {
                               {t("variable.version", { n: vv.version })}
                             </span>
                             {vv.active ? (
-                              <Badge variant="brand">{t("variable.active")}</Badge>
+                              <Chip variant="brand">{t("variable.active")}</Chip>
                             ) : (
-                              <Badge>{t("variable.inactive")}</Badge>
+                              <Chip>{t("variable.inactive")}</Chip>
                             )}
                           </div>
                           <p class="mt-0.5 text-xs text-ink-muted">

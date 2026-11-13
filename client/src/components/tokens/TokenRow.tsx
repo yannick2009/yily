@@ -2,7 +2,7 @@
 import { Show } from "solid-js";
 import { t } from "../../lib/i18n";
 import { formatDate } from "../../lib/date";
-import { Icon } from "../ui";
+import { Chip, Icon } from "../ui";
 import type { Token } from "../../types";
 import { ScopeBadge } from "./ScopeBadge";
 import { EXPIRY_WARNING_DAYS, MS_PER_DAY } from "./constants";
@@ -33,9 +33,9 @@ export function TokenRow(props: {
           <p class="truncate text-sm font-medium text-ink">{props.token.name}</p>
           <ScopeBadge scope={props.token.scope} />
           <Show when={expiringSoon()}>
-            <span class="shrink-0 rounded-md bg-danger-subtle px-1.5 py-0.5 text-xs font-medium text-danger">
+            <Chip variant="danger" class="shrink-0">
               {t("tokens.expiringSoon")}
-            </span>
+            </Chip>
           </Show>
         </div>
         <p class="truncate text-xs text-ink-muted">{expirationLabel()}</p>
@@ -51,9 +51,9 @@ export function TokenRow(props: {
       <Show
         when={!revoked()}
         fallback={
-          <span class="shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 text-xs font-medium text-ink-muted">
+          <Chip variant="neutral" class="shrink-0">
             {t("tokens.revoked")}
-          </span>
+          </Chip>
         }
       >
         <button

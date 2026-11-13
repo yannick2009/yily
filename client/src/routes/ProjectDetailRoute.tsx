@@ -4,7 +4,7 @@ import { A, useNavigate, useParams } from "@solidjs/router";
 import { environments, projects, tags } from "../api";
 import { plural, t } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
-import { Button, Icon, Input, Textarea } from "../components/ui";
+import { Button, Chip, Icon, Input, Textarea } from "../components/ui";
 import { Dialog, EmptyState, Field } from "../components/shared";
 
 export function ProjectDetailRoute() {
@@ -359,19 +359,21 @@ export function ProjectDetailRoute() {
                   <ul class="flex flex-wrap gap-2">
                     <For each={tagList()}>
                       {(tag) => (
-                        <li class="inline-flex items-center gap-1.5 rounded-full bg-brand-subtle py-1.5 pl-3 pr-1.5 text-sm font-medium text-brand">
-                          <Icon name="tag" size={12} class="opacity-70" />
-                          {tag.name}
-                          <button
-                            type="button"
-                            onClick={() => setDeletingTag({ id: tag.id, name: tag.name })}
-                            class="rounded-full p-0.5 text-brand hover:bg-brand hover:text-on-brand"
-                            aria-label={t("project.deleteTagAria", {
-                              name: tag.name,
-                            })}
-                          >
-                            <Icon name="x" size={12} />
-                          </button>
+                        <li>
+                          <Chip variant="brand" size="md">
+                            <Icon name="tag" size={12} class="opacity-70" />
+                            {tag.name}
+                            <button
+                              type="button"
+                              onClick={() => setDeletingTag({ id: tag.id, name: tag.name })}
+                              class="rounded-sm p-0.5 text-brand hover:bg-brand hover:text-on-brand"
+                              aria-label={t("project.deleteTagAria", {
+                                name: tag.name,
+                              })}
+                            >
+                              <Icon name="x" size={12} />
+                            </button>
+                          </Chip>
                         </li>
                       )}
                     </For>

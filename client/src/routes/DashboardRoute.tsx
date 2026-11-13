@@ -7,7 +7,7 @@ import { currentUser } from "../store";
 import { plural, t } from "../lib/i18n";
 import { timeAgo } from "../lib/date";
 import type { AuditEvent } from "../types";
-import { Badge, Card, Icon, type IconName } from "../components/ui";
+import { Card, Chip, Icon, type IconName } from "../components/ui";
 
 interface Stat {
   label: string;
@@ -88,9 +88,7 @@ export function DashboardRoute() {
                           {t(`audit.action.${e.action}`)} · {actorLabel(e)}
                         </p>
                       </div>
-                      <Badge variant={actionVariant(e.action)}>
-                        {t(`audit.action.${e.action}`)}
-                      </Badge>
+                      <Chip variant={actionVariant(e.action)}>{t(`audit.action.${e.action}`)}</Chip>
                       <span class="hidden shrink-0 text-xs text-ink-faint sm:block">
                         {timeAgo(e.created_at)}
                       </span>

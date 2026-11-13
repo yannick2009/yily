@@ -6,7 +6,7 @@ import { currentUser } from "../store";
 import { t } from "../lib/i18n";
 import { formatDate, timeAgo } from "../lib/date";
 import type { AuditEvent } from "../types";
-import { Badge, Button, Icon, Input } from "../components/ui";
+import { Button, Chip, ChipButton, Icon, Input } from "../components/ui";
 import { Dialog, EmptyState } from "../components/shared";
 import { downloadBlob } from "../lib/download";
 import { errorMessage } from "../lib/errors";
@@ -194,18 +194,14 @@ export function AuditRoute() {
           <span class="mr-1 text-xs font-medium uppercase tracking-wide text-ink-faint">
             {t("env.filter")}
           </span>
-          <button
-            type="button"
-            onClick={() => setAction("all")}
-            class={chipClass(action() === "all")}
-          >
+          <ChipButton active={action() === "all"} onClick={() => setAction("all")}>
             {t("audit.all")}
-          </button>
+          </ChipButton>
           <For each={ACTIONS}>
             {(a) => (
-              <button type="button" onClick={() => setAction(a)} class={chipClass(action() === a)}>
+              <ChipButton active={action() === a} onClick={() => setAction(a)}>
                 {t(`audit.action.${a}`)}
-              </button>
+              </ChipButton>
             )}
           </For>
         </div>
@@ -244,9 +240,9 @@ export function AuditRoute() {
                         <span class="font-medium text-ink">{actorName(e)}</span>
                       </td>
                       <td class="py-3 pl-4 pr-4 align-top">
-                        <Badge variant={actionVariant(e.action)}>
+                        <Chip variant={actionVariant(e.action)}>
                           {t(`audit.action.${e.action}`)}
-                        </Badge>
+                        </Chip>
                       </td>
                       <td class="py-3 pl-4 pr-4 align-top">
                         <Show
@@ -332,7 +328,7 @@ export function AuditRoute() {
                   {t("audit.action")}
                 </dt>
                 <dd class="min-w-0 text-right">
-                  <Badge variant={actionVariant(e.action)}>{t(`audit.action.${e.action}`)}</Badge>
+                  <Chip variant={actionVariant(e.action)}>{t(`audit.action.${e.action}`)}</Chip>
                 </dd>
               </div>
               <div class="flex items-start justify-between gap-4">
@@ -403,13 +399,6 @@ function actionVariant(action: string): "neutral" | "brand" | "success" {
   if (action === "revealed" || action === "export" || action === "import" || action === "rotated")
     return "brand";
   return "neutral";
-}
-
-function chipClass(active: boolean): string {
-  return [
-    "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-    active ? "bg-brand text-on-brand" : "bg-surface-2 text-ink-muted hover:text-ink",
-  ].join(" ");
 }
 
 // Parse the metadata JSON into sorted key/value pairs for the detail dialog.
