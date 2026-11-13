@@ -4,7 +4,7 @@ import { For, Show } from "solid-js";
 import { A } from "@solidjs/router";
 import { t } from "../../lib/i18n";
 import { truncateMiddle } from "../../lib/string";
-import { Icon } from "../ui";
+import { Chip, Icon } from "../ui";
 import { RevealCountdown } from "../shared";
 import type { Variable } from "../../types";
 import { TagList } from "./TagList";
@@ -52,9 +52,9 @@ export function VariablesTable(props: {
                         {v.name}
                       </A>
                       <Show when={!v.active}>
-                        <span class="shrink-0 rounded-md bg-warning-subtle px-1.5 py-0.5 text-xs font-medium text-warning">
+                        <Chip variant="warning" class="shrink-0">
                           {t("variable.needsValue")}
-                        </span>
+                        </Chip>
                       </Show>
                     </div>
                   </td>
@@ -96,7 +96,12 @@ export function VariablesTable(props: {
                         type="button"
                         onClick={() => props.onToggleReveal(v.id)}
                         disabled={!v.active}
-                        class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-muted"
+                        class={[
+                          "rounded-md p-1.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+                          revealed()
+                            ? "bg-brand-subtle text-brand hover:text-brand-hover"
+                            : "text-ink-muted hover:bg-surface-2 hover:text-ink disabled:hover:text-ink-muted",
+                        ].join(" ")}
                         aria-label={
                           revealed()
                             ? t("env.hideAria", { name: v.name })
