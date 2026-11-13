@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/labstack/echo/v5"
@@ -114,38 +113,32 @@ func (h *variableHandler) GetValue(c *echo.Context) error {
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Variable value retrieved successfully", api.VariableValueResponse{Value: value})
 }
 
-// GetValues handles GET /environments/:environmentID/variables/values.
-// Repeated "name" parameters select variables; an optional positive "version"
-// parameter selects that version for each requested variable.
+// GetValues handles POST /environments/:environmentID/variables/values.
+// The JSON body selects each variable individually, so one request can mix
+// active and historical versions.
 func (h *variableHandler) GetValues(c *echo.Context) error {
 	environmentID, ok := uuidParam(c, "environmentID")
 	if !ok {
 		return nil
 	}
 
-	query := c.Request().URL.Query()
-	names := query["name"]
-	if len(names) == 0 {
-		return respondErrorCode(c, http.StatusBadRequest, CodeBadRequest, "at least one name is required")
+	var req api.GetVariableValuesRequest
+	if !bindAndValidate(c, &req) {
+		return nil
 	}
-	for _, name := range names {
-		if strings.TrimSpace(name) == "" {
+
+	selections := make([]service.VariableSelection, 0, len(req.Variables))
+	for _, variable := range req.Variables {
+		if strings.TrimSpace(variable.Name) == "" {
 			return respondErrorCode(c, http.StatusBadRequest, CodeBadRequest, "variable names cannot be empty")
 		}
+		selections = append(selections, service.VariableSelection{
+			Name:    variable.Name,
+			Version: variable.Version,
+		})
 	}
 
-	version := 0
-	if versions := query["version"]; len(versions) > 1 {
-		return respondErrorCode(c, http.StatusBadRequest, CodeBadRequest, "version must be provided at most once")
-	} else if len(versions) == 1 {
-		parsedVersion, err := strconv.Atoi(versions[0])
-		if err != nil || parsedVersion <= 0 {
-			return respondErrorCode(c, http.StatusBadRequest, CodeBadRequest, "version must be a positive integer")
-		}
-		version = parsedVersion
-	}
-
-	values, err := h.variableService.GetValues(c.Request().Context(), environmentID, names, version)
+	values, err := h.variableService.GetValues(c.Request().Context(), environmentID, selections)
 	if err != nil {
 		return respondError(c, err)
 	}
