@@ -4,12 +4,12 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"uuid"
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/env"
 	"github.com/yannick2009/yily/internal/httputil"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/repository"
 	"github.com/yannick2009/yily/internal/service"
 )
@@ -26,7 +26,7 @@ func respondError(c *echo.Context, err error) error {
 }
 
 // respondErrorCode is for non-sentinel error paths where we want a stable code
-// anyway (parsing a multipart form, parsing a UUID path param, …).
+// anyway (parsing a multipart form, parsing an identifier path param, …).
 func respondErrorCode(c *echo.Context, status int, code ErrorCode, message string) error {
 	return c.JSON(status, httputil.HTTPResponse[any]{
 		Status:  status,
@@ -94,37 +94,38 @@ func httpStatus(err error) int {
 	}
 }
 
-// uuidParam parses the named path parameter as a UUID.
-// On failure it replies 400 and returns false.
-func uuidParam(c *echo.Context, name string) (uuid.UUID, bool) {
-	id, err := uuid.Parse(c.Param(name))
+// idParam parses the named path parameter as an identifier carrying the
+// expected type prefix. On failure it replies 400 and returns false.
+func idParam(c *echo.Context, name, prefix string) (id.ID, bool) {
+	value, err := id.Parse(prefix, c.Param(name))
 	if err != nil {
-		_ = respondErrorCode(c, http.StatusBadRequest, CodeInvalidUUID, "invalid "+name)
-		return uuid.Nil(), false
+		_ = respondErrorCode(c, http.StatusBadRequest, CodeInvalidID, "invalid "+name)
+		return "", false
 	}
-	return id, true
+	return value, true
 }
 
-// parseTagIDs parses a comma-separated list of UUIDs from the "tag_ids" query
-// parameter. It returns an empty slice when the parameter is absent or empty.
-func parseTagIDs(c *echo.Context) ([]uuid.UUID, error) {
+// parseTagIDs parses a comma-separated list of tag identifiers from the
+// "tag_ids" query parameter. It returns an empty slice when the parameter is
+// absent or empty.
+func parseTagIDs(c *echo.Context) ([]id.ID, error) {
 	raw := strings.TrimSpace(c.QueryParam("tag_ids"))
 	if raw == "" {
 		return nil, nil
 	}
 
 	parts := strings.Split(raw, ",")
-	ids := make([]uuid.UUID, 0, len(parts))
+	ids := make([]id.ID, 0, len(parts))
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
 		}
-		id, err := uuid.Parse(part)
+		tagID, err := id.Parse(id.PrefixTag, part)
 		if err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
+		ids = append(ids, tagID)
 	}
 	return ids, nil
 }

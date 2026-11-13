@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"errors"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 	"gorm.io/gorm"
 )
 
@@ -16,10 +16,10 @@ var (
 
 // UserRepository defines the interface for user persistence.
 type UserRepository interface {
-	Create(ctx context.Context, user *model.User) error                 // Create persists the single Super Admin user if none exists yet.
-	GetByEmail(ctx context.Context, email string) (*model.User, error)  // GetByEmail retrieves the Super Admin by normalized lowercase email during login.
-	GetByID(ctx context.Context, userID uuid.UUID) (*model.User, error) // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
-	Count(ctx context.Context) (int64, error)                           // Count returns how many Super Admin accounts exist (0 or 1 by design).
+	Create(ctx context.Context, user *model.User) error                // Create persists the single Super Admin user if none exists yet.
+	GetByEmail(ctx context.Context, email string) (*model.User, error) // GetByEmail retrieves the Super Admin by normalized lowercase email during login.
+	GetByID(ctx context.Context, userID id.ID) (*model.User, error)    // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
+	Count(ctx context.Context) (int64, error)                          // Count returns how many Super Admin accounts exist (0 or 1 by design).
 }
 
 // userRepository implements UserRepository.
@@ -67,7 +67,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.U
 }
 
 // GetByID loads the User entity owning a validated session or PAT so it can be injected into the request context.
-func (r *userRepository) GetByID(ctx context.Context, userID uuid.UUID) (*model.User, error) {
+func (r *userRepository) GetByID(ctx context.Context, userID id.ID) (*model.User, error) {
 	user := new(model.User)
 	if err := r.DB.WithContext(ctx).Where("id = ?", userID).First(user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

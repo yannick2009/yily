@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"uuid"
 
 	"github.com/aquasecurity/table"
 	"github.com/spf13/cobra"
@@ -17,15 +16,31 @@ import (
 
 	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 )
 
-// parseID validates a UUID command-line argument and returns its canonical form.
+// resourcePrefixes maps the resource names used in CLI messages to the type
+// trigram their identifiers must carry.
+var resourcePrefixes = map[string]string{
+	"project":     id.PrefixProject,
+	"environment": id.PrefixEnvironment,
+	"variable":    id.PrefixVariable,
+	"version":     id.PrefixVersion,
+	"tag":         id.PrefixTag,
+}
+
+// parseID validates an identifier command-line argument against the expected
+// resource type and returns it as a string.
 func parseID(raw, resource string) (string, error) {
-	id, err := uuid.Parse(strings.TrimSpace(raw))
+	prefix, ok := resourcePrefixes[resource]
+	if !ok {
+		return "", &UserError{Message: fmt.Sprintf("unknown resource %q", resource)}
+	}
+	value, err := id.Parse(prefix, strings.TrimSpace(raw))
 	if err != nil {
 		return "", &UserError{Message: fmt.Sprintf("invalid %s ID %q", resource, raw)}
 	}
-	return id.String(), nil
+	return value.String(), nil
 }
 
 // confirm asks a yes/no question unless yes is already true.

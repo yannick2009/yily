@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"errors"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 	"gorm.io/gorm"
 )
 
@@ -16,13 +16,13 @@ var (
 
 // VariableVersionRepository defines the interface for interacting with variable version data.
 type VariableVersionRepository interface {
-	GetCurrentActive(ctx context.Context, variableID uuid.UUID) (*model.VariableVersion, error)                 // GetCurrentActive retrieves the current active version.
-	GetNextVersion(ctx context.Context, variableID uuid.UUID) (int, error)                                      // GetNextVersion computes the next version number for a variable.
-	Create(ctx context.Context, variableVersion *model.VariableVersion) error                                   // Create persists a variable version in the database.
-	SetActive(ctx context.Context, variableVersionID uuid.UUID, active bool) error                              // SetActive updates the active status.
-	DeactivateAll(ctx context.Context, variableID uuid.UUID) error                                              // DeactivateAll deactivates all versions.
-	GetAll(ctx context.Context, variableID uuid.UUID) ([]model.VariableVersion, error)                          // GetAll retrieves all versions.
-	GetForVariables(ctx context.Context, variableIDs []uuid.UUID, version int) ([]model.VariableVersion, error) // GetForVariables retrieves active or specific versions for variables.
+	GetCurrentActive(ctx context.Context, variableID id.ID) (*model.VariableVersion, error)                 // GetCurrentActive retrieves the current active version.
+	GetNextVersion(ctx context.Context, variableID id.ID) (int, error)                                      // GetNextVersion computes the next version number for a variable.
+	Create(ctx context.Context, variableVersion *model.VariableVersion) error                               // Create persists a variable version in the database.
+	SetActive(ctx context.Context, variableVersionID id.ID, active bool) error                              // SetActive updates the active status.
+	DeactivateAll(ctx context.Context, variableID id.ID) error                                              // DeactivateAll deactivates all versions.
+	GetAll(ctx context.Context, variableID id.ID) ([]model.VariableVersion, error)                          // GetAll retrieves all versions.
+	GetForVariables(ctx context.Context, variableIDs []id.ID, version int) ([]model.VariableVersion, error) // GetForVariables retrieves active or specific versions for variables.
 }
 
 // variableVersionRepository is a struct that implements the VariableVersionRepository interface.
@@ -36,7 +36,7 @@ func NewVariableVersionRepository(db *gorm.DB) VariableVersionRepository {
 }
 
 // GetNextVersion computes the next version number for a variable.
-func (r *variableVersionRepository) GetNextVersion(ctx context.Context, variableID uuid.UUID) (int, error) {
+func (r *variableVersionRepository) GetNextVersion(ctx context.Context, variableID id.ID) (int, error) {
 	var maxVersion int
 	err := r.DB.WithContext(ctx).Model(&model.VariableVersion{}).
 		Where("variable_id = ?", variableID).
@@ -74,19 +74,19 @@ func (r *variableVersionRepository) Create(ctx context.Context, variableVersion 
 }
 
 // SetActive updates the active status of a variable version in the database.
-func (r *variableVersionRepository) SetActive(ctx context.Context, variableVersionID uuid.UUID, active bool) error {
+func (r *variableVersionRepository) SetActive(ctx context.Context, variableVersionID id.ID, active bool) error {
 	_, err := gorm.G[model.VariableVersion](r.DB).Where("id = ?", variableVersionID).Update(ctx, "active", active)
 	return err
 }
 
 // DeactivateAll deactivates all active versions of a variable.
-func (r *variableVersionRepository) DeactivateAll(ctx context.Context, variableID uuid.UUID) error {
+func (r *variableVersionRepository) DeactivateAll(ctx context.Context, variableID id.ID) error {
 	_, err := gorm.G[model.VariableVersion](r.DB).Where("variable_id = ? AND active = ?", variableID, true).Update(ctx, "active", false)
 	return err
 }
 
 // GetAll retrieves all variable versions from the database.
-func (r *variableVersionRepository) GetAll(ctx context.Context, variableID uuid.UUID) ([]model.VariableVersion, error) {
+func (r *variableVersionRepository) GetAll(ctx context.Context, variableID id.ID) ([]model.VariableVersion, error) {
 	variableVersions, err := gorm.G[model.VariableVersion](r.DB).Where("variable_id = ?", variableID).Order("version DESC").Find(ctx)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (r *variableVersionRepository) GetAll(ctx context.Context, variableID uuid.
 }
 
 // GetCurrentActive retrieves the current active variable version for a given variable ID.
-func (r *variableVersionRepository) GetCurrentActive(ctx context.Context, variableID uuid.UUID) (*model.VariableVersion, error) {
+func (r *variableVersionRepository) GetCurrentActive(ctx context.Context, variableID id.ID) (*model.VariableVersion, error) {
 	variableVersion := new(model.VariableVersion)
 	if err := r.DB.WithContext(ctx).Where("variable_id = ? AND active = ?", variableID, true).Order("version DESC").First(variableVersion).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -108,7 +108,7 @@ func (r *variableVersionRepository) GetCurrentActive(ctx context.Context, variab
 
 // GetForVariables retrieves active versions when version is zero, or the exact
 // requested version for each variable when version is positive.
-func (r *variableVersionRepository) GetForVariables(ctx context.Context, variableIDs []uuid.UUID, version int) ([]model.VariableVersion, error) {
+func (r *variableVersionRepository) GetForVariables(ctx context.Context, variableIDs []id.ID, version int) ([]model.VariableVersion, error) {
 	if len(variableIDs) == 0 {
 		return []model.VariableVersion{}, nil
 	}

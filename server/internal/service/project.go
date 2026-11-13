@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
@@ -15,12 +15,12 @@ const defaultEnvironmentName = "default"
 
 // ProjectService defines the interface for project business logic.
 type ProjectService interface {
-	Create(ctx context.Context, name string) (*model.Project, error)          // Create creates a new project.
-	GetByID(ctx context.Context, projectID uuid.UUID) (*model.Project, error) // GetByID retrieves a project by its ID.
-	GetAll(ctx context.Context) ([]api.ProjectSummaryResponse, error)         // GetAll retrieves all projects with their environment and tag counts.
-	SetName(ctx context.Context, projectID uuid.UUID, name string) error      // SetName updates the name of a project.
-	Delete(ctx context.Context, projectID uuid.UUID) error                    // Delete deletes a project.
-	Clear(ctx context.Context) error                                          // Clear deletes all projects.
+	Create(ctx context.Context, name string) (*model.Project, error)      // Create creates a new project.
+	GetByID(ctx context.Context, projectID id.ID) (*model.Project, error) // GetByID retrieves a project by its ID.
+	GetAll(ctx context.Context) ([]api.ProjectSummaryResponse, error)     // GetAll retrieves all projects with their environment and tag counts.
+	SetName(ctx context.Context, projectID id.ID, name string) error      // SetName updates the name of a project.
+	Delete(ctx context.Context, projectID id.ID) error                    // Delete deletes a project.
+	Clear(ctx context.Context) error                                      // Clear deletes all projects.
 }
 
 // projectService implements ProjectService.
@@ -58,7 +58,7 @@ func (s *projectService) Create(ctx context.Context, name string) (*model.Projec
 }
 
 // GetByID retrieves a project by its ID.
-func (s *projectService) GetByID(ctx context.Context, projectID uuid.UUID) (*model.Project, error) {
+func (s *projectService) GetByID(ctx context.Context, projectID id.ID) (*model.Project, error) {
 	return s.projectRepository.GetByID(ctx, projectID)
 }
 
@@ -94,7 +94,7 @@ func (s *projectService) GetAll(ctx context.Context) ([]api.ProjectSummaryRespon
 }
 
 // SetName updates the name of a project.
-func (s *projectService) SetName(ctx context.Context, projectID uuid.UUID, name string) error {
+func (s *projectService) SetName(ctx context.Context, projectID id.ID, name string) error {
 	oldName := ""
 	if project, err := s.projectRepository.GetByID(ctx, projectID); err == nil {
 		oldName = project.Name
@@ -111,7 +111,7 @@ func (s *projectService) SetName(ctx context.Context, projectID uuid.UUID, name 
 }
 
 // Delete deletes a project.
-func (s *projectService) Delete(ctx context.Context, projectID uuid.UUID) error {
+func (s *projectService) Delete(ctx context.Context, projectID id.ID) error {
 	name := ""
 	if project, err := s.projectRepository.GetByID(ctx, projectID); err == nil {
 		name = project.Name
@@ -130,6 +130,6 @@ func (s *projectService) Clear(ctx context.Context) error {
 	if err := s.projectRepository.DeleteAll(ctx); err != nil {
 		return err
 	}
-	_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceProject, uuid.Nil(), "all projects", nil)
+	_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceProject, "", "all projects", nil)
 	return nil
 }

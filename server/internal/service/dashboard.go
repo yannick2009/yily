@@ -4,10 +4,10 @@ import (
 	"context"
 	"sort"
 	"time"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
@@ -16,7 +16,7 @@ const dashboardListLimit = 10
 
 // ProjectSummary is a project with its environment and variable counts.
 type ProjectSummary struct {
-	ID               uuid.UUID `json:"id"`                // Unique identifier of the project.
+	ID               id.ID     `json:"id"`                // Unique identifier of the project.
 	Name             string    `json:"name"`              // Name of the project.
 	EnvironmentCount int       `json:"environment_count"` // Number of environments in the project.
 	VariableCount    int       `json:"variable_count"`    // Number of variables across the project's environments.
@@ -32,7 +32,7 @@ type Dashboard struct {
 
 // DashboardService defines the interface for dashboard aggregation.
 type DashboardService interface {
-	GetDashboard(ctx context.Context, userID uuid.UUID) (*Dashboard, error) // GetDashboard aggregates the dashboard data for a user.
+	GetDashboard(ctx context.Context, userID id.ID) (*Dashboard, error) // GetDashboard aggregates the dashboard data for a user.
 }
 
 // dashboardService implements DashboardService.
@@ -50,7 +50,7 @@ func NewDashboardService(projectRepository repository.ProjectRepository, environ
 }
 
 // GetDashboard aggregates the dashboard data for the authenticated user.
-func (s *dashboardService) GetDashboard(ctx context.Context, userID uuid.UUID) (*Dashboard, error) {
+func (s *dashboardService) GetDashboard(ctx context.Context, userID id.ID) (*Dashboard, error) {
 	projects, err := s.projectRepository.GetAll(ctx)
 	if err != nil {
 		return nil, err

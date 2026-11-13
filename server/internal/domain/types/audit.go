@@ -1,6 +1,6 @@
 package types
 
-import "uuid"
+import "github.com/yannick2009/yily/internal/id"
 
 // Action identifies what happened in an audit event.
 type Action string
@@ -30,7 +30,7 @@ const (
 // AuditActor identifies who performed an audited action.
 type AuditActor struct {
 	Type ActorType // Type is the kind of actor (user, token or system).
-	ID   uuid.UUID // ID is the actor's UUID (uuid.Nil() for "system").
+	ID   id.ID     // ID is the actor's identifier ("" for "system").
 	Name string    // Name is the actor's display name (empty for "system").
 }
 

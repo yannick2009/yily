@@ -9,12 +9,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/crypto"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/env"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
@@ -27,29 +27,29 @@ var (
 // VariableService defines the interface for variable business logic, including its versions.
 type VariableService interface {
 	// variables
-	Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error)                  // Create creates a new variable with its first version.
-	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                                        // GetByID retrieves a variable by its ID.
-	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error)            // List retrieves the variables of an environment matching the given filter.
-	GetValues(ctx context.Context, environmentID uuid.UUID, selections []VariableSelection) (map[string]string, error) // GetValues retrieves requested secret values, each at its own version.
-	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                              // SetName updates the name of a variable.
-	Delete(ctx context.Context, variableID uuid.UUID) error                                                            // Delete deletes a variable (and its versions via cascade).
-	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                                       // SetTags replaces the set of tags associated with a variable.
-	Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType, filename string) error  // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
-	Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error)                      // Export serializes all variables of an environment into the given file format.
+	Create(ctx context.Context, environmentID id.ID, name, value string) (*model.Variable, error)                  // Create creates a new variable with its first version.
+	GetByID(ctx context.Context, variableID id.ID) (*model.Variable, error)                                        // GetByID retrieves a variable by its ID.
+	List(ctx context.Context, environmentID id.ID, filter VariableListFilter) ([]model.Variable, error)            // List retrieves the variables of an environment matching the given filter.
+	GetValues(ctx context.Context, environmentID id.ID, selections []VariableSelection) (map[string]string, error) // GetValues retrieves requested secret values, each at its own version.
+	SetName(ctx context.Context, variableID id.ID, name string) error                                              // SetName updates the name of a variable.
+	Delete(ctx context.Context, variableID id.ID) error                                                            // Delete deletes a variable (and its versions via cascade).
+	SetTags(ctx context.Context, variableID id.ID, tagIDs []id.ID) error                                           // SetTags replaces the set of tags associated with a variable.
+	Import(ctx context.Context, environmentID id.ID, data []byte, fileType types.FileType, filename string) error  // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
+	Export(ctx context.Context, environmentID id.ID, fileType types.FileType) ([]byte, error)                      // Export serializes all variables of an environment into the given file format.
 
 	// versions
-	AddVersion(ctx context.Context, variableID uuid.UUID, value string) (*model.VariableVersion, error) // AddVersion adds a new active version to a variable.
-	ClearValue(ctx context.Context, variableID uuid.UUID) error                                         // ClearValue clears the variable's current value by deactivating all active versions.
-	SetVersionActive(ctx context.Context, variableVersionID uuid.UUID, active bool) error               // SetVersionActive activates or deactivates a version.
-	GetCurrentVersion(ctx context.Context, variableID uuid.UUID) (*model.VariableVersion, error)        // GetCurrentVersion returns the current active version of a variable.
-	GetValue(ctx context.Context, variableID uuid.UUID) (string, error)                                 // GetValue returns the current decrypted value of a variable.
-	GetAllVersions(ctx context.Context, variableID uuid.UUID) ([]model.VariableVersion, error)          // GetAllVersions returns all versions of a variable, newest first.
+	AddVersion(ctx context.Context, variableID id.ID, value string) (*model.VariableVersion, error) // AddVersion adds a new active version to a variable.
+	ClearValue(ctx context.Context, variableID id.ID) error                                         // ClearValue clears the variable's current value by deactivating all active versions.
+	SetVersionActive(ctx context.Context, variableVersionID id.ID, active bool) error               // SetVersionActive activates or deactivates a version.
+	GetCurrentVersion(ctx context.Context, variableID id.ID) (*model.VariableVersion, error)        // GetCurrentVersion returns the current active version of a variable.
+	GetValue(ctx context.Context, variableID id.ID) (string, error)                                 // GetValue returns the current decrypted value of a variable.
+	GetAllVersions(ctx context.Context, variableID id.ID) ([]model.VariableVersion, error)          // GetAllVersions returns all versions of a variable, newest first.
 }
 
 // VariableListFilter filters the variable listing of an environment.
 type VariableListFilter struct {
 	Search string                       // Search matches variable names case-insensitively (empty for no filter).
-	TagIDs []uuid.UUID                  // TagIDs filters to variables that have at least one of these tags (empty for no filter).
+	TagIDs []id.ID                      // TagIDs filters to variables that have at least one of these tags (empty for no filter).
 	Sort   repository.VariableSortField // Sort column; empty means default (name).
 	Order  repository.VariableSortOrder // Order direction; empty means default (ascending).
 }
@@ -82,7 +82,7 @@ func NewVariableService(variableRepository repository.VariableRepository, versio
 }
 
 // Create creates a new variable with its first version.
-func (s *variableService) Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error) {
+func (s *variableService) Create(ctx context.Context, environmentID id.ID, name, value string) (*model.Variable, error) {
 	variable, err := s.create(ctx, environmentID, name, value)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func (s *variableService) Create(ctx context.Context, environmentID uuid.UUID, n
 // an audit event. Callers that batch many variables (e.g. import) record a single
 // aggregate event instead of one per variable.
 // If the version creation fails, the variable is removed again to keep the data consistent.
-func (s *variableService) create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error) {
+func (s *variableService) create(ctx context.Context, environmentID id.ID, name, value string) (*model.Variable, error) {
 	variable := &model.Variable{
 		Name:          normalizeVariableName(name),
 		EnvironmentID: environmentID,
@@ -119,12 +119,12 @@ func (s *variableService) create(ctx context.Context, environmentID uuid.UUID, n
 }
 
 // GetByID retrieves a variable by its ID.
-func (s *variableService) GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error) {
+func (s *variableService) GetByID(ctx context.Context, variableID id.ID) (*model.Variable, error) {
 	return s.variableRepository.GetByID(ctx, variableID)
 }
 
 // List retrieves the variables of an environment matching the given filter.
-func (s *variableService) List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error) {
+func (s *variableService) List(ctx context.Context, environmentID id.ID, filter VariableListFilter) ([]model.Variable, error) {
 	return s.variableRepository.List(ctx, environmentID, repository.VariableListFilter{
 		Search: filter.Search,
 		TagIDs: filter.TagIDs,
@@ -134,7 +134,7 @@ func (s *variableService) List(ctx context.Context, environmentID uuid.UUID, fil
 }
 
 // SetName updates the name of a variable.
-func (s *variableService) SetName(ctx context.Context, variableID uuid.UUID, name string) error {
+func (s *variableService) SetName(ctx context.Context, variableID id.ID, name string) error {
 	normalized := normalizeVariableName(name)
 	oldName := ""
 	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
@@ -152,7 +152,7 @@ func (s *variableService) SetName(ctx context.Context, variableID uuid.UUID, nam
 }
 
 // Delete deletes a variable (and its versions via cascade).
-func (s *variableService) Delete(ctx context.Context, variableID uuid.UUID) error {
+func (s *variableService) Delete(ctx context.Context, variableID id.ID) error {
 	name := ""
 	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
 		name = variable.Name
@@ -167,7 +167,7 @@ func (s *variableService) Delete(ctx context.Context, variableID uuid.UUID) erro
 }
 
 // SetTags replaces the set of tags associated with a variable.
-func (s *variableService) SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error {
+func (s *variableService) SetTags(ctx context.Context, variableID id.ID, tagIDs []id.ID) error {
 	if err := s.variableRepository.SetTags(ctx, variableID, tagIDs); err != nil {
 		return err
 	}
@@ -176,12 +176,12 @@ func (s *variableService) SetTags(ctx context.Context, variableID uuid.UUID, tag
 }
 
 // SetVersionActive activates or deactivates a version.
-func (s *variableService) SetVersionActive(ctx context.Context, variableVersionID uuid.UUID, active bool) error {
+func (s *variableService) SetVersionActive(ctx context.Context, variableVersionID id.ID, active bool) error {
 	return s.versionRepository.SetActive(ctx, variableVersionID, active)
 }
 
 // GetCurrentVersion returns the current active version of a variable, without its value.
-func (s *variableService) GetCurrentVersion(ctx context.Context, variableID uuid.UUID) (*model.VariableVersion, error) {
+func (s *variableService) GetCurrentVersion(ctx context.Context, variableID id.ID) (*model.VariableVersion, error) {
 	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
 	if err != nil {
 		return nil, err
@@ -197,7 +197,7 @@ func (s *variableService) GetCurrentVersion(ctx context.Context, variableID uuid
 }
 
 // GetValue returns the current decrypted value of a variable.
-func (s *variableService) GetValue(ctx context.Context, variableID uuid.UUID) (string, error) {
+func (s *variableService) GetValue(ctx context.Context, variableID id.ID) (string, error) {
 	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
 	if err != nil {
 		return "", err
@@ -217,7 +217,7 @@ func (s *variableService) GetValue(ctx context.Context, variableID uuid.UUID) (s
 // its own selected version. A zero version selects the variable's active
 // version. A name may appear only once; duplicate selections are rejected so a
 // request cannot silently pick one of two conflicting versions.
-func (s *variableService) GetValues(ctx context.Context, environmentID uuid.UUID, selections []VariableSelection) (map[string]string, error) {
+func (s *variableService) GetValues(ctx context.Context, environmentID id.ID, selections []VariableSelection) (map[string]string, error) {
 	prepared := make([]VariableSelection, 0, len(selections))
 	seen := make(map[string]struct{}, len(selections))
 	for _, selection := range selections {
@@ -259,7 +259,7 @@ func (s *variableService) GetValues(ctx context.Context, environmentID uuid.UUID
 
 	// Group variable IDs by requested version so each distinct version is
 	// fetched in one query; version 0 means the active version.
-	versionGroups := make(map[int][]uuid.UUID)
+	versionGroups := make(map[int][]id.ID)
 	for _, variable := range variables {
 		version := requestedVersion[variable.Name]
 		versionGroups[version] = append(versionGroups[version], variable.ID)
@@ -271,7 +271,7 @@ func (s *variableService) GetValues(ctx context.Context, environmentID uuid.UUID
 	}
 	sort.Ints(versions)
 
-	versionByVariable := make(map[uuid.UUID]model.VariableVersion, len(variables))
+	versionByVariable := make(map[id.ID]model.VariableVersion, len(variables))
 	for _, version := range versions {
 		found, err := s.versionRepository.GetForVariables(ctx, versionGroups[version], version)
 		if err != nil {
@@ -312,7 +312,7 @@ func (s *variableService) GetValues(ctx context.Context, environmentID uuid.UUID
 }
 
 // GetAllVersions returns all versions of a variable, newest first, without their values.
-func (s *variableService) GetAllVersions(ctx context.Context, variableID uuid.UUID) ([]model.VariableVersion, error) {
+func (s *variableService) GetAllVersions(ctx context.Context, variableID id.ID) ([]model.VariableVersion, error) {
 	versions, err := s.versionRepository.GetAll(ctx, variableID)
 	if err != nil {
 		return nil, err
@@ -327,7 +327,7 @@ func (s *variableService) GetAllVersions(ctx context.Context, variableID uuid.UU
 }
 
 // AddVersion adds a new active version to a variable and returns it.
-func (s *variableService) AddVersion(ctx context.Context, variableID uuid.UUID, value string) (*model.VariableVersion, error) {
+func (s *variableService) AddVersion(ctx context.Context, variableID id.ID, value string) (*model.VariableVersion, error) {
 	version, err := s.addVersion(ctx, variableID, value)
 	if err != nil {
 		return nil, err
@@ -337,7 +337,7 @@ func (s *variableService) AddVersion(ctx context.Context, variableID uuid.UUID, 
 }
 
 // ClearValue clears the variable's current value by deactivating all its active versions.
-func (s *variableService) ClearValue(ctx context.Context, variableID uuid.UUID) error {
+func (s *variableService) ClearValue(ctx context.Context, variableID id.ID) error {
 	if err := s.versionRepository.DeactivateAll(ctx, variableID); err != nil {
 		return err
 	}
@@ -346,7 +346,7 @@ func (s *variableService) ClearValue(ctx context.Context, variableID uuid.UUID) 
 }
 
 // addVersion creates a new active encrypted version for the given variable.
-func (s *variableService) addVersion(ctx context.Context, variableID uuid.UUID, value string) (*model.VariableVersion, error) {
+func (s *variableService) addVersion(ctx context.Context, variableID id.ID, value string) (*model.VariableVersion, error) {
 	nextVersion, err := s.versionRepository.GetNextVersion(ctx, variableID)
 	if err != nil {
 		return nil, err
@@ -375,7 +375,7 @@ func (s *variableService) addVersion(ctx context.Context, variableID uuid.UUID, 
 
 // Import imports variables from a file (JSON, YAML or .env) into the given environment.
 // New variables are created; existing ones get a new version only if their value changed.
-func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType, filename string) error {
+func (s *variableService) Import(ctx context.Context, environmentID id.ID, data []byte, fileType types.FileType, filename string) error {
 	var raw map[string]string
 	var err error
 
@@ -460,7 +460,7 @@ func (s *variableService) Import(ctx context.Context, environmentID uuid.UUID, d
 // current decrypted value differs from the imported one. An empty value is a
 // no-op, so re-importing an unchanged file does not create spurious versions.
 // It reports whether a new version was actually added.
-func (s *variableService) applyImportValue(ctx context.Context, variableID uuid.UUID, value string) (bool, error) {
+func (s *variableService) applyImportValue(ctx context.Context, variableID id.ID, value string) (bool, error) {
 	if value == "" {
 		return false, nil
 	}
@@ -481,7 +481,7 @@ func (s *variableService) applyImportValue(ctx context.Context, variableID uuid.
 }
 
 // Export serializes all variables of an environment (name → current decrypted value) into the given file format.
-func (s *variableService) Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error) {
+func (s *variableService) Export(ctx context.Context, environmentID id.ID, fileType types.FileType) ([]byte, error) {
 	variables, err := s.variableRepository.List(ctx, environmentID, repository.VariableListFilter{})
 	if err != nil {
 		return nil, err
@@ -549,7 +549,7 @@ func (s *variableService) decryptVersion(version *model.VariableVersion) (string
 }
 
 // auditVariable records an audit event for a variable, resolving its name best-effort.
-func (s *variableService) auditVariable(ctx context.Context, action types.Action, variableID uuid.UUID) {
+func (s *variableService) auditVariable(ctx context.Context, action types.Action, variableID id.ID) {
 	name := ""
 	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
 		name = variable.Name

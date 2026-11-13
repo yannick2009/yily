@@ -17,11 +17,11 @@ type ErrorCode string
 
 // Generic codes. These don't map to a sentinel error; handlers emit them
 // directly when a specific validation or I/O step fails outside the service
-// layer (parsing a UUID, reading a multipart file, …).
+// layer (parsing an identifier, reading a multipart file, …).
 const (
 	CodeInternal           ErrorCode = "INTERNAL_ERROR"
 	CodeBadRequest         ErrorCode = "BAD_REQUEST"
-	CodeInvalidUUID        ErrorCode = "INVALID_UUID"
+	CodeInvalidID          ErrorCode = "INVALID_ID"
 	CodeValidationFailed   ErrorCode = "VALIDATION_FAILED"
 	CodeInvalidRequestBody ErrorCode = "INVALID_REQUEST_BODY"
 	CodeFileParseFailed    ErrorCode = "FILE_PARSE_FAILED"

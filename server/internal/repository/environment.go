@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"errors"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 	"gorm.io/gorm"
 )
 
@@ -15,13 +15,13 @@ var (
 
 // EnvironmentRepository defines the interface for interacting with environment data in the database.
 type EnvironmentRepository interface {
-	Create(ctx context.Context, environment *model.Environment) error                      // Create creates a new environment in the database.
-	SetName(ctx context.Context, environmentID uuid.UUID, name string) error               // SetName updates the name of an existing environment in the database.
-	SetDescription(ctx context.Context, environmentID uuid.UUID, description string) error // SetDescription updates the description of an existing environment in the database.
-	Delete(ctx context.Context, environmentID uuid.UUID) error                             // Delete deletes an environment from the database by its ID.
-	GetByID(ctx context.Context, environmentID uuid.UUID) (*model.Environment, error)      // GetByID retrieves an environment from the database by its ID.
-	GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Environment, error)          // GetAll retrieves all environments from the database.
-	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error)              // CountByProjectID counts the environments of a project.
+	Create(ctx context.Context, environment *model.Environment) error                  // Create creates a new environment in the database.
+	SetName(ctx context.Context, environmentID id.ID, name string) error               // SetName updates the name of an existing environment in the database.
+	SetDescription(ctx context.Context, environmentID id.ID, description string) error // SetDescription updates the description of an existing environment in the database.
+	Delete(ctx context.Context, environmentID id.ID) error                             // Delete deletes an environment from the database by its ID.
+	GetByID(ctx context.Context, environmentID id.ID) (*model.Environment, error)      // GetByID retrieves an environment from the database by its ID.
+	GetAll(ctx context.Context, projectID id.ID) ([]model.Environment, error)          // GetAll retrieves all environments from the database.
+	CountByProjectID(ctx context.Context, projectID id.ID) (int64, error)              // CountByProjectID counts the environments of a project.
 }
 
 // environmentRepository is a struct that implements the EnvironmentRepository interface.
@@ -40,25 +40,25 @@ func (r *environmentRepository) Create(ctx context.Context, environment *model.E
 }
 
 // SetName updates the name of an existing environment in the database.
-func (r *environmentRepository) SetName(ctx context.Context, environmentID uuid.UUID, name string) error {
+func (r *environmentRepository) SetName(ctx context.Context, environmentID id.ID, name string) error {
 	_, err := gorm.G[model.Environment](r.DB).Where("id = ?", environmentID).Update(ctx, "name", name)
 	return err
 }
 
 // SetDescription updates the description of an existing environment in the database.
-func (r *environmentRepository) SetDescription(ctx context.Context, environmentID uuid.UUID, description string) error {
+func (r *environmentRepository) SetDescription(ctx context.Context, environmentID id.ID, description string) error {
 	_, err := gorm.G[model.Environment](r.DB).Where("id = ?", environmentID).Update(ctx, "description", description)
 	return err
 }
 
 // Delete deletes an environment from the database by its ID.
-func (r *environmentRepository) Delete(ctx context.Context, environmentID uuid.UUID) error {
+func (r *environmentRepository) Delete(ctx context.Context, environmentID id.ID) error {
 	_, err := gorm.G[model.Environment](r.DB).Where("id = ?", environmentID).Delete(ctx)
 	return err
 }
 
 // GetByID retrieves an environment from the database by its ID.
-func (r *environmentRepository) GetByID(ctx context.Context, environmentID uuid.UUID) (*model.Environment, error) {
+func (r *environmentRepository) GetByID(ctx context.Context, environmentID id.ID) (*model.Environment, error) {
 	environment := new(model.Environment)
 	if err := r.DB.WithContext(ctx).Where("id = ?", environmentID).First(environment).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -70,7 +70,7 @@ func (r *environmentRepository) GetByID(ctx context.Context, environmentID uuid.
 }
 
 // GetAll retrieves all environments from the database, including their variables.
-func (r *environmentRepository) GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Environment, error) {
+func (r *environmentRepository) GetAll(ctx context.Context, projectID id.ID) ([]model.Environment, error) {
 	var environments []model.Environment
 	if err := r.DB.WithContext(ctx).Preload("Variables").Where("project_id = ?", projectID).Order("created_at DESC").Find(&environments).Error; err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (r *environmentRepository) GetAll(ctx context.Context, projectID uuid.UUID)
 }
 
 // CountByProjectID counts the environments of a project.
-func (r *environmentRepository) CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error) {
+func (r *environmentRepository) CountByProjectID(ctx context.Context, projectID id.ID) (int64, error) {
 	var count int64
 	if err := r.DB.WithContext(ctx).Model(&model.Environment{}).Where("project_id = ?", projectID).Count(&count).Error; err != nil {
 		return 0, err

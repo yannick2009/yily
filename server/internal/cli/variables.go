@@ -6,13 +6,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"uuid"
 
 	"github.com/aquasecurity/table"
 	"github.com/spf13/cobra"
 
 	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 )
 
 var (
@@ -514,19 +514,19 @@ func setVariableVersionActive(cmd *cobra.Command, args []string, active bool) er
 	return PrintSuccess(cmd.OutOrStdout(), "Version deactivated.")
 }
 
-// parseTagIDs parses zero or more tag UUIDs.
-func parseTagIDs(rawIDs []string) ([]uuid.UUID, error) {
-	ids := make([]uuid.UUID, 0, len(rawIDs))
+// parseTagIDs parses zero or more tag identifiers.
+func parseTagIDs(rawIDs []string) ([]id.ID, error) {
+	ids := make([]id.ID, 0, len(rawIDs))
 	for _, raw := range rawIDs {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
 			continue
 		}
-		id, err := uuid.Parse(raw)
+		tagID, err := id.Parse(id.PrefixTag, raw)
 		if err != nil {
 			return nil, &UserError{Message: fmt.Sprintf("invalid tag ID %q", raw)}
 		}
-		ids = append(ids, id)
+		ids = append(ids, tagID)
 	}
 	return ids, nil
 }

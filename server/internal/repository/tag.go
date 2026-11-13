@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"errors"
-	"uuid"
 
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
 	"gorm.io/gorm"
 )
 
@@ -17,11 +17,11 @@ var (
 
 // TagRepository defines the interface for interacting with tag data in the database.
 type TagRepository interface {
-	Create(ctx context.Context, tag *model.Tag) error                         // Create creates a new tag in the database.
-	Delete(ctx context.Context, projectID, tagID uuid.UUID) error             // Delete deletes a tag from the database by its project and ID.
-	GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Tag, error)     // GetAll retrieves all tags of a project from the database.
-	GetByID(ctx context.Context, tagID uuid.UUID) (*model.Tag, error)         // GetByID retrieves a tag from the database by its ID.
-	CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error) // CountByProjectID counts the tags of a project.
+	Create(ctx context.Context, tag *model.Tag) error                     // Create creates a new tag in the database.
+	Delete(ctx context.Context, projectID, tagID id.ID) error             // Delete deletes a tag from the database by its project and ID.
+	GetAll(ctx context.Context, projectID id.ID) ([]model.Tag, error)     // GetAll retrieves all tags of a project from the database.
+	GetByID(ctx context.Context, tagID id.ID) (*model.Tag, error)         // GetByID retrieves a tag from the database by its ID.
+	CountByProjectID(ctx context.Context, projectID id.ID) (int64, error) // CountByProjectID counts the tags of a project.
 }
 
 // tagRepository is a struct that implements the TagRepository interface.
@@ -46,7 +46,7 @@ func (r *tagRepository) Create(ctx context.Context, tag *model.Tag) error {
 }
 
 // Delete deletes a tag from the database by its project and ID.
-func (r *tagRepository) Delete(ctx context.Context, projectID, tagID uuid.UUID) error {
+func (r *tagRepository) Delete(ctx context.Context, projectID, tagID id.ID) error {
 	rows, err := gorm.G[model.Tag](r.DB).Where("id = ? AND project_id = ?", tagID, projectID).Delete(ctx)
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func (r *tagRepository) Delete(ctx context.Context, projectID, tagID uuid.UUID) 
 
 // GetAll retrieves all tags of a project from the database, ordered alphabetically
 // (case-insensitive) so every client sees the same stable order.
-func (r *tagRepository) GetAll(ctx context.Context, projectID uuid.UUID) ([]model.Tag, error) {
+func (r *tagRepository) GetAll(ctx context.Context, projectID id.ID) ([]model.Tag, error) {
 	tags, err := gorm.G[model.Tag](r.DB).Where("project_id = ?", projectID).Order("LOWER(name) ASC, id ASC").Find(ctx)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func (r *tagRepository) GetAll(ctx context.Context, projectID uuid.UUID) ([]mode
 }
 
 // GetByID retrieves a tag from the database by its ID.
-func (r *tagRepository) GetByID(ctx context.Context, tagID uuid.UUID) (*model.Tag, error) {
+func (r *tagRepository) GetByID(ctx context.Context, tagID id.ID) (*model.Tag, error) {
 	tag := new(model.Tag)
 	if err := r.DB.WithContext(ctx).Where("id = ?", tagID).First(tag).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -80,7 +80,7 @@ func (r *tagRepository) GetByID(ctx context.Context, tagID uuid.UUID) (*model.Ta
 }
 
 // CountByProjectID counts the tags of a project.
-func (r *tagRepository) CountByProjectID(ctx context.Context, projectID uuid.UUID) (int64, error) {
+func (r *tagRepository) CountByProjectID(ctx context.Context, projectID id.ID) (int64, error) {
 	var count int64
 	if err := r.DB.WithContext(ctx).Model(&model.Tag{}).Where("project_id = ?", projectID).Count(&count).Error; err != nil {
 		return 0, err

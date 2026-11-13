@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/httputil"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/service"
 )
 
@@ -56,7 +57,7 @@ func (h *projectHandler) GetAll(c *echo.Context) error {
 
 // GetByID handles GET /projects/:id.
 func (h *projectHandler) GetByID(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixProject)
 	if !ok {
 		return nil
 	}
@@ -71,7 +72,7 @@ func (h *projectHandler) GetByID(c *echo.Context) error {
 
 // SetName handles PATCH /projects/:id.
 func (h *projectHandler) SetName(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixProject)
 	if !ok {
 		return nil
 	}
@@ -90,7 +91,7 @@ func (h *projectHandler) SetName(c *echo.Context) error {
 
 // Delete handles DELETE /projects/:id.
 func (h *projectHandler) Delete(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixProject)
 	if !ok {
 		return nil
 	}

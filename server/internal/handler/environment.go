@@ -9,6 +9,7 @@ import (
 	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
+	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/service"
 )
 
@@ -38,7 +39,7 @@ func NewEnvironmentHandler(environmentService service.EnvironmentService, variab
 
 // Clone handles POST /environments/:id/clone. The new environment lives in the same project; variables are duplicated by name only (no values).
 func (h *environmentHandler) Clone(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixEnvironment)
 	if !ok {
 		return nil
 	}
@@ -57,7 +58,7 @@ func (h *environmentHandler) Clone(c *echo.Context) error {
 
 // Create handles POST /projects/:projectID/environments.
 func (h *environmentHandler) Create(c *echo.Context) error {
-	projectID, ok := uuidParam(c, "projectID")
+	projectID, ok := idParam(c, "projectID", id.PrefixProject)
 	if !ok {
 		return nil
 	}
@@ -77,7 +78,7 @@ func (h *environmentHandler) Create(c *echo.Context) error {
 
 // GetAll handles GET /projects/:projectID/environments.
 func (h *environmentHandler) GetAll(c *echo.Context) error {
-	projectID, ok := uuidParam(c, "projectID")
+	projectID, ok := idParam(c, "projectID", id.PrefixProject)
 	if !ok {
 		return nil
 	}
@@ -92,7 +93,7 @@ func (h *environmentHandler) GetAll(c *echo.Context) error {
 
 // GetByID handles GET /environments/:id.
 func (h *environmentHandler) GetByID(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixEnvironment)
 	if !ok {
 		return nil
 	}
@@ -107,7 +108,7 @@ func (h *environmentHandler) GetByID(c *echo.Context) error {
 
 // SetName handles PATCH /environments/:id.
 func (h *environmentHandler) SetName(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixEnvironment)
 	if !ok {
 		return nil
 	}
@@ -126,7 +127,7 @@ func (h *environmentHandler) SetName(c *echo.Context) error {
 
 // SetDescription handles PATCH /environments/:id/description.
 func (h *environmentHandler) SetDescription(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixEnvironment)
 	if !ok {
 		return nil
 	}
@@ -145,7 +146,7 @@ func (h *environmentHandler) SetDescription(c *echo.Context) error {
 
 // Delete handles DELETE /environments/:id.
 func (h *environmentHandler) Delete(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixEnvironment)
 	if !ok {
 		return nil
 	}
@@ -159,7 +160,7 @@ func (h *environmentHandler) Delete(c *echo.Context) error {
 
 // Import handles POST /environments/:id/import.
 func (h *environmentHandler) Import(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixEnvironment)
 	if !ok {
 		return nil
 	}
@@ -198,7 +199,7 @@ func (h *environmentHandler) Import(c *echo.Context) error {
 
 // Export handles GET /environments/:id/export?format=json|yaml|env.
 func (h *environmentHandler) Export(c *echo.Context) error {
-	id, ok := uuidParam(c, "id")
+	id, ok := idParam(c, "id", id.PrefixEnvironment)
 	if !ok {
 		return nil
 	}

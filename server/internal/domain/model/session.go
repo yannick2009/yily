@@ -2,15 +2,15 @@ package model
 
 import (
 	"time"
-	"uuid"
 
+	"github.com/yannick2009/yily/internal/id"
 	"gorm.io/gorm"
 )
 
 // Session represents a server-side authenticated web session.
 type Session struct {
-	ID             uuid.UUID  `gorm:"primaryKey;type:text" json:"id"`                 // Unique identifier for the session
-	UserID         uuid.UUID  `gorm:"not null;index;type:text" json:"user_id"`        // Foreign key referencing the associated user
+	ID             id.ID      `gorm:"primaryKey;type:text" json:"id"`                 // Unique identifier for the session
+	UserID         id.ID      `gorm:"not null;index;type:text" json:"user_id"`        // Foreign key referencing the associated user
 	TokenHash      string     `gorm:"type:varchar(64);not null;uniqueIndex" json:"-"` // SHA-256 hex digest of the session token (never serialized)
 	CreatedAt      time.Time  `gorm:"autoCreateTime" json:"created_at"`               // Timestamp when the session was created
 	LastActivityAt time.Time  `gorm:"not null" json:"last_activity_at"`               // Timestamp of the last authenticated activity
@@ -20,8 +20,8 @@ type Session struct {
 
 // BeforeCreate is a GORM hook that is triggered before creating a new Session record.
 func (s *Session) BeforeCreate(tx *gorm.DB) error {
-	if s.ID == uuid.Nil() {
-		s.ID = uuid.New()
+	if s.ID == "" {
+		s.ID = id.New(id.PrefixSession)
 	}
 	return nil
 }
