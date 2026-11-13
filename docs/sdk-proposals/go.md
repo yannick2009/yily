@@ -8,17 +8,17 @@ The SDK aims to provide a simple and concise developer experience, following Yil
 
 ## 2. Scope
 
-The SDK will support:
+The SDK supports:
 
 - Connecting to a Yily instance and selecting an environment.
 - Authenticating with a pre-provisioned read-scoped PAT.
-- Retrieving multiple active variables in a single request.
-- Retrieving individual variables.
+- Retrieving every variable of an environment.
+- Retrieving individual variables by name.
 - Loading values directly into Go structs.
 - Automatically converting values into Go types.
 - Optionally selecting a specific version for individual reads or Go struct fields.
 
-It will not support variable management, environment administration, Yily's project or variable tag management, or access token lifecycle operations. Go struct tags are used only to map configuration fields to Yily variable names.
+It does not support variable management, environment administration, Yily's project or variable tag management, or access token lifecycle operations. Go struct tags are used only to map configuration fields to Yily variable names and to optionally select a version.
 
 ## 3. Project Structure
 
@@ -27,34 +27,38 @@ The SDK is maintained in a dedicated repository: [`github.com/yannick2009/yily-s
 ```text
 .
 ├── go.mod
+├── go.sum
 ├── client.go
 ├── config.go
 ├── loader.go
-├── decoder.go
 ├── errors.go
+├── utils.go
+├── doc.go
 ├── README.md
 ├── examples/
 │   └── main.go
 ```
 
-The module will expose a single public package named `yily`.
+The module exposes a single public package named `yily`.
 
 | File | Responsibility |
 |---|---|
-| `client.go` | HTTP communication and individual value reads. |
+| `client.go` | Client type, public retrieval methods, and HTTP internals. |
 | `config.go` | Client configuration, URL validation, and defaults. |
-| `loader.go` | Struct inspection and variable retrieval. |
-| `decoder.go` | Go type conversion. |
+| `loader.go` | Struct inspection and value decoding used by `Load`. |
 | `errors.go` | SDK error definitions. |
-| `*_test.go` | Client, configuration, loading, and conversion tests. |
+| `utils.go` | Variable-name and base-URL normalization. |
+| `doc.go` | Package documentation and file map. |
 
 ## 4. Public API
 
-The SDK will provide three main capabilities:
+The SDK provides four main capabilities:
 
 - `NewClient(config Config) (*Client, error)` to initialize the client.
 - `(*Client).Load(ctx context.Context, target any) error` to load multiple variables into a Go struct.
-- `(*Client).Get(ctx context.Context, name string, opts ...GetOption) (string, error)` to retrieve an individual variable.
+- `(*Client).Get(ctx context.Context, name string) (string, error)` to retrieve an individual variable's active value.
+- `(*Client).GetVersion(ctx context.Context, name string, version int) (string, error)` to retrieve an individual variable at a specific version.
+- `(*Client).GetAll(ctx context.Context) (map[string]string, error)` to retrieve every variable of the environment and its active value as a map.
 
 `Config` contains the instance `BaseURL`, `EnvironmentID`, a read-scoped PAT, an optional `HTTPClient`, and an optional request timeout (5 seconds by default). The SDK does not load credentials from environment variables itself.
 
@@ -88,22 +92,24 @@ if err != nil {
 }
 ```
 
-Both operations will support retrieving configuration values without requiring applications to handle HTTP communication directly.
+These operations retrieve configuration values without requiring applications to handle HTTP communication directly.
 
 ## 5. Batch Retrieval
 
-For the common case where all fields use active versions, `Load()` retrieves the requested values through one HTTP `GET` request. If fields request historical versions, it makes one request for each distinct version number.
+`Load` and `Get` retrieve values through one HTTP `POST` batch request. `GetAll` first lists the environment's variables, then retrieves their values through the same batch endpoint. The JSON body selects a version per variable, so a single request can mix active and historical versions.
 
-The read-only endpoint is:
-
-```http
-GET /api/v1/environments/{environmentID}/variables/values?name=DB_HOST&name=DB_PORT
-```
-
-An optional `version` query parameter selects that version for every name in the request:
+The read-only (non-mutating) endpoint is:
 
 ```http
-GET /api/v1/environments/{environmentID}/variables/values?name=DB_HOST&name=DB_PORT&version=2
+POST /api/v1/environments/{environmentID}/variables/values
+Content-Type: application/json
+
+{
+  "variables": [
+    { "name": "DB_HOST", "version": 2 },
+    { "name": "DB_PORT" }
+  ]
+}
 ```
 
 Authentication:
@@ -112,7 +118,7 @@ Authentication:
 Authorization: Bearer <TOKEN>
 ```
 
-The response will follow Yily's existing JSON envelope:
+The response follows Yily's existing JSON envelope:
 
 ```json
 {
@@ -125,19 +131,11 @@ The response will follow Yily's existing JSON envelope:
 }
 ```
 
-The `name` parameter is repeatable and at least one name is required. The response includes only variables that exist in the requested environment. A variable without an active version is returned with an empty string; a requested name that does not exist is omitted so the SDK can return `ErrVariableNotFound`. If an explicitly requested version is missing for an existing variable, the API returns the existing variable-version-not-found error.
+The `POST` body accepts between 1 and 1,000 variable selections, and a name may appear only once per request; duplicate selections are rejected with a 400 error. An omitted or zero version selects the active version. The response includes only variables that exist in the requested environment. A variable without an active version is returned with an empty string; a requested name that does not exist is omitted so the SDK can return `ErrVariableNotFound`. If an explicitly requested version is missing for an existing variable, the API returns the existing variable-version-not-found error.
 
 ## 6. Variable Version Selection
 
-The SDK supports retrieving a specific positive version number.
-
-An individual read can select a specific version:
-
-```go
-value, err := client.Get(ctx, "DB_HOST", yily.Version(2))
-```
-
-For struct loading, version selection could be expressed through the `yily` tag:
+Specific versions are selected per struct field through the `yily` tag:
 
 ```go
 type AppConfig struct {
@@ -145,33 +143,37 @@ type AppConfig struct {
 }
 ```
 
-For struct loading, fields are grouped by version. A request without a version returns the active version; each positive version group is sent in a separate request. The endpoint does not mix different version numbers in one request.
+An omitted version loads the active version. Active and versioned fields can be mixed in one struct.
 
-If a struct maps the same Yily variable to fields with different requested versions, `Load` returns an error rather than making the assignment ambiguous.
+For an individual read, use `GetVersion`:
 
-When no version is specified, the SDK will retrieve the active version by default.
+```go
+value, err := client.GetVersion(ctx, "DB_HOST", 2)
+```
+
+The loader sends every field in one `POST` batch request, each with its own optional version. If a struct maps the same Yily variable to fields with different requested versions, `Load` returns `ErrConflictingVariableVersion` rather than making the assignment ambiguous. `Get` reads the active version.
 
 ## 7. Loading and Type Conversion
 
-The loader will:
+The loader:
 
-1. Inspect exported struct fields containing a `yily` tag.
-2. Collect the requested variable names.
-3. Retrieve active values in one request, or make one request per distinct explicitly selected version.
-4. Convert values into the corresponding Go types.
-5. Assign values only if all conversions succeed.
+1. Inspects exported struct fields containing a `yily` tag.
+2. Collects the requested variable names and versions.
+3. Retrieves all requested values in one batch request, selecting each variable's version individually.
+4. Converts values into the corresponding Go types.
+5. Assigns values only if all conversions succeed.
 
-Supported types will include `string`, `int`, `int64`, `float64`, and `bool`, using Go's standard `strconv` package.
+Supported types include `string`, `int`, `int64`, `float64`, and `bool` (via `strconv`), plus `time.Duration` (via `time.ParseDuration`).
 
-Missing variables will return explicit errors. Existing variables with empty values will be accepted. Fields without `yily` tags and undeclared variables will be ignored. The target struct is updated only after every requested value has been retrieved and converted successfully. Conversion errors identify the variable and target type without including the secret value.
+Missing variables return explicit errors. Existing variables with empty values are accepted. Fields without a `yily` tag are ignored, as are environment variables not mapped to a field. The target struct is updated only after every requested value has been retrieved and converted successfully. Conversion errors identify the variable and target type without including the secret value.
 
-Tags may use the variable name alone or one supported option, such as `version=2`; unknown or repeated options will return an error instead of silently changing the selection.
+Tags may use the variable name alone or one supported option, such as `version=2`; unknown or repeated options return an error instead of silently changing the selection.
 
 ## 8. HTTP and Security
 
-The SDK will use Go's standard `net/http` package without additional HTTP dependencies.
+The SDK uses Go's standard `net/http` package without additional HTTP dependencies.
 
-It will support:
+It supports:
 
 - Configurable base URL and environment ID.
 - Bearer token authentication.
@@ -185,7 +187,7 @@ Use HTTPS outside local development so PATs and retrieved values are protected i
 
 ## 9. Testing
 
-Tests will cover:
+Planned test coverage:
 
 - Client configuration.
 - Individual and batch variable retrieval.

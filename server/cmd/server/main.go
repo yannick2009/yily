@@ -127,7 +127,6 @@ func main() {
 	readRoutes.GET("/projects", projectHandler.GetAll)
 	readRoutes.GET("/projects/:id", projectHandler.GetByID)
 	writeRoutes.POST("/projects", projectHandler.Create)
-	// Clearing every project is a UI-only action; it is not reachable with a PAT.
 	adminRoutes.DELETE("/projects", projectHandler.Clear)
 	writeRoutes.PATCH("/projects/:id", projectHandler.SetName)
 	writeRoutes.DELETE("/projects/:id", projectHandler.Delete)
@@ -144,7 +143,7 @@ func main() {
 	writeRoutes.POST("/environments/:id/imports", environmentHandler.Import)
 
 	// Variables
-	readRoutes.GET("/environments/:environmentID/variables/values", variableHandler.GetValues)
+	readRoutes.POST("/environments/:environmentID/variables/values", variableHandler.GetValues)
 	readRoutes.GET("/environments/:environmentID/variables", variableHandler.List)
 	readRoutes.GET("/variables/:id", variableHandler.GetByID)
 	readRoutes.GET("/variables/:id/value", variableHandler.GetValue)

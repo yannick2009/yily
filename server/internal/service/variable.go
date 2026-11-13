@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -18,21 +19,23 @@ import (
 )
 
 var (
-	ErrDecryptionFailed = errors.New("failed to decrypt secret value")
+	ErrDecryptionFailed           = errors.New("failed to decrypt secret value")
+	ErrInvalidVariableVersion     = errors.New("variable version must be zero or a positive integer")
+	ErrDuplicateVariableSelection = errors.New("a variable can be selected only once per request")
 )
 
 // VariableService defines the interface for variable business logic, including its versions.
 type VariableService interface {
 	// variables
-	Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error)                 // Create creates a new variable with its first version.
-	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                                       // GetByID retrieves a variable by its ID.
-	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error)           // List retrieves the variables of an environment matching the given filter.
-	GetValues(ctx context.Context, environmentID uuid.UUID, names []string, version int) (map[string]string, error)   // GetValues retrieves requested secret values in one call.
-	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                             // SetName updates the name of a variable.
-	Delete(ctx context.Context, variableID uuid.UUID) error                                                           // Delete deletes a variable (and its versions via cascade).
-	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                                      // SetTags replaces the set of tags associated with a variable.
-	Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType, filename string) error // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
-	Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error)                     // Export serializes all variables of an environment into the given file format.
+	Create(ctx context.Context, environmentID uuid.UUID, name, value string) (*model.Variable, error)                  // Create creates a new variable with its first version.
+	GetByID(ctx context.Context, variableID uuid.UUID) (*model.Variable, error)                                        // GetByID retrieves a variable by its ID.
+	List(ctx context.Context, environmentID uuid.UUID, filter VariableListFilter) ([]model.Variable, error)            // List retrieves the variables of an environment matching the given filter.
+	GetValues(ctx context.Context, environmentID uuid.UUID, selections []VariableSelection) (map[string]string, error) // GetValues retrieves requested secret values, each at its own version.
+	SetName(ctx context.Context, variableID uuid.UUID, name string) error                                              // SetName updates the name of a variable.
+	Delete(ctx context.Context, variableID uuid.UUID) error                                                            // Delete deletes a variable (and its versions via cascade).
+	SetTags(ctx context.Context, variableID uuid.UUID, tagIDs []uuid.UUID) error                                       // SetTags replaces the set of tags associated with a variable.
+	Import(ctx context.Context, environmentID uuid.UUID, data []byte, fileType types.FileType, filename string) error  // Import imports variables from a file (JSON, YAML or .env), creating new ones and updating existing ones whose value changed.
+	Export(ctx context.Context, environmentID uuid.UUID, fileType types.FileType) ([]byte, error)                      // Export serializes all variables of an environment into the given file format.
 
 	// versions
 	AddVersion(ctx context.Context, variableID uuid.UUID, value string) (*model.VariableVersion, error) // AddVersion adds a new active version to a variable.
@@ -49,6 +52,13 @@ type VariableListFilter struct {
 	TagIDs []uuid.UUID                  // TagIDs filters to variables that have at least one of these tags (empty for no filter).
 	Sort   repository.VariableSortField // Sort column; empty means default (name).
 	Order  repository.VariableSortOrder // Order direction; empty means default (ascending).
+}
+
+// VariableSelection selects one variable and, optionally, a specific version.
+// A zero version selects the variable's active version.
+type VariableSelection struct {
+	Name    string
+	Version int
 }
 
 // variableService implements VariableService.
@@ -203,32 +213,43 @@ func (s *variableService) GetValue(ctx context.Context, variableID uuid.UUID) (s
 	return value, nil
 }
 
-// GetValues retrieves requested variable values from one environment. A zero
-// version selects each variable's active version; a positive version selects
-// that version number for every requested variable.
-func (s *variableService) GetValues(ctx context.Context, environmentID uuid.UUID, names []string, version int) (map[string]string, error) {
-	if _, err := s.environmentRepository.GetByID(ctx, environmentID); err != nil {
-		return nil, err
-	}
-
-	nameSet := make(map[string]struct{}, len(names))
-	normalizedNames := make([]string, 0, len(names))
-	for _, name := range names {
-		name = normalizeVariableName(name)
+// GetValues retrieves requested variable values from one environment, each at
+// its own selected version. A zero version selects the variable's active
+// version. A name may appear only once; duplicate selections are rejected so a
+// request cannot silently pick one of two conflicting versions.
+func (s *variableService) GetValues(ctx context.Context, environmentID uuid.UUID, selections []VariableSelection) (map[string]string, error) {
+	prepared := make([]VariableSelection, 0, len(selections))
+	seen := make(map[string]struct{}, len(selections))
+	for _, selection := range selections {
+		if selection.Version < 0 {
+			return nil, ErrInvalidVariableVersion
+		}
+		name := normalizeVariableName(selection.Name)
 		if name == "" {
 			continue
 		}
-		if _, exists := nameSet[name]; exists {
-			continue
+		if _, exists := seen[name]; exists {
+			return nil, fmt.Errorf("%w: %s", ErrDuplicateVariableSelection, name)
 		}
-		nameSet[name] = struct{}{}
-		normalizedNames = append(normalizedNames, name)
+		seen[name] = struct{}{}
+		prepared = append(prepared, VariableSelection{Name: name, Version: selection.Version})
 	}
-	if len(normalizedNames) == 0 {
+
+	if _, err := s.environmentRepository.GetByID(ctx, environmentID); err != nil {
+		return nil, err
+	}
+	if len(prepared) == 0 {
 		return map[string]string{}, nil
 	}
 
-	variables, err := s.variableRepository.GetByNames(ctx, environmentID, normalizedNames)
+	names := make([]string, 0, len(prepared))
+	requestedVersion := make(map[string]int, len(prepared))
+	for _, selection := range prepared {
+		names = append(names, selection.Name)
+		requestedVersion[selection.Name] = selection.Version
+	}
+
+	variables, err := s.variableRepository.GetByNames(ctx, environmentID, names)
 	if err != nil {
 		return nil, err
 	}
@@ -236,30 +257,39 @@ func (s *variableService) GetValues(ctx context.Context, environmentID uuid.UUID
 		return map[string]string{}, nil
 	}
 
-	variableIDs := make([]uuid.UUID, 0, len(variables))
+	// Group variable IDs by requested version so each distinct version is
+	// fetched in one query; version 0 means the active version.
+	versionGroups := make(map[int][]uuid.UUID)
 	for _, variable := range variables {
-		variableIDs = append(variableIDs, variable.ID)
+		version := requestedVersion[variable.Name]
+		versionGroups[version] = append(versionGroups[version], variable.ID)
 	}
 
-	versions, err := s.versionRepository.GetForVariables(ctx, variableIDs, version)
-	if err != nil {
-		return nil, err
+	versions := make([]int, 0, len(versionGroups))
+	for version := range versionGroups {
+		versions = append(versions, version)
 	}
-	activeByVariable := make(map[uuid.UUID]model.VariableVersion, len(versions))
-	for _, variableVersion := range versions {
-		// Results are ordered by descending version, so the first row matches
-		// GetCurrentActive's behavior if inconsistent data has multiple actives.
-		if _, exists := activeByVariable[variableVersion.VariableID]; !exists {
-			activeByVariable[variableVersion.VariableID] = variableVersion
+	sort.Ints(versions)
+
+	versionByVariable := make(map[uuid.UUID]model.VariableVersion, len(variables))
+	for _, version := range versions {
+		found, err := s.versionRepository.GetForVariables(ctx, versionGroups[version], version)
+		if err != nil {
+			return nil, err
+		}
+		for _, variableVersion := range found {
+			if _, exists := versionByVariable[variableVersion.VariableID]; !exists {
+				versionByVariable[variableVersion.VariableID] = variableVersion
+			}
 		}
 	}
 
 	values := make(map[string]string, len(variables))
 	revealed := make([]model.Variable, 0, len(variables))
 	for _, variable := range variables {
-		variableVersion, exists := activeByVariable[variable.ID]
+		variableVersion, exists := versionByVariable[variable.ID]
 		if !exists {
-			if version > 0 {
+			if requestedVersion[variable.Name] > 0 {
 				return nil, repository.ErrVariableVersionNotFound
 			}
 			// Match export behavior for a variable that has no active version.

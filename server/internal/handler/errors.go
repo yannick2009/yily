@@ -51,15 +51,17 @@ const (
 	CodeTokenWriteForbidden    ErrorCode = "TOKEN_WRITE_FORBIDDEN"
 
 	// Resources
-	CodeProjectNotFound         ErrorCode = "PROJECT_NOT_FOUND"
-	CodeEnvironmentNotFound     ErrorCode = "ENVIRONMENT_NOT_FOUND"
-	CodeEnvironmentDescTooLong  ErrorCode = "ENVIRONMENT_DESCRIPTION_TOO_LONG"
-	CodeVariableNotFound        ErrorCode = "VARIABLE_NOT_FOUND"
-	CodeVariableVersionNotFound ErrorCode = "VARIABLE_VERSION_NOT_FOUND"
-	CodeVariableNameExists      ErrorCode = "VARIABLE_NAME_ALREADY_EXISTS"
-	CodeTagNotFound             ErrorCode = "TAG_NOT_FOUND"
-	CodeTagNameExists           ErrorCode = "TAG_NAME_ALREADY_EXISTS"
-	CodeTagNotInProject         ErrorCode = "TAG_NOT_IN_PROJECT"
+	CodeProjectNotFound            ErrorCode = "PROJECT_NOT_FOUND"
+	CodeEnvironmentNotFound        ErrorCode = "ENVIRONMENT_NOT_FOUND"
+	CodeEnvironmentDescTooLong     ErrorCode = "ENVIRONMENT_DESCRIPTION_TOO_LONG"
+	CodeVariableNotFound           ErrorCode = "VARIABLE_NOT_FOUND"
+	CodeVariableVersionNotFound    ErrorCode = "VARIABLE_VERSION_NOT_FOUND"
+	CodeVariableVersionInvalid     ErrorCode = "VARIABLE_VERSION_INVALID"
+	CodeVariableSelectionDuplicate ErrorCode = "VARIABLE_SELECTION_DUPLICATE"
+	CodeVariableNameExists         ErrorCode = "VARIABLE_NAME_ALREADY_EXISTS"
+	CodeTagNotFound                ErrorCode = "TAG_NOT_FOUND"
+	CodeTagNameExists              ErrorCode = "TAG_NAME_ALREADY_EXISTS"
+	CodeTagNotInProject            ErrorCode = "TAG_NOT_IN_PROJECT"
 
 	// Import
 	CodeFileUnsupportedType   ErrorCode = "FILE_UNSUPPORTED_TYPE"
@@ -99,6 +101,8 @@ var sentinelCodes = []struct {
 	{service.ErrEnvironmentDescriptionTooLong, CodeEnvironmentDescTooLong},
 	{repository.ErrVariableNotFound, CodeVariableNotFound},
 	{repository.ErrVariableVersionNotFound, CodeVariableVersionNotFound},
+	{service.ErrInvalidVariableVersion, CodeVariableVersionInvalid},
+	{service.ErrDuplicateVariableSelection, CodeVariableSelectionDuplicate},
 	{repository.ErrVariableNameAlreadyExists, CodeVariableNameExists},
 	{repository.ErrTagNotFound, CodeTagNotFound},
 	{repository.ErrTagNameAlreadyExists, CodeTagNameExists},

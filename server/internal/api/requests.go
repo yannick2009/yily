@@ -66,3 +66,16 @@ type CreateTagRequest struct {
 	Name  string   `json:"name,omitempty"`
 	Names []string `json:"names,omitempty"`
 }
+
+// GetVariableValuesRequest is the JSON body for batch variable value retrieval.
+// Each variable may select its own version; an omitted version selects the
+// variable's active version.
+type GetVariableValuesRequest struct {
+	Variables []VariableSelection `json:"variables" validate:"required,min=1,max=1000,dive"`
+}
+
+// VariableSelection selects one variable and, optionally, a specific version.
+type VariableSelection struct {
+	Name    string `json:"name" validate:"required"`
+	Version int    `json:"version" validate:"gte=0"`
+}
