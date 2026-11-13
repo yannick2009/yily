@@ -96,7 +96,12 @@ export function VariablesTable(props: {
                         type="button"
                         onClick={() => props.onToggleReveal(v.id)}
                         disabled={!v.active}
-                        class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-muted"
+                        class={[
+                          "rounded-md p-1.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+                          revealed()
+                            ? "bg-brand-subtle text-brand hover:text-brand-hover"
+                            : "text-ink-muted hover:bg-surface-2 hover:text-ink disabled:hover:text-ink-muted",
+                        ].join(" ")}
                         aria-label={
                           revealed()
                             ? t("env.hideAria", { name: v.name })

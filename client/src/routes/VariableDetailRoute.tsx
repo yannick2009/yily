@@ -287,7 +287,12 @@ export function VariableDetailRoute() {
                   <button
                     type="button"
                     onClick={toggleCurrent}
-                    class="rounded-md p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink"
+                    class={[
+                      "rounded-md p-1.5",
+                      reveal.isRevealed("current")
+                        ? "bg-brand-subtle text-brand hover:text-brand-hover"
+                        : "text-ink-muted hover:bg-surface-2 hover:text-ink",
+                    ].join(" ")}
                     aria-label={
                       reveal.isRevealed("current")
                         ? t("variable.hideAria", { n: currentVersion()!.version })
