@@ -16,14 +16,17 @@ const (
 	DefaultSessionTTL         = 24 * time.Hour // DefaultSessionTTL is the default maximum session lifetime.
 	DefaultSessionIdleTimeout = 2 * time.Hour  // DefaultSessionIdleTimeout is the default maximum session inactivity duration.
 	MinPasswordLength         = 12             // MinPasswordLength is the minimum Super Admin password length.
+	MaxPasswordLength         = 128            // MaxPasswordLength is the maximum Super Admin password length.
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")                    // ErrInvalidCredentials is returned when login email or password verification fails.
-	ErrWeakPassword       = errors.New("password must be at least 12 characters long") // ErrWeakPassword is returned when the provided password is shorter than MinPasswordLength.
-	ErrUnauthorized       = errors.New("unauthorized")                                 // ErrUnauthorized is returned when a request lacks a valid session or PAT.
-	ErrSessionExpired     = errors.New("session expired")                              // ErrSessionExpired is returned when a session has exceeded its TTL or idle timeout.
-	ErrSessionRevoked     = errors.New("session revoked")                              // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
+	ErrInvalidCredentials = errors.New("invalid email or password")                                                                                      // ErrInvalidCredentials is returned when login email or password verification fails.
+	ErrWeakPassword       = errors.New("password must be at least 12 characters long")                                                                   // ErrWeakPassword is returned when the provided password is shorter than MinPasswordLength.
+	ErrPasswordTooLong    = errors.New("password must be at most 128 characters long")                                                                   // ErrPasswordTooLong is returned when the provided password is longer than MaxPasswordLength.
+	ErrPasswordNotComplex = errors.New("password must contain at least one uppercase letter, one lowercase letter, one digit and one special character") // ErrPasswordNotComplex is returned when the password fails the character-class complexity policy.
+	ErrUnauthorized       = errors.New("unauthorized")                                                                                                   // ErrUnauthorized is returned when a request lacks a valid session or PAT.
+	ErrSessionExpired     = errors.New("session expired")                                                                                                // ErrSessionExpired is returned when a session has exceeded its TTL or idle timeout.
+	ErrSessionRevoked     = errors.New("session revoked")                                                                                                // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
 )
 
 // AuthService defines the interface for Super Admin authentication and server-side session management.
@@ -98,6 +101,12 @@ func (s *authService) getDummyHash() string {
 func (s *authService) Setup(ctx context.Context, name, email, password string) (*model.User, error) {
 	if len(password) < MinPasswordLength {
 		return nil, ErrWeakPassword
+	}
+	if len(password) > MaxPasswordLength {
+		return nil, ErrPasswordTooLong
+	}
+	if !crypto.IsStrongPassword(password) {
+		return nil, ErrPasswordNotComplex
 	}
 
 	passwordHash, err := crypto.HashPassword(password)

@@ -73,6 +73,8 @@ func httpStatus(err error) int {
 		errors.Is(err, types.ErrUnsupportedFileType),
 		errors.Is(err, env.ErrDuplicateVariableName),
 		errors.Is(err, service.ErrWeakPassword),
+		errors.Is(err, service.ErrPasswordTooLong),
+		errors.Is(err, service.ErrPasswordNotComplex),
 		errors.Is(err, service.ErrInvalidPATName),
 		errors.Is(err, service.ErrInvalidPATExpiration),
 		errors.Is(err, service.ErrInvalidPATScope),

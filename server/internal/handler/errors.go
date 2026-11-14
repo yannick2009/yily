@@ -37,6 +37,8 @@ const (
 	CodeAuthSessionExpired     ErrorCode = "AUTH_SESSION_EXPIRED"
 	CodeAuthSessionRevoked     ErrorCode = "AUTH_SESSION_REVOKED"
 	CodeAuthWeakPassword       ErrorCode = "AUTH_WEAK_PASSWORD"
+	CodeAuthPasswordTooLong    ErrorCode = "AUTH_PASSWORD_TOO_LONG"
+	CodeAuthPasswordNotComplex ErrorCode = "AUTH_PASSWORD_NOT_COMPLEX"
 	CodeAuthUserExists         ErrorCode = "AUTH_USER_ALREADY_EXISTS"
 	CodeAuthUserNotFound       ErrorCode = "AUTH_USER_NOT_FOUND"
 
@@ -83,6 +85,8 @@ var sentinelCodes = []struct {
 	{service.ErrSessionExpired, CodeAuthSessionExpired},
 	{service.ErrSessionRevoked, CodeAuthSessionRevoked},
 	{service.ErrWeakPassword, CodeAuthWeakPassword},
+	{service.ErrPasswordTooLong, CodeAuthPasswordTooLong},
+	{service.ErrPasswordNotComplex, CodeAuthPasswordNotComplex},
 	{repository.ErrUserAlreadyExists, CodeAuthUserExists},
 	{repository.ErrUserNotFound, CodeAuthUserNotFound},
 

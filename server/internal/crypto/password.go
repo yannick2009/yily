@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -85,4 +86,25 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 
 	// Compare hashes in constant time to prevent timing side-channel leaks.
 	return subtle.ConstantTimeCompare(expectedHash, actualHash) == 1, nil
+}
+
+// IsStrongPassword reports whether password satisfies the password complexity
+// policy in addition to the length bounds enforced by the caller: it must
+// contain at least one uppercase letter, one lowercase letter, one digit and
+// one special (non-alphanumeric) character.
+func IsStrongPassword(password string) bool {
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
+	for _, r := range password {
+		switch {
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsLower(r):
+			hasLower = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		case !unicode.IsLetter(r) && !unicode.IsDigit(r):
+			hasSpecial = true
+		}
+	}
+	return hasUpper && hasLower && hasDigit && hasSpecial
 }

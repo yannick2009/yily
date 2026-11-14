@@ -118,6 +118,10 @@ const messages: Record<LangCode, Messages> = {
     "init.title": "Create your account",
     "init.subtitle": "Set up your Yily instance by creating the first admin account.",
     "init.submit": "Create account",
+    "init.passwordMin": "Password must be at least 12 characters long.",
+    "init.passwordMax": "Password must be at most 128 characters long.",
+    "init.passwordComplexity":
+      "Password must contain at least one uppercase letter, one lowercase letter, one digit and one special character.",
     // settings / about
     "settings.title": "Settings",
     "settings.profile": "Profile",
@@ -367,6 +371,9 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_SESSION_EXPIRED": "Your session has expired. Please sign in again.",
     "errors.AUTH_SESSION_REVOKED": "Your session was revoked. Please sign in again.",
     "errors.AUTH_WEAK_PASSWORD": "Password must be at least 12 characters long.",
+    "errors.AUTH_PASSWORD_TOO_LONG": "Password must be at most 128 characters long.",
+    "errors.AUTH_PASSWORD_NOT_COMPLEX":
+      "Password must contain at least one uppercase letter, one lowercase letter, one digit and one special character.",
     "errors.AUTH_USER_ALREADY_EXISTS": "An account already exists.",
     "errors.AUTH_USER_NOT_FOUND": "User not found.",
     "errors.TOKEN_EXPIRED": "This token has expired.",
@@ -444,6 +451,10 @@ const messages: Record<LangCode, Messages> = {
     "init.title": "Créez votre compte",
     "init.subtitle": "Configurez votre instance Yily en créant le premier compte administrateur.",
     "init.submit": "Créer le compte",
+    "init.passwordMin": "Le mot de passe doit contenir au moins 12 caractères.",
+    "init.passwordMax": "Le mot de passe ne peut pas dépasser 128 caractères.",
+    "init.passwordComplexity":
+      "Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial.",
     "settings.title": "Paramètres",
     "settings.profile": "Profil",
     "settings.language": "Langue",
@@ -692,6 +703,9 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_SESSION_EXPIRED": "Votre session a expiré. Veuillez vous reconnecter.",
     "errors.AUTH_SESSION_REVOKED": "Votre session a été révoquée. Veuillez vous reconnecter.",
     "errors.AUTH_WEAK_PASSWORD": "Le mot de passe doit contenir au moins 12 caractères.",
+    "errors.AUTH_PASSWORD_TOO_LONG": "Le mot de passe ne peut pas dépasser 128 caractères.",
+    "errors.AUTH_PASSWORD_NOT_COMPLEX":
+      "Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial.",
     "errors.AUTH_USER_ALREADY_EXISTS": "Un compte existe déjà.",
     "errors.AUTH_USER_NOT_FOUND": "Utilisateur introuvable.",
     "errors.TOKEN_EXPIRED": "Ce jeton a expiré.",

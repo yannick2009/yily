@@ -5,6 +5,7 @@ import { Button, Icon, Input } from "../components/ui";
 import { Field } from "../components/shared";
 import { t } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
+import { isStrongPassword } from "../lib/password";
 import { cycleTheme, theme } from "../lib/theme";
 import { setup } from "../store";
 
@@ -23,6 +24,18 @@ export function InitRoute() {
       setError(t("login.error"));
       return;
     }
+    if (password().length < 12) {
+      setError(t("init.passwordMin"));
+      return;
+    }
+    if (password().length > 128) {
+      setError(t("init.passwordMax"));
+      return;
+    }
+    if (!isStrongPassword(password())) {
+      setError(t("init.passwordComplexity"));
+      return;
+    }
     if (password() !== confirm()) {
       setError(t("settings.passwordMismatch"));
       return;
@@ -30,7 +43,7 @@ export function InitRoute() {
     setError(null);
     setLoading(true);
     try {
-      await setup(name().trim(), email().trim(), password());
+      await setup(name().trim(), email().trim(), password(), confirm());
       navigate("/login", { replace: true });
     } catch (err) {
       setError(errorMessage(err));

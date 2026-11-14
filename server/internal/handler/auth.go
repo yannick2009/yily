@@ -36,7 +36,8 @@ func NewAuthHandler(authService service.AuthService, audit service.AuditService)
 type setupRequest struct {
 	Name     string `json:"name" validate:"required"`
 	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
+	Password string `json:"password" validate:"required,min=12,max=128"`
+	Confirm  string `json:"confirm" validate:"required,eqfield=Password"`
 }
 
 // loginRequest represents the JSON body for authenticating the Super Admin.

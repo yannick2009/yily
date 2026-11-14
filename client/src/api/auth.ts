@@ -16,6 +16,7 @@ export async function setup(input: {
   name: string;
   email: string;
   password: string;
+  confirm: string;
 }): Promise<User> {
   return request<User>("POST", "/auth/setup", { body: JSON.stringify(input) });
 }

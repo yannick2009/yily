@@ -67,8 +67,13 @@ export async function boot(): Promise<void> {
 // setup creates the initial Super Admin account. It does not sign the new
 // admin in — the setup endpoint returns no session cookie, so the user must
 // log in afterwards. We only mark the instance as initialized.
-export async function setup(name: string, email: string, password: string): Promise<void> {
-  await auth.setup({ name, email, password });
+export async function setup(
+  name: string,
+  email: string,
+  password: string,
+  confirm: string,
+): Promise<void> {
+  await auth.setup({ name, email, password, confirm });
   setCurrentUser(null);
   setInitialized(true);
 }
