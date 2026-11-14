@@ -159,7 +159,7 @@ func (h *patHandler) Rotate(c *echo.Context) error {
 
 	rawToken, pat, err := h.patService.Rotate(c.Request().Context(), user.ID, id, ttl)
 	if err != nil {
-		return httputil.NewHTTPResponse[any](c, httpStatus(err), err.Error(), nil)
+		return respondError(c, err)
 	}
 
 	resp := CreatePATResponse{
