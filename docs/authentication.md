@@ -64,10 +64,9 @@ During authentication, if an existing session cookie is presented in the request
 ### 4.3. HTTPS & Reverse Proxy Handling
 Yily detects HTTPS connections through:
 1. Direct TLS connection (`c.Request().TLS != nil`).
-2. Reverse proxy header `X-Forwarded-Proto: https` (inspecting the leftmost protocol when chained).
-3. Echo URI scheme (`c.Scheme() == "https"`).
+2. Echo's scheme extractor (`c.Scheme() == "https"`), which only reads `X-Forwarded-Proto` when the request arrives directly from an address listed in `YILY_TRUSTED_PROXIES`.
 
-When HTTPS is detected, cookies are marked `Secure=true`.
+When HTTPS is detected, session cookies are marked `Secure=true`. See [Security Hardening](security-hardening.md) for proxy configuration, rate limiting, and CSP/origin protections.
 
 ### 4.4. Personal Access Token (PAT) Lifecycle
 * **Creation**: The Super Admin creates a PAT via `POST /api/v1/tokens`. The raw token (`yily_...`) is returned in the response payload **only once**.
@@ -117,13 +116,19 @@ Has Authorization: Bearer <token> ?
 
 | Endpoint | Method | Authentication | Description |
 | :--- | :--- | :--- | :--- |
-| `/api/v1/auth/setup` | `POST` | Public | Creates initial Super Admin account (single-tenant invariant). |
-| `/api/v1/auth/login` | `POST` | Public | Authenticates Super Admin and issues `yily_session` cookie. |
-| `/api/v1/auth/logout` | `POST` | Session / PAT | Revokes session on server and expires cookie on browser. |
-| `/api/v1/auth/me` | `GET` | Session / PAT | Returns authenticated Super Admin user profile. |
-| `/api/v1/tokens` | `POST` | Session / PAT | Issues a new PAT (raw token displayed once). |
-| `/api/v1/tokens` | `GET` | Session / PAT | Lists PAT metadata for the Super Admin. |
-| `/api/v1/tokens/:id` | `DELETE` | Session / PAT | Revokes a PAT by ID. |
+| `/api/v1/auth/status` | `GET` | Public | Reports initialization state and whether a setup token is required. |
+| `/api/v1/auth/setup` | `POST` | Public (setup token) | Creates initial Super Admin account (single-tenant invariant). |
+| `/api/v1/auth/login` | `POST` | Public (rate-limited) | Authenticates Super Admin and issues `yily_session` cookie. |
+| `/api/v1/auth/logout` | `POST` | Session only | Revokes current session on server and expires cookie on browser. |
+| `/api/v1/auth/logout-all` | `POST` | Session only | Revokes all active sessions for the Super Admin. |
+| `/api/v1/auth/password` | `POST` | Session only | Rotates Super Admin password and revokes all active sessions. |
+| `/api/v1/auth/me` | `GET` | Session only | Returns authenticated Super Admin user profile. |
+| `/api/v1/tokens` | `POST` | Session only | Issues a new PAT (raw token displayed once). |
+| `/api/v1/tokens` | `GET` | Session only | Lists PAT metadata for the Super Admin. |
+| `/api/v1/tokens/:id/rotate` | `POST` | Session only | Atomically revokes an active PAT and issues a replacement token. |
+| `/api/v1/tokens/:id` | `DELETE` | Session only | Revokes a PAT by ID. |
+| `/api/v1/tokens/me` | `GET` | PAT only | Returns metadata for the authenticating PAT. |
+| `/api/v1/tokens/me` | `DELETE` | PAT only | Revokes the authenticating PAT itself (used by `yily logout`). |
 | `/api/v1/projects/*` | `*` | Session / PAT | Protected resource management. |
 | `/api/v1/environments/*` | `*` | Session / PAT | Protected resource management. |
 | `/api/v1/variables/*` | `*` | Session / PAT | Protected secret & version management. |
