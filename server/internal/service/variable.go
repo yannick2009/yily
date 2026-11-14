@@ -107,8 +107,7 @@ func (s *variableService) create(ctx context.Context, environmentID id.ID, name,
 	}
 
 	// A first version is created only when a non-empty value is provided (whitespace counts as empty).
-	value = strings.TrimSpace(value)
-	if value != "" {
+	if strings.TrimSpace(value) != "" {
 		if _, err := s.addVersion(ctx, variable.ID, value); err != nil {
 			_ = s.variableRepository.Delete(ctx, variable.ID) // Best-effort compensating cleanup: keep the data consistent if the first version fails.
 			return nil, err
@@ -346,7 +345,11 @@ func (s *variableService) ClearValue(ctx context.Context, variableID id.ID) erro
 }
 
 // addVersion creates a new active encrypted version for the given variable.
+// The value is trimmed of surrounding whitespace so every value path (create,
+// add-version and import) stores secrets consistently.
 func (s *variableService) addVersion(ctx context.Context, variableID id.ID, value string) (*model.VariableVersion, error) {
+	value = strings.TrimSpace(value)
+
 	nextVersion, err := s.versionRepository.GetNextVersion(ctx, variableID)
 	if err != nil {
 		return nil, err
