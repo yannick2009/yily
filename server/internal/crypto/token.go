@@ -11,7 +11,7 @@ import (
 
 const (
 	sessionTokenBytesSize = 32      // sessionTokenBytesSize is the entropy size in bytes (256 bits) for session tokens.
-	patTokenBytesSize     = 32      // patTokenBytesSize is the entropy size in bytes (256 bits) for Personal Access Tokens.
+	patTokenBytesSize     = 24      // patTokenBytesSize is the entropy size in bytes (192 bits) for Personal Access Tokens.
 	csrfTokenBytesSize    = 32      // csrfTokenBytesSize is the entropy size in bytes (256 bits) for CSRF tokens.
 	PATPrefix             = "yily_" // PATPrefix is the mandatory prefix identifying YILY Personal Access Tokens.
 )
@@ -32,7 +32,7 @@ func GenerateSessionToken() (rawToken string, tokenHash string, err error) {
 	return rawToken, tokenHash, nil
 }
 
-// GeneratePAT generates a 256-bit cryptographically random PAT prefixed with "yily_" and its SHA-256 hex digest for DB storage.
+// GeneratePAT generates a 192-bit cryptographically random PAT prefixed with "yily_" and its SHA-256 hex digest for DB storage.
 func GeneratePAT() (rawToken string, tokenHash string, err error) {
 	buf := make([]byte, patTokenBytesSize)
 	if _, err := io.ReadFull(rand.Reader, buf); err != nil {

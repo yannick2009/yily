@@ -68,7 +68,7 @@ func patMetadata(scope types.PATScope, expiresAt *time.Time) map[string]string {
 	return metadata
 }
 
-// Create generates a 256-bit PAT with the "yily_" prefix, persists only its SHA-256 hash in SQLite, and returns the raw token once.
+// Create generates a 192-bit PAT with the "yily_" prefix, persists only its SHA-256 hash in SQLite, and returns the raw token once.
 // A write-scoped PAT must have a positive TTL within MaxPATTTL. A read-scoped PAT may omit the TTL (ttl == 0) for a non-expiring token.
 func (s *patService) Create(ctx context.Context, userID id.ID, name string, scope types.PATScope, ttl time.Duration) (string, *model.PersonalAccessToken, error) {
 	trimmedName := strings.TrimSpace(name)
