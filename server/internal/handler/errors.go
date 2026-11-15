@@ -41,6 +41,9 @@ const (
 	CodeAuthPasswordNotComplex ErrorCode = "AUTH_PASSWORD_NOT_COMPLEX"
 	CodeAuthUserExists         ErrorCode = "AUTH_USER_ALREADY_EXISTS"
 	CodeAuthUserNotFound       ErrorCode = "AUTH_USER_NOT_FOUND"
+	CodeAuthInvalidSetupToken  ErrorCode = "AUTH_INVALID_SETUP_TOKEN"
+	CodeAuthAlreadyInitialized ErrorCode = "AUTH_ALREADY_INITIALIZED"
+	CodeSetupTokenNotSet       ErrorCode = "SETUP_TOKEN_NOT_CONFIGURED"
 
 	// Personal Access Tokens
 	CodeTokenRequired          ErrorCode = "TOKEN_REQUIRED"
@@ -89,6 +92,9 @@ var sentinelCodes = []struct {
 	{service.ErrWeakPassword, CodeAuthWeakPassword},
 	{service.ErrPasswordTooLong, CodeAuthPasswordTooLong},
 	{service.ErrPasswordNotComplex, CodeAuthPasswordNotComplex},
+	{service.ErrInvalidSetupToken, CodeAuthInvalidSetupToken},
+	{service.ErrSetupAlreadyDone, CodeAuthAlreadyInitialized},
+	{service.ErrSetupTokenNotSet, CodeSetupTokenNotSet},
 	{repository.ErrUserAlreadyExists, CodeAuthUserExists},
 	{repository.ErrUserNotFound, CodeAuthUserNotFound},
 

@@ -74,8 +74,9 @@ export async function setup(
   email: string,
   password: string,
   confirm: string,
+  setupToken: string,
 ): Promise<void> {
-  await auth.setup({ name, email, password, confirm });
+  await auth.setup({ name, email, password, confirm, setup_token: setupToken });
   setCurrentUser(null);
   setInitialized(true);
 }

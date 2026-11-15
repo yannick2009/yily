@@ -36,10 +36,11 @@ func NewAuthHandler(authService service.AuthService, audit service.AuditService)
 
 // setupRequest represents the JSON body for creating the initial Super Admin account.
 type setupRequest struct {
-	Name     string `json:"name" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=12,max=128"`
-	Confirm  string `json:"confirm" validate:"required,eqfield=Password"`
+	Name       string `json:"name" validate:"required"`
+	Email      string `json:"email" validate:"required,email"`
+	Password   string `json:"password" validate:"required,min=12,max=128"`
+	Confirm    string `json:"confirm" validate:"required,eqfield=Password"`
+	SetupToken string `json:"setup_token" validate:"required"`
 }
 
 // loginRequest represents the JSON body for authenticating the Super Admin.
@@ -55,7 +56,7 @@ func (h *authHandler) Setup(c *echo.Context) error {
 		return nil
 	}
 
-	user, err := h.authService.Setup(c.Request().Context(), req.Name, req.Email, req.Password)
+	user, err := h.authService.Setup(c.Request().Context(), req.Name, req.Email, req.Password, req.SetupToken)
 	if err != nil {
 		return respondError(c, err)
 	}

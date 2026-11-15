@@ -17,12 +17,13 @@ export async function status(): Promise<SetupStatus> {
   return request<SetupStatus>("GET", "/auth/status");
 }
 
-// setup creates the initial Super Admin account.
+// setup creates the initial Super Admin account, gated by the out-of-band setup token.
 export async function setup(input: {
   name: string;
   email: string;
   password: string;
   confirm: string;
+  setup_token: string;
 }): Promise<User> {
   return request<User>("POST", "/auth/setup", { body: JSON.stringify(input) });
 }

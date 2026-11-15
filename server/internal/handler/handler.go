@@ -55,6 +55,7 @@ func httpStatus(err error) int {
 	switch {
 	case errors.Is(err, service.ErrInvalidCredentials),
 		errors.Is(err, service.ErrUnauthorized),
+		errors.Is(err, service.ErrInvalidSetupToken),
 		errors.Is(err, service.ErrSessionExpired),
 		errors.Is(err, service.ErrSessionRevoked),
 		errors.Is(err, service.ErrPATExpired),
@@ -62,7 +63,8 @@ func httpStatus(err error) int {
 		return http.StatusUnauthorized
 	case errors.Is(err, repository.ErrVariableNameAlreadyExists),
 		errors.Is(err, repository.ErrTagNameAlreadyExists),
-		errors.Is(err, repository.ErrUserAlreadyExists):
+		errors.Is(err, repository.ErrUserAlreadyExists),
+		errors.Is(err, service.ErrSetupAlreadyDone):
 		return http.StatusConflict
 	case errors.Is(err, service.ErrPATWriteForbidden):
 		return http.StatusForbidden

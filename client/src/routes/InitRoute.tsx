@@ -13,6 +13,7 @@ export function InitRoute() {
   const navigate = useNavigate();
   const [name, setName] = createSignal("");
   const [email, setEmail] = createSignal("");
+  const [setupToken, setSetupToken] = createSignal("");
   const [password, setPassword] = createSignal("");
   const [confirm, setConfirm] = createSignal("");
   const [error, setError] = createSignal<string | null>(null);
@@ -40,10 +41,14 @@ export function InitRoute() {
       setError(t("settings.passwordMismatch"));
       return;
     }
+    if (!setupToken().trim()) {
+      setError(t("init.setupTokenRequired"));
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
-      await setup(name().trim(), email().trim(), password(), confirm());
+      await setup(name().trim(), email().trim(), password(), confirm(), setupToken().trim());
       navigate("/login", { replace: true });
     } catch (err) {
       setError(errorMessage(err));
@@ -92,6 +97,15 @@ export function InitRoute() {
                 onInput={(e) => setEmail(e.currentTarget.value)}
                 placeholder={t("login.emailPlaceholder")}
                 autocomplete="email"
+              />
+            </Field>
+
+            <Field label={t("init.setupToken")}>
+              <Input
+                value={setupToken()}
+                onInput={(e) => setSetupToken(e.currentTarget.value)}
+                placeholder={t("init.setupTokenPlaceholder")}
+                autocomplete="off"
               />
             </Field>
 
