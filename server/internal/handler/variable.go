@@ -250,6 +250,11 @@ func (h *variableHandler) GetCurrentVersion(c *echo.Context) error {
 
 // SetVersionActive handles PATCH /variables/:id/versions/:versionID.
 func (h *variableHandler) SetVersionActive(c *echo.Context) error {
+	variableID, ok := idParam(c, "id", id.PrefixVariable)
+	if !ok {
+		return nil
+	}
+
 	versionID, ok := idParam(c, "versionID", id.PrefixVersion)
 	if !ok {
 		return nil
@@ -260,7 +265,7 @@ func (h *variableHandler) SetVersionActive(c *echo.Context) error {
 		return nil
 	}
 
-	if err := h.variableService.SetVersionActive(c.Request().Context(), versionID, req.Active); err != nil {
+	if err := h.variableService.SetVersionActive(c.Request().Context(), variableID, versionID, req.Active); err != nil {
 		return respondError(c, err)
 	}
 	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Variable version active status updated successfully", nil)

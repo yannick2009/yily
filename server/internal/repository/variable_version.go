@@ -19,7 +19,7 @@ type VariableVersionRepository interface {
 	GetCurrentActive(ctx context.Context, variableID id.ID) (*model.VariableVersion, error)                 // GetCurrentActive retrieves the current active version.
 	GetNextVersion(ctx context.Context, variableID id.ID) (int, error)                                      // GetNextVersion computes the next version number for a variable.
 	Create(ctx context.Context, variableVersion *model.VariableVersion) error                               // Create persists a variable version in the database.
-	SetActive(ctx context.Context, variableVersionID id.ID, active bool) error                              // SetActive updates the active status.
+	SetActive(ctx context.Context, variableID id.ID, variableVersionID id.ID, active bool) error            // SetActive updates the active status of a version belonging to the variable.
 	DeactivateAll(ctx context.Context, variableID id.ID) error                                              // DeactivateAll deactivates all versions.
 	GetAll(ctx context.Context, variableID id.ID) ([]model.VariableVersion, error)                          // GetAll retrieves all versions.
 	GetForVariables(ctx context.Context, variableIDs []id.ID, version int) ([]model.VariableVersion, error) // GetForVariables retrieves active or specific versions for variables.
@@ -73,10 +73,20 @@ func (r *variableVersionRepository) Create(ctx context.Context, variableVersion 
 	})
 }
 
-// SetActive updates the active status of a variable version in the database.
-func (r *variableVersionRepository) SetActive(ctx context.Context, variableVersionID id.ID, active bool) error {
-	_, err := gorm.G[model.VariableVersion](r.DB).Where("id = ?", variableVersionID).Update(ctx, "active", active)
-	return err
+// SetActive updates the active status of a variable version in the database,
+// scoped to the variable it belongs to so a version cannot be (de)activated
+// through a mismatched variable ID.
+func (r *variableVersionRepository) SetActive(ctx context.Context, variableID id.ID, variableVersionID id.ID, active bool) error {
+	affected, err := gorm.G[model.VariableVersion](r.DB).
+		Where("id = ? AND variable_id = ?", variableVersionID, variableID).
+		Update(ctx, "active", active)
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrVariableVersionNotFound
+	}
+	return nil
 }
 
 // DeactivateAll deactivates all active versions of a variable.

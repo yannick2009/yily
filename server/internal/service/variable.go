@@ -38,12 +38,12 @@ type VariableService interface {
 	Export(ctx context.Context, environmentID id.ID, fileType types.FileType) ([]byte, error)                      // Export serializes all variables of an environment into the given file format.
 
 	// versions
-	AddVersion(ctx context.Context, variableID id.ID, value string) (*model.VariableVersion, error) // AddVersion adds a new active version to a variable.
-	ClearValue(ctx context.Context, variableID id.ID) error                                         // ClearValue clears the variable's current value by deactivating all active versions.
-	SetVersionActive(ctx context.Context, variableVersionID id.ID, active bool) error               // SetVersionActive activates or deactivates a version.
-	GetCurrentVersion(ctx context.Context, variableID id.ID) (*model.VariableVersion, error)        // GetCurrentVersion returns the current active version of a variable.
-	GetValue(ctx context.Context, variableID id.ID) (string, error)                                 // GetValue returns the current decrypted value of a variable.
-	GetAllVersions(ctx context.Context, variableID id.ID) ([]model.VariableVersion, error)          // GetAllVersions returns all versions of a variable, newest first.
+	AddVersion(ctx context.Context, variableID id.ID, value string) (*model.VariableVersion, error)     // AddVersion adds a new active version to a variable.
+	ClearValue(ctx context.Context, variableID id.ID) error                                             // ClearValue clears the variable's current value by deactivating all active versions.
+	SetVersionActive(ctx context.Context, variableID id.ID, variableVersionID id.ID, active bool) error // SetVersionActive activates or deactivates a version belonging to the variable.
+	GetCurrentVersion(ctx context.Context, variableID id.ID) (*model.VariableVersion, error)            // GetCurrentVersion returns the current active version of a variable.
+	GetValue(ctx context.Context, variableID id.ID) (string, error)                                     // GetValue returns the current decrypted value of a variable.
+	GetAllVersions(ctx context.Context, variableID id.ID) ([]model.VariableVersion, error)              // GetAllVersions returns all versions of a variable, newest first.
 }
 
 // VariableListFilter filters the variable listing of an environment.
@@ -174,9 +174,14 @@ func (s *variableService) SetTags(ctx context.Context, variableID id.ID, tagIDs 
 	return nil
 }
 
-// SetVersionActive activates or deactivates a version.
-func (s *variableService) SetVersionActive(ctx context.Context, variableVersionID id.ID, active bool) error {
-	return s.versionRepository.SetActive(ctx, variableVersionID, active)
+// SetVersionActive activates or deactivates a version. The version must belong
+// to the given variable, otherwise the change is rejected.
+func (s *variableService) SetVersionActive(ctx context.Context, variableID id.ID, variableVersionID id.ID, active bool) error {
+	if err := s.versionRepository.SetActive(ctx, variableID, variableVersionID, active); err != nil {
+		return err
+	}
+	s.auditVariable(ctx, types.ActionUpdated, variableID)
+	return nil
 }
 
 // GetCurrentVersion returns the current active version of a variable, without its value.
