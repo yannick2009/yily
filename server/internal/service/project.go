@@ -38,6 +38,10 @@ func NewProjectService(projectRepository repository.ProjectRepository, environme
 
 // Create creates a new project along with its "default" environment.
 func (s *projectService) Create(ctx context.Context, name string) (*model.Project, error) {
+	if err := validateName(name); err != nil {
+		return nil, err
+	}
+
 	project := &model.Project{Name: name}
 	if err := s.projectRepository.Create(ctx, project); err != nil {
 		return nil, err
@@ -95,6 +99,10 @@ func (s *projectService) GetAll(ctx context.Context) ([]api.ProjectSummaryRespon
 
 // SetName updates the name of a project.
 func (s *projectService) SetName(ctx context.Context, projectID id.ID, name string) error {
+	if err := validateName(name); err != nil {
+		return err
+	}
+
 	oldName := ""
 	if project, err := s.projectRepository.GetByID(ctx, projectID); err == nil {
 		oldName = project.Name

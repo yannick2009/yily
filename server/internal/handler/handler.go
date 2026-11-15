@@ -80,7 +80,9 @@ func httpStatus(err error) int {
 		errors.Is(err, service.ErrInvalidPATScope),
 		errors.Is(err, service.ErrEnvironmentDescriptionTooLong),
 		errors.Is(err, service.ErrInvalidVariableVersion),
-		errors.Is(err, service.ErrDuplicateVariableSelection):
+		errors.Is(err, service.ErrDuplicateVariableSelection),
+		errors.Is(err, service.ErrNameTooLong),
+		errors.Is(err, service.ErrInvalidNameChars):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrProjectNotFound),
 		errors.Is(err, repository.ErrEnvironmentNotFound),

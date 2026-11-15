@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
-	"unicode/utf8"
 
 	"github.com/yannick2009/yily/internal/api"
 	"github.com/yannick2009/yily/internal/domain/model"
@@ -11,14 +9,6 @@ import (
 	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/repository"
 )
-
-// MaxEnvironmentDescriptionLength is the maximum number of characters allowed
-// in an environment description.
-const MaxEnvironmentDescriptionLength = 50
-
-// ErrEnvironmentDescriptionTooLong is returned when a description exceeds the
-// maximum allowed length.
-var ErrEnvironmentDescriptionTooLong = errors.New("environment description must be at most 50 characters")
 
 // EnvironmentService defines the interface for environment business logic.
 type EnvironmentService interface {
@@ -45,6 +35,9 @@ func NewEnvironmentService(environmentRepository repository.EnvironmentRepositor
 
 // Create creates a new environment.
 func (s *environmentService) Create(ctx context.Context, projectID id.ID, name, description string) (*model.Environment, error) {
+	if err := validateName(name); err != nil {
+		return nil, err
+	}
 	if err := validateDescription(description); err != nil {
 		return nil, err
 	}
@@ -140,6 +133,10 @@ func (s *environmentService) GetAll(ctx context.Context, projectID id.ID) ([]api
 
 // SetName updates the name of an environment.
 func (s *environmentService) SetName(ctx context.Context, environmentID id.ID, name string) error {
+	if err := validateName(name); err != nil {
+		return err
+	}
+
 	oldName := ""
 	if environment, err := s.environmentRepository.GetByID(ctx, environmentID); err == nil {
 		oldName = environment.Name
@@ -181,14 +178,6 @@ func (s *environmentService) Delete(ctx context.Context, environmentID id.ID) er
 	}
 	if name != "" {
 		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceEnvironment, environmentID, name, nil)
-	}
-	return nil
-}
-
-// validateDescription rejects a description longer than the maximum length.
-func validateDescription(description string) error {
-	if utf8.RuneCountInString(description) > MaxEnvironmentDescriptionLength {
-		return ErrEnvironmentDescriptionTooLong
 	}
 	return nil
 }

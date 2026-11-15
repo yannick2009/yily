@@ -98,8 +98,13 @@ func (s *variableService) Create(ctx context.Context, environmentID id.ID, name,
 // aggregate event instead of one per variable.
 // If the version creation fails, the variable is removed again to keep the data consistent.
 func (s *variableService) create(ctx context.Context, environmentID id.ID, name, value string) (*model.Variable, error) {
+	normalized := normalizeVariableName(name)
+	if err := validateVariableName(normalized); err != nil {
+		return nil, err
+	}
+
 	variable := &model.Variable{
-		Name:          normalizeVariableName(name),
+		Name:          normalized,
 		EnvironmentID: environmentID,
 	}
 	if err := s.variableRepository.Create(ctx, variable); err != nil {
@@ -135,6 +140,10 @@ func (s *variableService) List(ctx context.Context, environmentID id.ID, filter 
 // SetName updates the name of a variable.
 func (s *variableService) SetName(ctx context.Context, variableID id.ID, name string) error {
 	normalized := normalizeVariableName(name)
+	if err := validateVariableName(normalized); err != nil {
+		return err
+	}
+
 	oldName := ""
 	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
 		oldName = variable.Name

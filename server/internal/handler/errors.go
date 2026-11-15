@@ -61,6 +61,8 @@ const (
 	CodeVariableVersionInvalid     ErrorCode = "VARIABLE_VERSION_INVALID"
 	CodeVariableSelectionDuplicate ErrorCode = "VARIABLE_SELECTION_DUPLICATE"
 	CodeVariableNameExists         ErrorCode = "VARIABLE_NAME_ALREADY_EXISTS"
+	CodeNameTooLong                ErrorCode = "NAME_TOO_LONG"
+	CodeNameInvalidChars           ErrorCode = "NAME_INVALID_CHARS"
 	CodeTagNotFound                ErrorCode = "TAG_NOT_FOUND"
 	CodeTagNameExists              ErrorCode = "TAG_NAME_ALREADY_EXISTS"
 	CodeTagNotInProject            ErrorCode = "TAG_NOT_IN_PROJECT"
@@ -108,6 +110,8 @@ var sentinelCodes = []struct {
 	{service.ErrInvalidVariableVersion, CodeVariableVersionInvalid},
 	{service.ErrDuplicateVariableSelection, CodeVariableSelectionDuplicate},
 	{repository.ErrVariableNameAlreadyExists, CodeVariableNameExists},
+	{service.ErrNameTooLong, CodeNameTooLong},
+	{service.ErrInvalidNameChars, CodeNameInvalidChars},
 	{repository.ErrTagNotFound, CodeTagNotFound},
 	{repository.ErrTagNameAlreadyExists, CodeTagNameExists},
 	{repository.ErrTagNotInProject, CodeTagNotInProject},

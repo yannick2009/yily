@@ -4,7 +4,7 @@ import "github.com/yannick2009/yily/internal/id"
 
 // CreateProjectRequest is the JSON body for creating a project.
 type CreateProjectRequest struct {
-	Name string `json:"name" validate:"required"`
+	Name string `json:"name" validate:"required,max=255"`
 }
 
 // UpdateProjectRequest is the JSON body for renaming a project.
@@ -13,13 +13,13 @@ type UpdateProjectRequest = CreateProjectRequest
 
 // CreateEnvironmentRequest is the JSON body for creating an environment.
 type CreateEnvironmentRequest struct {
-	Name        string `json:"name" validate:"required"`
+	Name        string `json:"name" validate:"required,max=255"`
 	Description string `json:"description"`
 }
 
 // UpdateEnvironmentNameRequest is the JSON body for renaming an environment.
 type UpdateEnvironmentNameRequest struct {
-	Name string `json:"name" validate:"required"`
+	Name string `json:"name" validate:"required,max=255"`
 }
 
 // UpdateEnvironmentDescriptionRequest is the JSON body for updating an environment's description.
@@ -30,19 +30,19 @@ type UpdateEnvironmentDescriptionRequest struct {
 
 // CloneEnvironmentRequest is the JSON body for cloning an environment.
 type CloneEnvironmentRequest struct {
-	Name     string `json:"name" validate:"required"`
+	Name     string `json:"name" validate:"required,max=255"`
 	CopyTags bool   `json:"copy_tags"`
 }
 
 // CreateVariableRequest is the JSON body for creating a variable.
 type CreateVariableRequest struct {
-	Name  string `json:"name" validate:"required"`
+	Name  string `json:"name" validate:"required,max=255"`
 	Value string `json:"value"`
 }
 
 // UpdateVariableRequest is the JSON body for renaming a variable.
 type UpdateVariableRequest struct {
-	Name string `json:"name" validate:"required"`
+	Name string `json:"name" validate:"required,max=255"`
 }
 
 // AddVariableVersionRequest is the JSON body for adding a variable version.

@@ -38,6 +38,10 @@ func NewTagService(tagRepository repository.TagRepository, audit AuditService) T
 
 // Create creates a new tag for a project.
 func (s *tagService) Create(ctx context.Context, projectID id.ID, name string) (*model.Tag, error) {
+	if err := validateName(name); err != nil {
+		return nil, err
+	}
+
 	tag := &model.Tag{Name: name, ProjectID: projectID}
 	if err := s.tagRepository.Create(ctx, tag); err != nil {
 		return nil, err
@@ -71,6 +75,9 @@ func (s *tagService) CreateBatch(ctx context.Context, projectID id.ID, names []s
 		Skipped: make([]string, 0),
 	}
 	for _, name := range cleaned {
+		if err := validateName(name); err != nil {
+			return result, err
+		}
 		tag := &model.Tag{Name: name, ProjectID: projectID}
 		if err := s.tagRepository.Create(ctx, tag); err != nil {
 			if errors.Is(err, repository.ErrTagNameAlreadyExists) {
