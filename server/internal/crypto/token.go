@@ -12,6 +12,7 @@ import (
 const (
 	sessionTokenBytesSize = 32      // sessionTokenBytesSize is the entropy size in bytes (256 bits) for session tokens.
 	patTokenBytesSize     = 32      // patTokenBytesSize is the entropy size in bytes (256 bits) for Personal Access Tokens.
+	csrfTokenBytesSize    = 32      // csrfTokenBytesSize is the entropy size in bytes (256 bits) for CSRF tokens.
 	PATPrefix             = "yily_" // PATPrefix is the mandatory prefix identifying YILY Personal Access Tokens.
 )
 
@@ -47,4 +48,15 @@ func GeneratePAT() (rawToken string, tokenHash string, err error) {
 func HashToken(rawToken string) string {
 	sum := sha256.Sum256([]byte(rawToken))
 	return hex.EncodeToString(sum[:])
+}
+
+// GenerateCSRFToken generates a 256-bit cryptographically random CSRF token.
+// Unlike session/PAT tokens it is returned in plaintext (not hashed), because
+// the server must be able to send it back to the client after a page reload.
+func GenerateCSRFToken() (string, error) {
+	buf := make([]byte, csrfTokenBytesSize)
+	if _, err := io.ReadFull(rand.Reader, buf); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
 }

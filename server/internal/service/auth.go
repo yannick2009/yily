@@ -164,9 +164,15 @@ func (s *authService) Login(ctx context.Context, email, password, existingRawTok
 		return "", nil, nil, err
 	}
 
+	csrfToken, err := crypto.GenerateCSRFToken()
+	if err != nil {
+		return "", nil, nil, err
+	}
+
 	session := &model.Session{
 		UserID:         user.ID,
 		TokenHash:      tokenHash,
+		CSRFToken:      csrfToken,
 		CreatedAt:      now,
 		LastActivityAt: now,
 		ExpiresAt:      now.Add(s.sessionTTL),

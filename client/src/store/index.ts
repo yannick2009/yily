@@ -6,6 +6,7 @@
 
 import { createSignal } from "solid-js";
 import { auth, system } from "../api";
+import { clearCSRFToken } from "../api/client";
 import type { UpdateInfo, User, VersionInfo } from "../types";
 
 // The signed-in Super Admin, or null when there is no active session.
@@ -51,6 +52,7 @@ export async function boot(): Promise<void> {
 
     try {
       setCurrentUser(await auth.me());
+      await auth.fetchCSRFToken();
     } catch {
       setCurrentUser(null);
       return;
@@ -99,4 +101,5 @@ export async function logout(): Promise<void> {
   setCurrentUser(null);
   setServerVersion(null);
   setUpdateInfo(null);
+  clearCSRFToken();
 }

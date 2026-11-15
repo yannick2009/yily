@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/authctx"
+	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/service"
@@ -19,6 +20,7 @@ type AuthHandler interface {
 	Logout(c *echo.Context) error
 	Me(c *echo.Context) error
 	Status(c *echo.Context) error
+	CSRF(c *echo.Context) error
 }
 
 // authHandler handles HTTP requests for authentication and server-side sessions.
@@ -97,13 +99,16 @@ func (h *authHandler) Login(c *echo.Context) error {
 		MaxAge:   maxAge,
 		HttpOnly: true,
 		Secure:   isHTTPSRequest(c),
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	ctx := authctx.WithAuthenticatedIdentity(c.Request().Context(), user, session)
 	_ = h.audit.Record(ctx, types.ActionSignedIn, "", "", "", nil)
 
-	return httputil.NewHTTPResponse(c, http.StatusOK, "Login successful", user)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Login successful", struct {
+		User      *model.User `json:"user"`
+		CSRFToken string      `json:"csrf_token"`
+	}{User: user, CSRFToken: session.CSRFToken})
 }
 
 // Logout handles POST /auth/logout to revoke the current server-side session and expire the client cookie.
@@ -155,6 +160,19 @@ func (h *authHandler) Status(c *echo.Context) error {
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Setup status retrieved successfully", struct {
 		Initialized bool `json:"initialized"`
 	}{Initialized: initialized})
+}
+
+// CSRF handles GET /auth/csrf to return the current session's CSRF token so the
+// SPA can send it back on mutations after a page reload.
+func (h *authHandler) CSRF(c *echo.Context) error {
+	session, ok := authctx.AuthenticatedSessionFromContext(c.Request().Context())
+	if !ok || session.CSRFToken == "" {
+		return respondError(c, service.ErrUnauthorized)
+	}
+
+	return httputil.NewHTTPResponse(c, http.StatusOK, "CSRF token retrieved", struct {
+		CSRFToken string `json:"csrf_token"`
+	}{CSRFToken: session.CSRFToken})
 }
 
 // isHTTPSRequest reports whether the request uses HTTPS. It delegates to the

@@ -94,6 +94,7 @@ func main() {
 	authMiddleware := middleware.RequireAuth(authService, patService)
 	writeScope := middleware.RequireWriteScope()
 	sessionOnly := middleware.RequireSession()
+	csrf := middleware.RequireCSRF()
 
 	// Define API routes
 	api := server.Group("/api/v1")
@@ -106,13 +107,14 @@ func main() {
 	// Read routes: any authenticated caller (session, read PAT, write PAT).
 	readRoutes := api.Group("", authMiddleware)
 	// Write routes: session or write-scoped PAT only.
-	writeRoutes := api.Group("", authMiddleware, writeScope)
+	writeRoutes := api.Group("", authMiddleware, writeScope, csrf)
 	// Admin routes: web session only — not accessible via any PAT.
-	adminRoutes := api.Group("", authMiddleware, sessionOnly)
+	adminRoutes := api.Group("", authMiddleware, sessionOnly, csrf)
 
 	// Auth and token management (session-only)
 	adminRoutes.POST("/auth/logout", authHandler.Logout)
 	adminRoutes.GET("/auth/me", authHandler.Me)
+	adminRoutes.GET("/auth/csrf", authHandler.CSRF)
 	adminRoutes.POST("/tokens", patHandler.Create)
 	adminRoutes.GET("/tokens", patHandler.GetAll)
 	adminRoutes.POST("/tokens/:id/rotate", patHandler.Rotate)
