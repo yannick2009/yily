@@ -16,10 +16,12 @@ var (
 
 // UserRepository defines the interface for user persistence.
 type UserRepository interface {
-	Create(ctx context.Context, user *model.User) error                // Create persists the single Super Admin user if none exists yet.
-	GetByEmail(ctx context.Context, email string) (*model.User, error) // GetByEmail retrieves the Super Admin by normalized lowercase email during login.
-	GetByID(ctx context.Context, userID id.ID) (*model.User, error)    // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
-	Count(ctx context.Context) (int64, error)                          // Count returns how many Super Admin accounts exist (0 or 1 by design).
+	Create(ctx context.Context, user *model.User) error                                               // Create persists the single Super Admin user if none exists yet.
+	GetByEmail(ctx context.Context, email string) (*model.User, error)                                // GetByEmail retrieves the Super Admin by normalized lowercase email during login.
+	GetByID(ctx context.Context, userID id.ID) (*model.User, error)                                   // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
+	Count(ctx context.Context) (int64, error)                                                         // Count returns how many Super Admin accounts exist (0 or 1 by design).
+	GetAdmin(ctx context.Context) (*model.User, error)                                                // GetAdmin returns the single Super Admin account.
+	UpdateCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string) error // UpdateCredentials updates the password and recovery code hashes.
 }
 
 // userRepository implements UserRepository.
@@ -85,4 +87,27 @@ func (r *userRepository) Count(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return count, nil
+}
+
+// GetAdmin returns the single Super Admin account (there is at most one by design).
+func (r *userRepository) GetAdmin(ctx context.Context) (*model.User, error) {
+	user := new(model.User)
+	if err := r.DB.WithContext(ctx).First(user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+// UpdateCredentials updates the password and recovery code hashes of the Super Admin.
+func (r *userRepository) UpdateCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string) error {
+	return r.DB.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{
+			"password_hash":      passwordHash,
+			"recovery_code_hash": recoveryCodeHash,
+		}).Error
 }

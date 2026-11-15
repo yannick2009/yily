@@ -100,7 +100,11 @@ export function LoginRoute() {
             </Button>
 
             <div class="text-center">
-              <button type="button" class="text-sm text-brand hover:underline">
+              <button
+                type="button"
+                class="text-sm text-brand hover:underline"
+                onClick={() => navigate("/recover")}
+              >
                 {t("login.forgot")}
               </button>
             </div>

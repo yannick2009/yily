@@ -21,25 +21,28 @@ const (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")                                                                                      // ErrInvalidCredentials is returned when login email or password verification fails.
-	ErrWeakPassword       = errors.New("password must be at least 12 characters long")                                                                   // ErrWeakPassword is returned when the provided password is shorter than MinPasswordLength.
-	ErrPasswordTooLong    = errors.New("password must be at most 128 characters long")                                                                   // ErrPasswordTooLong is returned when the provided password is longer than MaxPasswordLength.
-	ErrPasswordNotComplex = errors.New("password must contain at least one uppercase letter, one lowercase letter, one digit and one special character") // ErrPasswordNotComplex is returned when the password fails the character-class complexity policy.
-	ErrUnauthorized       = errors.New("unauthorized")                                                                                                   // ErrUnauthorized is returned when a request lacks a valid session or PAT.
-	ErrSessionExpired     = errors.New("session expired")                                                                                                // ErrSessionExpired is returned when a session has exceeded its TTL or idle timeout.
-	ErrSessionRevoked     = errors.New("session revoked")                                                                                                // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
-	ErrInvalidSetupToken  = errors.New("invalid setup token")                                                                                            // ErrInvalidSetupToken is returned when the first-run setup token is missing or wrong.
-	ErrSetupAlreadyDone   = errors.New("setup has already been completed")                                                                               // ErrSetupAlreadyDone is returned when setup is attempted after the Super Admin already exists.
-	ErrSetupTokenNotSet   = errors.New("setup token is not configured; set YILY_SETUP_TOKEN")                                                            // ErrSetupTokenNotSet is returned when setup is attempted on an uninitialized instance without a configured setup token.
+	ErrInvalidCredentials  = errors.New("invalid email or password")                                                                                      // ErrInvalidCredentials is returned when login email or password verification fails.
+	ErrWeakPassword        = errors.New("password must be at least 12 characters long")                                                                   // ErrWeakPassword is returned when the provided password is shorter than MinPasswordLength.
+	ErrPasswordTooLong     = errors.New("password must be at most 128 characters long")                                                                   // ErrPasswordTooLong is returned when the provided password is longer than MaxPasswordLength.
+	ErrPasswordNotComplex  = errors.New("password must contain at least one uppercase letter, one lowercase letter, one digit and one special character") // ErrPasswordNotComplex is returned when the password fails the character-class complexity policy.
+	ErrUnauthorized        = errors.New("unauthorized")                                                                                                   // ErrUnauthorized is returned when a request lacks a valid session or PAT.
+	ErrSessionExpired      = errors.New("session expired")                                                                                                // ErrSessionExpired is returned when a session has exceeded its TTL or idle timeout.
+	ErrSessionRevoked      = errors.New("session revoked")                                                                                                // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
+	ErrInvalidSetupToken   = errors.New("invalid setup token")                                                                                            // ErrInvalidSetupToken is returned when the first-run setup token is missing or wrong.
+	ErrSetupAlreadyDone    = errors.New("setup has already been completed")                                                                               // ErrSetupAlreadyDone is returned when setup is attempted after the Super Admin already exists.
+	ErrSetupTokenNotSet    = errors.New("setup token is not configured; set YILY_SETUP_TOKEN")                                                            // ErrSetupTokenNotSet is returned when setup is attempted on an uninitialized instance without a configured setup token.
+	ErrInvalidRecoveryCode = errors.New("invalid recovery code")                                                                                          // ErrInvalidRecoveryCode is returned when the provided recovery code does not match the stored hash.
+	ErrRecoveryUnavailable = errors.New("password recovery is not available")                                                                             // ErrRecoveryUnavailable is returned when the Super Admin has no recovery code configured.
 )
 
 // AuthService defines the interface for Super Admin authentication and server-side session management.
 type AuthService interface {
-	Setup(ctx context.Context, name, email, password, setupToken string) (*model.User, error)                         // Setup creates the initial Super Admin account, gated by the out-of-band setup token.
+	Setup(ctx context.Context, name, email, password, setupToken string) (*model.User, string, error)                 // Setup creates the initial Super Admin account, gated by the out-of-band setup token, and returns the one-time recovery code.
 	Login(ctx context.Context, email, password, existingRawToken string) (string, *model.Session, *model.User, error) // Login verifies credentials, rotates any prior session, and issues a new session.
 	ValidateSession(ctx context.Context, rawToken string) (*model.User, *model.Session, error)                        // ValidateSession verifies a raw session token against its stored SHA-256 hash and loads the owning user.
 	Logout(ctx context.Context, rawToken string) error                                                                // Logout revokes a server-side session by hashing its raw token.
 	IsInitialized(ctx context.Context) (bool, error)                                                                  // IsInitialized reports whether the Super Admin account has been created.
+	Recover(ctx context.Context, recoveryCode, newPassword string) (string, error)                                    // Recover resets the Super Admin password using the recovery code and returns a new recovery code.
 }
 
 // AuthConfig holds optional timing parameters for AuthService.
@@ -103,50 +106,60 @@ func (s *authService) getDummyHash() string {
 	return s.dummyHash
 }
 
-// Setup creates the single Super Admin account with a normalized lowercase email and an Argon2id password hash. It is gated by the out-of-band setup token and only allowed while the instance is uninitialized.
-func (s *authService) Setup(ctx context.Context, name, email, password, setupToken string) (*model.User, error) {
+// Setup creates the single Super Admin account with a normalized lowercase email, an Argon2id password hash and a one-time recovery code. It is gated by the out-of-band setup token and only allowed while the instance is uninitialized.
+func (s *authService) Setup(ctx context.Context, name, email, password, setupToken string) (*model.User, string, error) {
 	initialized, err := s.IsInitialized(ctx)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if initialized {
-		return nil, ErrSetupAlreadyDone
+		return nil, "", ErrSetupAlreadyDone
 	}
 
 	if s.setupToken == "" {
-		return nil, ErrSetupTokenNotSet
+		return nil, "", ErrSetupTokenNotSet
 	}
 
 	if subtle.ConstantTimeCompare([]byte(setupToken), []byte(s.setupToken)) != 1 {
-		return nil, ErrInvalidSetupToken
+		return nil, "", ErrInvalidSetupToken
 	}
 
 	if len(password) < MinPasswordLength {
-		return nil, ErrWeakPassword
+		return nil, "", ErrWeakPassword
 	}
 	if len(password) > MaxPasswordLength {
-		return nil, ErrPasswordTooLong
+		return nil, "", ErrPasswordTooLong
 	}
 	if !crypto.IsStrongPassword(password) {
-		return nil, ErrPasswordNotComplex
+		return nil, "", ErrPasswordNotComplex
 	}
 
 	passwordHash, err := crypto.HashPassword(password)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+
+	recoveryCode, err := crypto.GenerateRecoveryCode()
+	if err != nil {
+		return nil, "", err
+	}
+	recoveryCodeHash, err := crypto.HashRecoveryCode(recoveryCode)
+	if err != nil {
+		return nil, "", err
 	}
 
 	user := &model.User{
-		Name:         strings.TrimSpace(name),
-		Email:        normalizeEmail(email),
-		PasswordHash: passwordHash,
+		Name:             strings.TrimSpace(name),
+		Email:            normalizeEmail(email),
+		PasswordHash:     passwordHash,
+		RecoveryCodeHash: recoveryCodeHash,
 	}
 
 	if err := s.userRepository.Create(ctx, user); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return user, nil
+	return user, recoveryCode, nil
 }
 
 // Login verifies the Super Admin's Argon2id password, revokes any previous session to prevent session fixation, and creates a new SHA-256 hashed session.
@@ -269,6 +282,60 @@ func (s *authService) Logout(ctx context.Context, rawToken string) error {
 // normalizeEmail trims leading/trailing whitespace and converts an email address to lowercase.
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// Recover resets the Super Admin password using the one-time recovery code. On
+// success every active session is revoked and a fresh recovery code is issued
+func (s *authService) Recover(ctx context.Context, recoveryCode, newPassword string) (string, error) {
+	if len(newPassword) < MinPasswordLength {
+		return "", ErrWeakPassword
+	}
+	if len(newPassword) > MaxPasswordLength {
+		return "", ErrPasswordTooLong
+	}
+	if !crypto.IsStrongPassword(newPassword) {
+		return "", ErrPasswordNotComplex
+	}
+
+	user, err := s.userRepository.GetAdmin(ctx)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return "", ErrUnauthorized
+		}
+		return "", err
+	}
+
+	if user.RecoveryCodeHash == "" {
+		return "", ErrRecoveryUnavailable
+	}
+
+	valid, err := crypto.VerifyRecoveryCode(recoveryCode, user.RecoveryCodeHash)
+	if err != nil || !valid {
+		return "", ErrInvalidRecoveryCode
+	}
+
+	newPasswordHash, err := crypto.HashPassword(newPassword)
+	if err != nil {
+		return "", err
+	}
+
+	newRecoveryCode, err := crypto.GenerateRecoveryCode()
+	if err != nil {
+		return "", err
+	}
+	newRecoveryCodeHash, err := crypto.HashRecoveryCode(newRecoveryCode)
+	if err != nil {
+		return "", err
+	}
+
+	if err := s.userRepository.UpdateCredentials(ctx, user.ID, newPasswordHash, newRecoveryCodeHash); err != nil {
+		return "", err
+	}
+
+	// Kill every existing session so a stolen cookie cannot outlive the old password.
+	_ = s.sessionRepository.RevokeAll(ctx, s.nowFunc().UTC())
+
+	return newRecoveryCode, nil
 }
 
 // IsInitialized reports whether the Super Admin account has been created.

@@ -114,6 +114,17 @@ const messages: Record<LangCode, Messages> = {
     "login.submit": "Sign in",
     "login.forgot": "Forgot password?",
     "login.error": "Please enter a valid email and password.",
+    "recover.title": "Reset your password",
+    "recover.subtitle": "Enter your recovery code and choose a new password.",
+    "recover.hint":
+      "Enter the recovery code from the file downloaded when you created your account.",
+    "recover.code": "Recovery code",
+    "recover.codePlaceholder": "XXXX-XXXX-XXXX-XXXX",
+    "recover.codeRequired": "Please enter your recovery code.",
+    "recover.submit": "Reset password",
+    "recover.back": "Back to sign in",
+    "recover.success":
+      "Password reset. A new recovery code was downloaded. Save it and sign in with your new password.",
     // init
     "init.title": "Create your account",
     "init.subtitle": "Set up your Yily instance by creating the first admin account.",
@@ -379,6 +390,8 @@ const messages: Record<LangCode, Messages> = {
       "Password must contain at least one uppercase letter, one lowercase letter, one digit and one special character.",
     "errors.AUTH_USER_ALREADY_EXISTS": "An account already exists.",
     "errors.AUTH_USER_NOT_FOUND": "User not found.",
+    "errors.AUTH_INVALID_RECOVERY_CODE": "Invalid recovery code.",
+    "errors.AUTH_RECOVERY_UNAVAILABLE": "Password recovery is not available.",
     "errors.TOKEN_EXPIRED": "This token has expired.",
     "errors.TOKEN_REVOKED": "This token has been revoked.",
     "errors.TOKEN_NOT_FOUND": "Token not found.",
@@ -450,6 +463,18 @@ const messages: Record<LangCode, Messages> = {
     "login.submit": "Se connecter",
     "login.forgot": "Mot de passe oublié ?",
     "login.error": "Veuillez saisir un e-mail et un mot de passe valides.",
+    "recover.title": "Réinitialiser le mot de passe",
+    "recover.subtitle":
+      "Saisissez votre code de récupération et choisissez un nouveau mot de passe.",
+    "recover.hint":
+      "Saisissez le code de récupération contenu dans le fichier téléchargé lors de la création de votre compte.",
+    "recover.code": "Code de récupération",
+    "recover.codePlaceholder": "XXXX-XXXX-XXXX-XXXX",
+    "recover.codeRequired": "Veuillez saisir votre code de récupération.",
+    "recover.submit": "Réinitialiser",
+    "recover.back": "Retour à la connexion",
+    "recover.success":
+      "Mot de passe réinitialisé. Un nouveau code de récupération a été téléchargé. Conservez-le et connectez-vous avec votre nouveau mot de passe.",
     // init
     "init.title": "Créez votre compte",
     "init.subtitle": "Configurez votre instance Yily en créant le premier compte administrateur.",
@@ -714,6 +739,8 @@ const messages: Record<LangCode, Messages> = {
       "Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial.",
     "errors.AUTH_USER_ALREADY_EXISTS": "Un compte existe déjà.",
     "errors.AUTH_USER_NOT_FOUND": "Utilisateur introuvable.",
+    "errors.AUTH_INVALID_RECOVERY_CODE": "Code de récupération invalide.",
+    "errors.AUTH_RECOVERY_UNAVAILABLE": "La récupération de mot de passe n'est pas disponible.",
     "errors.TOKEN_EXPIRED": "Ce jeton a expiré.",
     "errors.TOKEN_REVOKED": "Ce jeton a été révoqué.",
     "errors.TOKEN_NOT_FOUND": "Jeton introuvable.",

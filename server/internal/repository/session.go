@@ -20,6 +20,7 @@ type SessionRepository interface {
 	GetByTokenHash(ctx context.Context, tokenHash string) (*model.Session, error)       // GetByTokenHash retrieves a session by its SHA-256 hash.
 	RevokeByTokenHash(ctx context.Context, tokenHash string, revokedAt time.Time) error // RevokeByTokenHash marks a session as revoked by its SHA-256 hash.
 	TouchActivity(ctx context.Context, sessionID id.ID, activityAt time.Time) error     // TouchActivity updates the session's last activity timestamp.
+	RevokeAll(ctx context.Context, revokedAt time.Time) error                           // RevokeAll revokes every active session.
 }
 
 // sessionRepository implements SessionRepository.
@@ -75,4 +76,13 @@ func (r *sessionRepository) RevokeByTokenHash(ctx context.Context, tokenHash str
 func (r *sessionRepository) TouchActivity(ctx context.Context, sessionID id.ID, activityAt time.Time) error {
 	_, err := gorm.G[model.Session](r.DB).Where("id = ?", sessionID).Update(ctx, "last_activity_at", activityAt)
 	return err
+}
+
+// RevokeAll marks every active session as revoked (used when the Super Admin
+// password is reset, so any stolen session cookie dies with the old password).
+func (r *sessionRepository) RevokeAll(ctx context.Context, revokedAt time.Time) error {
+	return r.DB.WithContext(ctx).
+		Model(&model.Session{}).
+		Where("revoked_at IS NULL").
+		Update("revoked_at", revokedAt).Error
 }
