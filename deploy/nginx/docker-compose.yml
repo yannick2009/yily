@@ -9,7 +9,7 @@
 
 services:
   yily:
-    image: ghcr.io/yannick2009/yily:1.0.0-beta.1
+    image: ghcr.io/yannick2009/yily:1.0.0-beta.2
     restart: unless-stopped
     environment:
       # AES-256 master key (32 bytes, base64). Lost = secrets unrecoverable.

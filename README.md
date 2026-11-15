@@ -60,7 +60,7 @@ docker run -d \
   -p 52015:52015 \
   -v yily-data:/data \
   --env-file yily.env \
-  ghcr.io/yannick2009/yily:1.0.0-beta.1
+  ghcr.io/yannick2009/yily:1.0.0-beta.2
 ```
 
 The server listens on port `52015` and serves the web interface at `http://localhost:52015`. Its SQLite database lives in the `yily-data` volume under `/data/instance`. On first launch, open the web interface and complete setup using the `YILY_SETUP_TOKEN` from `yily.env`. Keep both the volume and `yily.env` safe.
@@ -70,7 +70,7 @@ With Docker Compose:
 ```yaml
 services:
   yily:
-    image: ghcr.io/yannick2009/yily:1.0.0-beta.1
+    image: ghcr.io/yannick2009/yily:1.0.0-beta.2
     container_name: yily
     restart: unless-stopped
     ports:
@@ -88,19 +88,19 @@ volumes:
 docker compose up -d
 ```
 
-> The image is currently `linux/amd64` only. On ARM hosts, add `--platform linux/amd64` to `docker run` (or `platform: linux/amd64` to the Compose service); Docker will use emulation. The `latest` tag is only published for stable releases, so pin `1.0.0-beta.1` until a stable version exists.
+> The image is currently `linux/amd64` only. On ARM hosts, add `--platform linux/amd64` to `docker run` (or `platform: linux/amd64` to the Compose service); Docker will use emulation. The `latest` tag is only published for stable releases, so pin `1.0.0-beta.2` until a stable version exists.
 
 ### Server binary (Linux)
 
 Docker is the recommended way to run the server. If Docker is not available, the release also ships a `linux/amd64` archive containing the `yily` binary and the `dist/` web client. The `dist/` directory must stay next to the binary.
 
 ```bash
-curl -fsSLO https://github.com/yannick2009/yily/releases/download/v1.0.0-beta.1/yily_1.0.0-beta.1_linux_amd64.tar.gz
-curl -fsSLO https://github.com/yannick2009/yily/releases/download/v1.0.0-beta.1/checksums.txt
+curl -fsSLO https://github.com/yannick2009/yily/releases/download/v1.0.0-beta.2/yily_1.0.0-beta.2_linux_amd64.tar.gz
+curl -fsSLO https://github.com/yannick2009/yily/releases/download/v1.0.0-beta.2/checksums.txt
 sha256sum -c checksums.txt --ignore-missing
 
-tar -xzf yily_1.0.0-beta.1_linux_amd64.tar.gz
-cd yily_1.0.0-beta.1_linux_amd64
+tar -xzf yily_1.0.0-beta.2_linux_amd64.tar.gz
+cd yily_1.0.0-beta.2_linux_amd64
 chmod -R u+w dist  # the web client is read-only in the archive
 ```
 
@@ -139,7 +139,7 @@ The binary is installed in `~/.local/bin`. Run the script as your user (it refus
 
 | Option | Description |
 |--------|-------------|
-| `--version <v>` | Install a specific version (e.g. `1.0.0-beta.1`). |
+| `--version <v>` | Install a specific version (e.g. `1.0.0-beta.2`). |
 | `--pre-release` | Include prereleases when resolving the latest version. |
 | `--update-path` | Add `~/.local/bin` to `PATH` in `~/.bashrc` and `~/.zshrc`. |
 
@@ -147,7 +147,7 @@ The CLI can also update or remove itself:
 
 ```bash
 yily-cli upgrade --pre-release      # upgrade to the latest release (prereleases included)
-yily-cli upgrade --version 1.0.0-beta.1
+yily-cli upgrade --version 1.0.0-beta.2
 yily-cli uninstall                  # remove the binary (asks for confirmation)
 yily-cli uninstall --yes --purge    # also remove the saved login configuration
 ```

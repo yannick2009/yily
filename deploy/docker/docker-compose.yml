@@ -9,7 +9,7 @@
 
 services:
   yily:
-    image: ghcr.io/yannick2009/yily:1.0.0-beta.1
+    image: ghcr.io/yannick2009/yily:1.0.0-beta.2
     restart: unless-stopped
     ports:
       - "52015:52015"
