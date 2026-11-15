@@ -1,0 +1,15 @@
+# Yily — Caddy configuration
+#
+# Caddy obtains and renews TLS certificates automatically (Let's Encrypt) and
+# sets the X-Forwarded-Proto / X-Forwarded-For headers for the application.
+#
+# `{$YILY_DOMAIN}` is injected from the Caddy container environment (see
+# docker-compose.yml). For a single fixed domain, replace it with a literal:
+#   yily.example.com { ... }
+
+{$YILY_DOMAIN} {
+	encode gzip zstd
+
+	# The app serves the web UI (SPA) and the API under /api/v1.
+	reverse_proxy yily:52015
+}

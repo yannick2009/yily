@@ -1,0 +1,35 @@
+# Yily + nginx — reverse proxy (TLS managed manually).
+#
+# nginx publishes 80/443; Yily stays on the internal Docker network.
+# TLS certificates must be provided and mounted into ./certs (see README).
+#
+# Requires a `.env` file in this folder (see README.md):
+#   YILY_MASTER_KEY=<openssl rand -base64 32>
+#   YILY_SETUP_TOKEN=<openssl rand -base64 32>
+
+services:
+  yily:
+    image: ghcr.io/yannick2009/yily:1.0.0-beta.1
+    restart: unless-stopped
+    environment:
+      # AES-256 master key (32 bytes, base64). Lost = secrets unrecoverable.
+      YILY_MASTER_KEY: ${YILY_MASTER_KEY:?}
+      # First-run setup token (initial Super Admin creation).
+      YILY_SETUP_TOKEN: ${YILY_SETUP_TOKEN:?}
+    volumes:
+      - yily-data:/data # SQLite database lives in /data/instance.
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - yily
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro # fullchain.pem + privkey.pem
+
+volumes:
+  yily-data:

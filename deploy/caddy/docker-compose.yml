@@ -1,0 +1,41 @@
+# Yily + Caddy — automatic HTTPS via Let's Encrypt.
+#
+# Only Caddy publishes 80/443; Yily stays on the internal Docker network.
+#
+# Requires a `.env` file in this folder (see README.md):
+#   YILY_MASTER_KEY=<openssl rand -base64 32>
+#   YILY_SETUP_TOKEN=<openssl rand -base64 32>
+#   YILY_DOMAIN=yily.example.com
+
+services:
+  yily:
+    image: ghcr.io/yannick2009/yily:1.0.0-beta.1
+    restart: unless-stopped
+    environment:
+      # AES-256 master key (32 bytes, base64). Lost = secrets unrecoverable.
+      YILY_MASTER_KEY: ${YILY_MASTER_KEY:?}
+      # First-run setup token (initial Super Admin creation).
+      YILY_SETUP_TOKEN: ${YILY_SETUP_TOKEN:?}
+    volumes:
+      - yily-data:/data # SQLite database lives in /data/instance.
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - yily
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Public domain served by Caddy (used in the Caddyfile).
+      YILY_DOMAIN: ${YILY_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data     # TLS certificates
+      - caddy_config:/config # Caddy state
+
+volumes:
+  yily-data:
+  caddy_data:
+  caddy_config:
