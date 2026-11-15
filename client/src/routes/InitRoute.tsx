@@ -49,7 +49,7 @@ export function InitRoute() {
     setLoading(true);
     try {
       await setup(name().trim(), email().trim(), password(), confirm(), setupToken().trim());
-      navigate("/login", { replace: true });
+      navigate("/recovery-code", { replace: true });
     } catch (err) {
       setError(errorMessage(err));
     } finally {

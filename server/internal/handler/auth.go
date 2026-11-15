@@ -21,6 +21,7 @@ type AuthHandler interface {
 	Me(c *echo.Context) error
 	Status(c *echo.Context) error
 	CSRF(c *echo.Context) error
+	Recover(c *echo.Context) error
 }
 
 // authHandler handles HTTP requests for authentication and server-side sessions.
@@ -49,6 +50,16 @@ type loginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+// recoverRequest represents the JSON body for resetting the Super Admin password with the recovery code.
+type recoverRequest struct {
+	RecoveryCode string `json:"recovery_code" validate:"required"`
+	Password     string `json:"password" validate:"required,min=12,max=128"`
+	Confirm      string `json:"confirm" validate:"required,eqfield=Password"`
+}
+
+// recoveryCodeFilename is the name of the downloaded file carrying the recovery code.
+const recoveryCodeFilename = "yily-recovery-code.txt"
+
 // Setup handles POST /auth/setup to create the initial Super Admin account with name, email, and strong password.
 func (h *authHandler) Setup(c *echo.Context) error {
 	var req setupRequest
@@ -56,12 +67,33 @@ func (h *authHandler) Setup(c *echo.Context) error {
 		return nil
 	}
 
-	user, err := h.authService.Setup(c.Request().Context(), req.Name, req.Email, req.Password, req.SetupToken)
+	_, recoveryCode, err := h.authService.Setup(c.Request().Context(), req.Name, req.Email, req.Password, req.SetupToken)
 	if err != nil {
 		return respondError(c, err)
 	}
 
-	return httputil.NewHTTPResponse(c, http.StatusCreated, "Super Admin created successfully", user)
+	return serveRecoveryCode(c, http.StatusCreated, recoveryCode)
+}
+
+// Recover handles POST /auth/recover to reset the Super Admin password using the recovery code.
+func (h *authHandler) Recover(c *echo.Context) error {
+	var req recoverRequest
+	if !bindAndValidate(c, &req) {
+		return nil
+	}
+
+	newRecoveryCode, err := h.authService.Recover(c.Request().Context(), req.RecoveryCode, req.Password)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return serveRecoveryCode(c, http.StatusOK, newRecoveryCode)
+}
+
+// serveRecoveryCode streams the recovery code as a downloadable plain-text file.
+func serveRecoveryCode(c *echo.Context, status int, code string) error {
+	c.Response().Header().Set("Content-Disposition", `attachment; filename="`+recoveryCodeFilename+`"`)
+	return c.String(status, code+"\n")
 }
 
 // Login handles POST /auth/login to authenticate the Super Admin, rotate any prior session, and set the HttpOnly session cookie.

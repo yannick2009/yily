@@ -103,6 +103,7 @@ func main() {
 	api.GET("/auth/status", authHandler.Status)
 	api.POST("/auth/setup", authHandler.Setup)
 	api.POST("/auth/login", authHandler.Login)
+	api.POST("/auth/recover", authHandler.Recover)
 
 	// Read routes: any authenticated caller (session, read PAT, write PAT).
 	readRoutes := api.Group("", authMiddleware)

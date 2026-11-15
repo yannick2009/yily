@@ -56,6 +56,7 @@ func httpStatus(err error) int {
 	case errors.Is(err, service.ErrInvalidCredentials),
 		errors.Is(err, service.ErrUnauthorized),
 		errors.Is(err, service.ErrInvalidSetupToken),
+		errors.Is(err, service.ErrInvalidRecoveryCode),
 		errors.Is(err, service.ErrSessionExpired),
 		errors.Is(err, service.ErrSessionRevoked),
 		errors.Is(err, service.ErrPATExpired),
@@ -94,7 +95,8 @@ func httpStatus(err error) int {
 		errors.Is(err, repository.ErrTagNotFound),
 		errors.Is(err, repository.ErrUserNotFound),
 		errors.Is(err, repository.ErrSessionNotFound),
-		errors.Is(err, repository.ErrPATNotFound):
+		errors.Is(err, repository.ErrPATNotFound),
+		errors.Is(err, service.ErrRecoveryUnavailable):
 		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError

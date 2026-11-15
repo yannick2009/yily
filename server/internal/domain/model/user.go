@@ -13,6 +13,7 @@ type User struct {
 	Name                 string                `gorm:"type:varchar(255);not null" json:"name"`                 // Display name of the user
 	Email                string                `gorm:"type:varchar(255);not null;uniqueIndex" json:"email"`    // Normalized (lowercase) email address
 	PasswordHash         string                `gorm:"type:text;not null" json:"-"`                            // Argon2id password hash (never serialized in JSON)
+	RecoveryCodeHash     string                `gorm:"type:text" json:"-"`                                     // Argon2id hash of the recovery code (never serialized); empty when recovery is unavailable
 	CreatedAt            time.Time             `gorm:"autoCreateTime" json:"created_at"`                       // Timestamp when the user was created
 	UpdatedAt            time.Time             `gorm:"autoUpdateTime" json:"updated_at"`                       // Timestamp when the user was last updated
 	Sessions             []Session             `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"` // List of sessions associated with the user

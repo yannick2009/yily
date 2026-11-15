@@ -32,18 +32,20 @@ const (
 // Codes tied to sentinel errors from the service / repository / env packages.
 const (
 	// Auth
-	CodeAuthInvalidCredentials ErrorCode = "AUTH_INVALID_CREDENTIALS"
-	CodeAuthUnauthorized       ErrorCode = "AUTH_UNAUTHORIZED"
-	CodeAuthSessionExpired     ErrorCode = "AUTH_SESSION_EXPIRED"
-	CodeAuthSessionRevoked     ErrorCode = "AUTH_SESSION_REVOKED"
-	CodeAuthWeakPassword       ErrorCode = "AUTH_WEAK_PASSWORD"
-	CodeAuthPasswordTooLong    ErrorCode = "AUTH_PASSWORD_TOO_LONG"
-	CodeAuthPasswordNotComplex ErrorCode = "AUTH_PASSWORD_NOT_COMPLEX"
-	CodeAuthUserExists         ErrorCode = "AUTH_USER_ALREADY_EXISTS"
-	CodeAuthUserNotFound       ErrorCode = "AUTH_USER_NOT_FOUND"
-	CodeAuthInvalidSetupToken  ErrorCode = "AUTH_INVALID_SETUP_TOKEN"
-	CodeAuthAlreadyInitialized ErrorCode = "AUTH_ALREADY_INITIALIZED"
-	CodeSetupTokenNotSet       ErrorCode = "SETUP_TOKEN_NOT_CONFIGURED"
+	CodeAuthInvalidCredentials  ErrorCode = "AUTH_INVALID_CREDENTIALS"
+	CodeAuthUnauthorized        ErrorCode = "AUTH_UNAUTHORIZED"
+	CodeAuthSessionExpired      ErrorCode = "AUTH_SESSION_EXPIRED"
+	CodeAuthSessionRevoked      ErrorCode = "AUTH_SESSION_REVOKED"
+	CodeAuthWeakPassword        ErrorCode = "AUTH_WEAK_PASSWORD"
+	CodeAuthPasswordTooLong     ErrorCode = "AUTH_PASSWORD_TOO_LONG"
+	CodeAuthPasswordNotComplex  ErrorCode = "AUTH_PASSWORD_NOT_COMPLEX"
+	CodeAuthUserExists          ErrorCode = "AUTH_USER_ALREADY_EXISTS"
+	CodeAuthUserNotFound        ErrorCode = "AUTH_USER_NOT_FOUND"
+	CodeAuthInvalidSetupToken   ErrorCode = "AUTH_INVALID_SETUP_TOKEN"
+	CodeAuthAlreadyInitialized  ErrorCode = "AUTH_ALREADY_INITIALIZED"
+	CodeSetupTokenNotSet        ErrorCode = "SETUP_TOKEN_NOT_CONFIGURED"
+	CodeAuthInvalidRecoveryCode ErrorCode = "AUTH_INVALID_RECOVERY_CODE"
+	CodeAuthRecoveryUnavailable ErrorCode = "AUTH_RECOVERY_UNAVAILABLE"
 
 	// Personal Access Tokens
 	CodeTokenRequired          ErrorCode = "TOKEN_REQUIRED"
@@ -95,6 +97,8 @@ var sentinelCodes = []struct {
 	{service.ErrInvalidSetupToken, CodeAuthInvalidSetupToken},
 	{service.ErrSetupAlreadyDone, CodeAuthAlreadyInitialized},
 	{service.ErrSetupTokenNotSet, CodeSetupTokenNotSet},
+	{service.ErrInvalidRecoveryCode, CodeAuthInvalidRecoveryCode},
+	{service.ErrRecoveryUnavailable, CodeAuthRecoveryUnavailable},
 	{repository.ErrUserAlreadyExists, CodeAuthUserExists},
 	{repository.ErrUserNotFound, CodeAuthUserNotFound},
 
