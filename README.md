@@ -57,13 +57,13 @@ Run the container:
 docker run -d \
   --name yily \
   --restart unless-stopped \
-  -p 16529:16529 \
+  -p 52015:52015 \
   -v yily-data:/data \
   --env-file yily.env \
   ghcr.io/yannick2009/yily:1.0.0-beta.1
 ```
 
-The server listens on port `16529` and serves the web interface at `http://localhost:16529`. Its SQLite database lives in the `yily-data` volume under `/data/instance`. On first launch, open the web interface and complete setup using the `YILY_SETUP_TOKEN` from `yily.env`. Keep both the volume and `yily.env` safe.
+The server listens on port `52015` and serves the web interface at `http://localhost:52015`. Its SQLite database lives in the `yily-data` volume under `/data/instance`. On first launch, open the web interface and complete setup using the `YILY_SETUP_TOKEN` from `yily.env`. Keep both the volume and `yily.env` safe.
 
 With Docker Compose:
 
@@ -74,7 +74,7 @@ services:
     container_name: yily
     restart: unless-stopped
     ports:
-      - "16529:16529"
+      - "52015:52015"
     volumes:
       - yily-data:/data
     env_file:
@@ -123,7 +123,7 @@ set +a
 ./yily
 ```
 
-The server listens on `http://localhost:16529`. Its SQLite database is created in `instance/` under the working directory. On first launch, complete setup using the `YILY_SETUP_TOKEN` from `yily.env`. To upgrade, extract the new archive elsewhere and copy `yily` and `dist/` into the existing directory, keeping `instance/` and `yily.env`. If a `dist/` directory is read-only (older archives), run `chmod -R u+w dist` first. For a long-running service, run it under systemd or another process manager with the extracted directory as `WorkingDirectory`.
+The server listens on `http://localhost:52015`. Its SQLite database is created in `instance/` under the working directory. On first launch, complete setup using the `YILY_SETUP_TOKEN` from `yily.env`. To upgrade, extract the new archive elsewhere and copy `yily` and `dist/` into the existing directory, keeping `instance/` and `yily.env`. If a `dist/` directory is read-only (older archives), run `chmod -R u+w dist` first. For a long-running service, run it under systemd or another process manager with the extracted directory as `WorkingDirectory`.
 
 ### CLI
 

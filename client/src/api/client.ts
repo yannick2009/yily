@@ -7,7 +7,7 @@
 // HttpOnly `yily_session` cookie set by the server.
 
 // BASE_URL points at the Vite dev proxy (see vite.config.ts), which forwards
-// /api → http://localhost:16529 in development.
+// /api → http://localhost:52015 in development.
 const BASE_URL = "/api/v1";
 
 // In-memory CSRF token for the current session. It is fetched once per page
