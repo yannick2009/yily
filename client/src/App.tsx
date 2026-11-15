@@ -10,6 +10,7 @@ import { EnvironmentRoute } from "./routes/EnvironmentRoute";
 import { InitRoute } from "./routes/InitRoute";
 import { LoginRoute } from "./routes/LoginRoute";
 import { RecoverRoute } from "./routes/RecoverRoute";
+import { RecoveryCodeRoute } from "./routes/RecoveryCodeRoute";
 import { ProjectDetailRoute } from "./routes/ProjectDetailRoute";
 import { ProfileRoute } from "./routes/ProfileRoute";
 import { ProjectsRoute } from "./routes/ProjectsRoute";
@@ -60,6 +61,13 @@ function RecoverOnly() {
   return <RecoverRoute />;
 }
 
+// RecoveryCodeOnly explains the recovery code file right after setup.
+function RecoveryCodeOnly() {
+  if (!initialized()) return <Navigate href="/init" />;
+  if (currentUser()) return <Navigate href="/" />;
+  return <RecoveryCodeRoute />;
+}
+
 export default function App() {
   const [ready] = createResource(boot);
 
@@ -69,6 +77,7 @@ export default function App() {
         <Route path="/init" component={InitOnly} />
         <Route path="/login" component={LoginOnly} />
         <Route path="/recover" component={RecoverOnly} />
+        <Route path="/recovery-code" component={RecoveryCodeOnly} />
         <Route path="/" component={ProtectedShell}>
           <Route path="/" component={DashboardRoute} />
           <Route path="/projects" component={ProjectsRoute} />
