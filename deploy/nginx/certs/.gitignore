@@ -1,0 +1,4 @@
+# TLS certificates are secrets: never commit them.
+# Place fullchain.pem and privkey.pem here (see README.md).
+*
+!.gitignore
