@@ -6,6 +6,7 @@
 
 import { createSignal } from "solid-js";
 import { auth, system } from "../api";
+import { clearCSRFToken } from "../api/client";
 import type { UpdateInfo, User, VersionInfo } from "../types";
 
 // The signed-in Super Admin, or null when there is no active session.
@@ -51,6 +52,7 @@ export async function boot(): Promise<void> {
 
     try {
       setCurrentUser(await auth.me());
+      await auth.fetchCSRFToken();
     } catch {
       setCurrentUser(null);
       return;
@@ -67,8 +69,14 @@ export async function boot(): Promise<void> {
 // setup creates the initial Super Admin account. It does not sign the new
 // admin in — the setup endpoint returns no session cookie, so the user must
 // log in afterwards. We only mark the instance as initialized.
-export async function setup(name: string, email: string, password: string): Promise<void> {
-  await auth.setup({ name, email, password });
+export async function setup(
+  name: string,
+  email: string,
+  password: string,
+  confirm: string,
+  setupToken: string,
+): Promise<void> {
+  await auth.setup({ name, email, password, confirm, setup_token: setupToken });
   setCurrentUser(null);
   setInitialized(true);
 }
@@ -94,4 +102,5 @@ export async function logout(): Promise<void> {
   setCurrentUser(null);
   setServerVersion(null);
   setUpdateInfo(null);
+  clearCSRFToken();
 }

@@ -11,11 +11,11 @@ export default defineConfig({
   },
   plugins: lazyPlugins(() => [solid(), tailwindcss()]),
   server: {
-    port: 14615,
+    port: 9557,
     proxy: {
       // Forward API calls to the Go server (no CORS middleware on the server).
       "/api": {
-        target: "http://localhost:16529",
+        target: "http://localhost:52015",
         changeOrigin: true,
       },
     },

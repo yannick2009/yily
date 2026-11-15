@@ -25,7 +25,8 @@ var (
 
 // config represents the application configuration.
 type config struct {
-	MasterKey []byte
+	MasterKey  []byte // AES-256 master key (32 bytes)
+	SetupToken string // setup token for initial configuration
 }
 
 // Load reads and validates the configuration from environment variables.
@@ -44,8 +45,11 @@ func Load() (*config, error) {
 		return nil, ErrInvalidMasterKeyLength
 	}
 
+	setupToken := getEnv("YILY_SETUP_TOKEN", "")
+
 	return &config{
-		MasterKey: decodedKey,
+		MasterKey:  decodedKey,
+		SetupToken: setupToken,
 	}, nil
 }
 

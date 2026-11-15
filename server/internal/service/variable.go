@@ -38,12 +38,12 @@ type VariableService interface {
 	Export(ctx context.Context, environmentID id.ID, fileType types.FileType) ([]byte, error)                      // Export serializes all variables of an environment into the given file format.
 
 	// versions
-	AddVersion(ctx context.Context, variableID id.ID, value string) (*model.VariableVersion, error) // AddVersion adds a new active version to a variable.
-	ClearValue(ctx context.Context, variableID id.ID) error                                         // ClearValue clears the variable's current value by deactivating all active versions.
-	SetVersionActive(ctx context.Context, variableVersionID id.ID, active bool) error               // SetVersionActive activates or deactivates a version.
-	GetCurrentVersion(ctx context.Context, variableID id.ID) (*model.VariableVersion, error)        // GetCurrentVersion returns the current active version of a variable.
-	GetValue(ctx context.Context, variableID id.ID) (string, error)                                 // GetValue returns the current decrypted value of a variable.
-	GetAllVersions(ctx context.Context, variableID id.ID) ([]model.VariableVersion, error)          // GetAllVersions returns all versions of a variable, newest first.
+	AddVersion(ctx context.Context, variableID id.ID, value string) (*model.VariableVersion, error)     // AddVersion adds a new active version to a variable.
+	ClearValue(ctx context.Context, variableID id.ID) error                                             // ClearValue clears the variable's current value by deactivating all active versions.
+	SetVersionActive(ctx context.Context, variableID id.ID, variableVersionID id.ID, active bool) error // SetVersionActive activates or deactivates a version belonging to the variable.
+	GetCurrentVersion(ctx context.Context, variableID id.ID) (*model.VariableVersion, error)            // GetCurrentVersion returns the current active version of a variable.
+	GetValue(ctx context.Context, variableID id.ID) (string, error)                                     // GetValue returns the current decrypted value of a variable.
+	GetAllVersions(ctx context.Context, variableID id.ID) ([]model.VariableVersion, error)              // GetAllVersions returns all versions of a variable, newest first.
 }
 
 // VariableListFilter filters the variable listing of an environment.
@@ -98,8 +98,13 @@ func (s *variableService) Create(ctx context.Context, environmentID id.ID, name,
 // aggregate event instead of one per variable.
 // If the version creation fails, the variable is removed again to keep the data consistent.
 func (s *variableService) create(ctx context.Context, environmentID id.ID, name, value string) (*model.Variable, error) {
+	normalized := normalizeVariableName(name)
+	if err := validateVariableName(normalized); err != nil {
+		return nil, err
+	}
+
 	variable := &model.Variable{
-		Name:          normalizeVariableName(name),
+		Name:          normalized,
 		EnvironmentID: environmentID,
 	}
 	if err := s.variableRepository.Create(ctx, variable); err != nil {
@@ -107,8 +112,7 @@ func (s *variableService) create(ctx context.Context, environmentID id.ID, name,
 	}
 
 	// A first version is created only when a non-empty value is provided (whitespace counts as empty).
-	value = strings.TrimSpace(value)
-	if value != "" {
+	if strings.TrimSpace(value) != "" {
 		if _, err := s.addVersion(ctx, variable.ID, value); err != nil {
 			_ = s.variableRepository.Delete(ctx, variable.ID) // Best-effort compensating cleanup: keep the data consistent if the first version fails.
 			return nil, err
@@ -136,6 +140,10 @@ func (s *variableService) List(ctx context.Context, environmentID id.ID, filter 
 // SetName updates the name of a variable.
 func (s *variableService) SetName(ctx context.Context, variableID id.ID, name string) error {
 	normalized := normalizeVariableName(name)
+	if err := validateVariableName(normalized); err != nil {
+		return err
+	}
+
 	oldName := ""
 	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
 		oldName = variable.Name
@@ -175,9 +183,14 @@ func (s *variableService) SetTags(ctx context.Context, variableID id.ID, tagIDs 
 	return nil
 }
 
-// SetVersionActive activates or deactivates a version.
-func (s *variableService) SetVersionActive(ctx context.Context, variableVersionID id.ID, active bool) error {
-	return s.versionRepository.SetActive(ctx, variableVersionID, active)
+// SetVersionActive activates or deactivates a version. The version must belong
+// to the given variable, otherwise the change is rejected.
+func (s *variableService) SetVersionActive(ctx context.Context, variableID id.ID, variableVersionID id.ID, active bool) error {
+	if err := s.versionRepository.SetActive(ctx, variableID, variableVersionID, active); err != nil {
+		return err
+	}
+	s.auditVariable(ctx, types.ActionUpdated, variableID)
+	return nil
 }
 
 // GetCurrentVersion returns the current active version of a variable, without its value.
@@ -346,7 +359,11 @@ func (s *variableService) ClearValue(ctx context.Context, variableID id.ID) erro
 }
 
 // addVersion creates a new active encrypted version for the given variable.
+// The value is trimmed of surrounding whitespace so every value path (create,
+// add-version and import) stores secrets consistently.
 func (s *variableService) addVersion(ctx context.Context, variableID id.ID, value string) (*model.VariableVersion, error) {
+	value = strings.TrimSpace(value)
+
 	nextVersion, err := s.versionRepository.GetNextVersion(ctx, variableID)
 	if err != nil {
 		return nil, err

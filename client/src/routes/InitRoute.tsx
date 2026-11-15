@@ -5,6 +5,7 @@ import { Button, Icon, Input } from "../components/ui";
 import { Field } from "../components/shared";
 import { t } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
+import { isStrongPassword } from "../lib/password";
 import { cycleTheme, theme } from "../lib/theme";
 import { setup } from "../store";
 
@@ -12,6 +13,7 @@ export function InitRoute() {
   const navigate = useNavigate();
   const [name, setName] = createSignal("");
   const [email, setEmail] = createSignal("");
+  const [setupToken, setSetupToken] = createSignal("");
   const [password, setPassword] = createSignal("");
   const [confirm, setConfirm] = createSignal("");
   const [error, setError] = createSignal<string | null>(null);
@@ -23,14 +25,30 @@ export function InitRoute() {
       setError(t("login.error"));
       return;
     }
+    if (password().length < 12) {
+      setError(t("init.passwordMin"));
+      return;
+    }
+    if (password().length > 128) {
+      setError(t("init.passwordMax"));
+      return;
+    }
+    if (!isStrongPassword(password())) {
+      setError(t("init.passwordComplexity"));
+      return;
+    }
     if (password() !== confirm()) {
       setError(t("settings.passwordMismatch"));
+      return;
+    }
+    if (!setupToken().trim()) {
+      setError(t("init.setupTokenRequired"));
       return;
     }
     setError(null);
     setLoading(true);
     try {
-      await setup(name().trim(), email().trim(), password());
+      await setup(name().trim(), email().trim(), password(), confirm(), setupToken().trim());
       navigate("/login", { replace: true });
     } catch (err) {
       setError(errorMessage(err));
@@ -79,6 +97,15 @@ export function InitRoute() {
                 onInput={(e) => setEmail(e.currentTarget.value)}
                 placeholder={t("login.emailPlaceholder")}
                 autocomplete="email"
+              />
+            </Field>
+
+            <Field label={t("init.setupToken")}>
+              <Input
+                value={setupToken()}
+                onInput={(e) => setSetupToken(e.currentTarget.value)}
+                placeholder={t("init.setupTokenPlaceholder")}
+                autocomplete="off"
               />
             </Field>
 

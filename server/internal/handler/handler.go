@@ -55,6 +55,7 @@ func httpStatus(err error) int {
 	switch {
 	case errors.Is(err, service.ErrInvalidCredentials),
 		errors.Is(err, service.ErrUnauthorized),
+		errors.Is(err, service.ErrInvalidSetupToken),
 		errors.Is(err, service.ErrSessionExpired),
 		errors.Is(err, service.ErrSessionRevoked),
 		errors.Is(err, service.ErrPATExpired),
@@ -62,7 +63,8 @@ func httpStatus(err error) int {
 		return http.StatusUnauthorized
 	case errors.Is(err, repository.ErrVariableNameAlreadyExists),
 		errors.Is(err, repository.ErrTagNameAlreadyExists),
-		errors.Is(err, repository.ErrUserAlreadyExists):
+		errors.Is(err, repository.ErrUserAlreadyExists),
+		errors.Is(err, service.ErrSetupAlreadyDone):
 		return http.StatusConflict
 	case errors.Is(err, service.ErrPATWriteForbidden):
 		return http.StatusForbidden
@@ -73,12 +75,17 @@ func httpStatus(err error) int {
 		errors.Is(err, types.ErrUnsupportedFileType),
 		errors.Is(err, env.ErrDuplicateVariableName),
 		errors.Is(err, service.ErrWeakPassword),
+		errors.Is(err, service.ErrPasswordTooLong),
+		errors.Is(err, service.ErrPasswordNotComplex),
 		errors.Is(err, service.ErrInvalidPATName),
 		errors.Is(err, service.ErrInvalidPATExpiration),
 		errors.Is(err, service.ErrInvalidPATScope),
 		errors.Is(err, service.ErrEnvironmentDescriptionTooLong),
 		errors.Is(err, service.ErrInvalidVariableVersion),
-		errors.Is(err, service.ErrDuplicateVariableSelection):
+		errors.Is(err, service.ErrDuplicateVariableSelection),
+		errors.Is(err, service.ErrNameTooLong),
+		errors.Is(err, service.ErrInvalidNameChars),
+		errors.Is(err, service.ErrSetupTokenNotSet):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrProjectNotFound),
 		errors.Is(err, repository.ErrEnvironmentNotFound),

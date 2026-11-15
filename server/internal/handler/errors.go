@@ -37,8 +37,13 @@ const (
 	CodeAuthSessionExpired     ErrorCode = "AUTH_SESSION_EXPIRED"
 	CodeAuthSessionRevoked     ErrorCode = "AUTH_SESSION_REVOKED"
 	CodeAuthWeakPassword       ErrorCode = "AUTH_WEAK_PASSWORD"
+	CodeAuthPasswordTooLong    ErrorCode = "AUTH_PASSWORD_TOO_LONG"
+	CodeAuthPasswordNotComplex ErrorCode = "AUTH_PASSWORD_NOT_COMPLEX"
 	CodeAuthUserExists         ErrorCode = "AUTH_USER_ALREADY_EXISTS"
 	CodeAuthUserNotFound       ErrorCode = "AUTH_USER_NOT_FOUND"
+	CodeAuthInvalidSetupToken  ErrorCode = "AUTH_INVALID_SETUP_TOKEN"
+	CodeAuthAlreadyInitialized ErrorCode = "AUTH_ALREADY_INITIALIZED"
+	CodeSetupTokenNotSet       ErrorCode = "SETUP_TOKEN_NOT_CONFIGURED"
 
 	// Personal Access Tokens
 	CodeTokenRequired          ErrorCode = "TOKEN_REQUIRED"
@@ -59,6 +64,8 @@ const (
 	CodeVariableVersionInvalid     ErrorCode = "VARIABLE_VERSION_INVALID"
 	CodeVariableSelectionDuplicate ErrorCode = "VARIABLE_SELECTION_DUPLICATE"
 	CodeVariableNameExists         ErrorCode = "VARIABLE_NAME_ALREADY_EXISTS"
+	CodeNameTooLong                ErrorCode = "NAME_TOO_LONG"
+	CodeNameInvalidChars           ErrorCode = "NAME_INVALID_CHARS"
 	CodeTagNotFound                ErrorCode = "TAG_NOT_FOUND"
 	CodeTagNameExists              ErrorCode = "TAG_NAME_ALREADY_EXISTS"
 	CodeTagNotInProject            ErrorCode = "TAG_NOT_IN_PROJECT"
@@ -83,6 +90,11 @@ var sentinelCodes = []struct {
 	{service.ErrSessionExpired, CodeAuthSessionExpired},
 	{service.ErrSessionRevoked, CodeAuthSessionRevoked},
 	{service.ErrWeakPassword, CodeAuthWeakPassword},
+	{service.ErrPasswordTooLong, CodeAuthPasswordTooLong},
+	{service.ErrPasswordNotComplex, CodeAuthPasswordNotComplex},
+	{service.ErrInvalidSetupToken, CodeAuthInvalidSetupToken},
+	{service.ErrSetupAlreadyDone, CodeAuthAlreadyInitialized},
+	{service.ErrSetupTokenNotSet, CodeSetupTokenNotSet},
 	{repository.ErrUserAlreadyExists, CodeAuthUserExists},
 	{repository.ErrUserNotFound, CodeAuthUserNotFound},
 
@@ -104,6 +116,8 @@ var sentinelCodes = []struct {
 	{service.ErrInvalidVariableVersion, CodeVariableVersionInvalid},
 	{service.ErrDuplicateVariableSelection, CodeVariableSelectionDuplicate},
 	{repository.ErrVariableNameAlreadyExists, CodeVariableNameExists},
+	{service.ErrNameTooLong, CodeNameTooLong},
+	{service.ErrInvalidNameChars, CodeNameInvalidChars},
 	{repository.ErrTagNotFound, CodeTagNotFound},
 	{repository.ErrTagNameAlreadyExists, CodeTagNameExists},
 	{repository.ErrTagNotInProject, CodeTagNotInProject},

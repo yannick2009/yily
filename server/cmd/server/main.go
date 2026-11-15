@@ -47,7 +47,7 @@ func main() {
 
 	// Services
 	auditService := service.NewAuditService(auditRepository)
-	authService := service.NewAuthService(userRepository, sessionRepository)
+	authService := service.NewAuthService(userRepository, sessionRepository, cfg.SetupToken)
 	patService := service.NewPATService(userRepository, patRepository, auditService)
 	projectService := service.NewProjectService(projectRepository, environmentRepository, tagRepository, auditService)
 	environmentService := service.NewEnvironmentService(environmentRepository, variableRepository, auditService)
@@ -72,6 +72,11 @@ func main() {
 	// Validator
 	server.Validator = NewValidator()
 
+	// Rate limiting and logging must key on the direct peer address only. Do not
+	// trust X-Forwarded-For / X-Real-IP from clients, otherwise an attacker could
+	// rotate their apparent IP and bypass the rate limiter.
+	server.IPExtractor = echo.ExtractIPDirect()
+
 	// Middleware configuration
 	server.Use(echomw.RequestLogger())                                     // Log incoming requests
 	server.Use(echomw.Recover())                                           // Recover from panics and return a 500 error
@@ -89,6 +94,7 @@ func main() {
 	authMiddleware := middleware.RequireAuth(authService, patService)
 	writeScope := middleware.RequireWriteScope()
 	sessionOnly := middleware.RequireSession()
+	csrf := middleware.RequireCSRF()
 
 	// Define API routes
 	api := server.Group("/api/v1")
@@ -101,13 +107,14 @@ func main() {
 	// Read routes: any authenticated caller (session, read PAT, write PAT).
 	readRoutes := api.Group("", authMiddleware)
 	// Write routes: session or write-scoped PAT only.
-	writeRoutes := api.Group("", authMiddleware, writeScope)
+	writeRoutes := api.Group("", authMiddleware, writeScope, csrf)
 	// Admin routes: web session only — not accessible via any PAT.
-	adminRoutes := api.Group("", authMiddleware, sessionOnly)
+	adminRoutes := api.Group("", authMiddleware, sessionOnly, csrf)
 
 	// Auth and token management (session-only)
 	adminRoutes.POST("/auth/logout", authHandler.Logout)
 	adminRoutes.GET("/auth/me", authHandler.Me)
+	adminRoutes.GET("/auth/csrf", authHandler.CSRF)
 	adminRoutes.POST("/tokens", patHandler.Create)
 	adminRoutes.GET("/tokens", patHandler.GetAll)
 	adminRoutes.POST("/tokens/:id/rotate", patHandler.Rotate)
@@ -173,7 +180,7 @@ func main() {
 	defer stop()
 
 	sc := echo.StartConfig{
-		Address: ":16529",
+		Address: ":52015",
 	}
 
 	if err := sc.Start(ctx, server); err != nil && !errors.Is(err, http.ErrServerClosed) {

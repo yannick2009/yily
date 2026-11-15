@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/authctx"
+	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/httputil"
 	"github.com/yannick2009/yily/internal/service"
@@ -19,6 +20,7 @@ type AuthHandler interface {
 	Logout(c *echo.Context) error
 	Me(c *echo.Context) error
 	Status(c *echo.Context) error
+	CSRF(c *echo.Context) error
 }
 
 // authHandler handles HTTP requests for authentication and server-side sessions.
@@ -34,9 +36,11 @@ func NewAuthHandler(authService service.AuthService, audit service.AuditService)
 
 // setupRequest represents the JSON body for creating the initial Super Admin account.
 type setupRequest struct {
-	Name     string `json:"name" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
+	Name       string `json:"name" validate:"required"`
+	Email      string `json:"email" validate:"required,email"`
+	Password   string `json:"password" validate:"required,min=12,max=128"`
+	Confirm    string `json:"confirm" validate:"required,eqfield=Password"`
+	SetupToken string `json:"setup_token" validate:"required"`
 }
 
 // loginRequest represents the JSON body for authenticating the Super Admin.
@@ -52,7 +56,7 @@ func (h *authHandler) Setup(c *echo.Context) error {
 		return nil
 	}
 
-	user, err := h.authService.Setup(c.Request().Context(), req.Name, req.Email, req.Password)
+	user, err := h.authService.Setup(c.Request().Context(), req.Name, req.Email, req.Password, req.SetupToken)
 	if err != nil {
 		return respondError(c, err)
 	}
@@ -96,13 +100,16 @@ func (h *authHandler) Login(c *echo.Context) error {
 		MaxAge:   maxAge,
 		HttpOnly: true,
 		Secure:   isHTTPSRequest(c),
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	ctx := authctx.WithAuthenticatedIdentity(c.Request().Context(), user, session)
 	_ = h.audit.Record(ctx, types.ActionSignedIn, "", "", "", nil)
 
-	return httputil.NewHTTPResponse(c, http.StatusOK, "Login successful", user)
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Login successful", struct {
+		User      *model.User `json:"user"`
+		CSRFToken string      `json:"csrf_token"`
+	}{User: user, CSRFToken: session.CSRFToken})
 }
 
 // Logout handles POST /auth/logout to revoke the current server-side session and expire the client cookie.
@@ -122,7 +129,7 @@ func (h *authHandler) Logout(c *echo.Context) error {
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   isHTTPSRequest(c),
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	if err != nil {
@@ -156,18 +163,22 @@ func (h *authHandler) Status(c *echo.Context) error {
 	}{Initialized: initialized})
 }
 
-// isHTTPSRequest reports whether the request uses HTTPS directly via TLS or through a reverse proxy setting X-Forwarded-Proto: https.
+// CSRF handles GET /auth/csrf to return the current session's CSRF token so the
+// SPA can send it back on mutations after a page reload.
+func (h *authHandler) CSRF(c *echo.Context) error {
+	session, ok := authctx.AuthenticatedSessionFromContext(c.Request().Context())
+	if !ok || session.CSRFToken == "" {
+		return respondError(c, service.ErrUnauthorized)
+	}
+
+	return httputil.NewHTTPResponse(c, http.StatusOK, "CSRF token retrieved", struct {
+		CSRFToken string `json:"csrf_token"`
+	}{CSRFToken: session.CSRFToken})
+}
+
+// isHTTPSRequest reports whether the request uses HTTPS. It delegates to the
+// request scheme resolver, which honors X-Forwarded-Proto only when the direct
+// peer is a trusted (loopback/private) address — never for arbitrary clients.
 func isHTTPSRequest(c *echo.Context) bool {
-	if c.Request().TLS != nil {
-		return true
-	}
-
-	if forwardedProto := c.Request().Header.Get("X-Forwarded-Proto"); forwardedProto != "" {
-		firstProto, _, _ := strings.Cut(forwardedProto, ",")
-		if strings.EqualFold(strings.TrimSpace(firstProto), "https") {
-			return true
-		}
-	}
-
 	return strings.EqualFold(c.Scheme(), "https")
 }

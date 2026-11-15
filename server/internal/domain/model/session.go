@@ -12,6 +12,7 @@ type Session struct {
 	ID             id.ID      `gorm:"primaryKey;type:text" json:"id"`                 // Unique identifier for the session
 	UserID         id.ID      `gorm:"not null;index;type:text" json:"user_id"`        // Foreign key referencing the associated user
 	TokenHash      string     `gorm:"type:varchar(64);not null;uniqueIndex" json:"-"` // SHA-256 hex digest of the session token (never serialized)
+	CSRFToken      string     `gorm:"type:varchar(64)" json:"-"`                      // CSRF token for web-UI mutations; stored in plaintext because it is only usable together with this session's cookie and must be recoverable on page reloads (never serialized)
 	CreatedAt      time.Time  `gorm:"autoCreateTime" json:"created_at"`               // Timestamp when the session was created
 	LastActivityAt time.Time  `gorm:"not null" json:"last_activity_at"`               // Timestamp of the last authenticated activity
 	ExpiresAt      time.Time  `gorm:"not null;index" json:"expires_at"`               // Timestamp when the session expires

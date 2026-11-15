@@ -7,8 +7,22 @@
 // HttpOnly `yily_session` cookie set by the server.
 
 // BASE_URL points at the Vite dev proxy (see vite.config.ts), which forwards
-// /api → http://localhost:16529 in development.
+// /api → http://localhost:52015 in development.
 const BASE_URL = "/api/v1";
+
+// In-memory CSRF token for the current session. It is fetched once per page
+// load (and again on login) and sent back on every state-changing request.
+let csrfToken: string | null = null;
+
+// setCSRFToken stores the CSRF token for the rest of the page lifetime.
+export function setCSRFToken(token: string): void {
+  csrfToken = token;
+}
+
+// clearCSRFToken forgets the CSRF token (e.g. on logout).
+export function clearCSRFToken(): void {
+  csrfToken = null;
+}
 
 // ApiError is thrown for any non-2xx response. `code` is a stable
 // server-side identifier (e.g. "AUTH_INVALID_CREDENTIALS") used by the UI to
@@ -45,10 +59,14 @@ async function parseEnvelope<T>(res: Response): Promise<Envelope<T> | null> {
 
 // Build request headers, adding a JSON content-type only when a body is set
 // and the caller did not already choose one (multipart forms must set their own).
-function buildHeaders(init: RequestInit): Record<string, string> {
+// On state-changing requests the CSRF token is added as a custom header.
+function buildHeaders(method: string, init: RequestInit): Record<string, string> {
   const headers: Record<string, string> = {
     ...(init.headers as Record<string, string> | undefined),
   };
+  if (csrfToken && method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+    headers["X-CSRF-Token"] = csrfToken;
+  }
   if (init.body && !headers["Content-Type"] && !(init.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
@@ -62,7 +80,7 @@ export async function request<T>(method: string, path: string, init: RequestInit
     method,
     credentials: "include",
     cache: "no-store",
-    headers: buildHeaders(init),
+    headers: buildHeaders(method, init),
   });
 
   const envelope = await parseEnvelope<T>(res);

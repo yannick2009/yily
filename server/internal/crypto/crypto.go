@@ -101,5 +101,5 @@ func Decrypt(payload string, masterKey []byte, variableID id.ID, version int) (s
 
 // buildAAD constructs the authenticated data bound to a variable and its version.
 func buildAAD(variableID id.ID, version int) []byte {
-	return []byte(fmt.Sprintf("yily:%s:%d", variableID, version))
+	return fmt.Appendf(nil, "yily:%s:%d", variableID, version)
 }

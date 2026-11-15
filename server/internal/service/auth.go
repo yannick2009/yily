@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"strings"
 	"sync"
@@ -16,19 +17,25 @@ const (
 	DefaultSessionTTL         = 24 * time.Hour // DefaultSessionTTL is the default maximum session lifetime.
 	DefaultSessionIdleTimeout = 2 * time.Hour  // DefaultSessionIdleTimeout is the default maximum session inactivity duration.
 	MinPasswordLength         = 12             // MinPasswordLength is the minimum Super Admin password length.
+	MaxPasswordLength         = 128            // MaxPasswordLength is the maximum Super Admin password length.
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")                    // ErrInvalidCredentials is returned when login email or password verification fails.
-	ErrWeakPassword       = errors.New("password must be at least 12 characters long") // ErrWeakPassword is returned when the provided password is shorter than MinPasswordLength.
-	ErrUnauthorized       = errors.New("unauthorized")                                 // ErrUnauthorized is returned when a request lacks a valid session or PAT.
-	ErrSessionExpired     = errors.New("session expired")                              // ErrSessionExpired is returned when a session has exceeded its TTL or idle timeout.
-	ErrSessionRevoked     = errors.New("session revoked")                              // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
+	ErrInvalidCredentials = errors.New("invalid email or password")                                                                                      // ErrInvalidCredentials is returned when login email or password verification fails.
+	ErrWeakPassword       = errors.New("password must be at least 12 characters long")                                                                   // ErrWeakPassword is returned when the provided password is shorter than MinPasswordLength.
+	ErrPasswordTooLong    = errors.New("password must be at most 128 characters long")                                                                   // ErrPasswordTooLong is returned when the provided password is longer than MaxPasswordLength.
+	ErrPasswordNotComplex = errors.New("password must contain at least one uppercase letter, one lowercase letter, one digit and one special character") // ErrPasswordNotComplex is returned when the password fails the character-class complexity policy.
+	ErrUnauthorized       = errors.New("unauthorized")                                                                                                   // ErrUnauthorized is returned when a request lacks a valid session or PAT.
+	ErrSessionExpired     = errors.New("session expired")                                                                                                // ErrSessionExpired is returned when a session has exceeded its TTL or idle timeout.
+	ErrSessionRevoked     = errors.New("session revoked")                                                                                                // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
+	ErrInvalidSetupToken  = errors.New("invalid setup token")                                                                                            // ErrInvalidSetupToken is returned when the first-run setup token is missing or wrong.
+	ErrSetupAlreadyDone   = errors.New("setup has already been completed")                                                                               // ErrSetupAlreadyDone is returned when setup is attempted after the Super Admin already exists.
+	ErrSetupTokenNotSet   = errors.New("setup token is not configured; set YILY_SETUP_TOKEN")                                                            // ErrSetupTokenNotSet is returned when setup is attempted on an uninitialized instance without a configured setup token.
 )
 
 // AuthService defines the interface for Super Admin authentication and server-side session management.
 type AuthService interface {
-	Setup(ctx context.Context, name, email, password string) (*model.User, error)                                     // Setup creates the initial Super Admin account.
+	Setup(ctx context.Context, name, email, password, setupToken string) (*model.User, error)                         // Setup creates the initial Super Admin account, gated by the out-of-band setup token.
 	Login(ctx context.Context, email, password, existingRawToken string) (string, *model.Session, *model.User, error) // Login verifies credentials, rotates any prior session, and issues a new session.
 	ValidateSession(ctx context.Context, rawToken string) (*model.User, *model.Session, error)                        // ValidateSession verifies a raw session token against its stored SHA-256 hash and loads the owning user.
 	Logout(ctx context.Context, rawToken string) error                                                                // Logout revokes a server-side session by hashing its raw token.
@@ -49,18 +56,19 @@ type authService struct {
 	sessionTTL        time.Duration                // sessionTTL is the absolute session expiration duration.
 	idleTimeout       time.Duration                // idleTimeout is the session inactivity timeout duration.
 	nowFunc           func() time.Time             // nowFunc returns the current UTC timestamp.
+	setupToken        string                       // setupToken is the out-of-band secret required to create the initial Super Admin.
 
 	dummyOnce sync.Once // dummyOnce ensures dummyHash is computed at most once.
 	dummyHash string    // dummyHash is a pre-computed Argon2id PHC hash used when login email is not found to equalize response time and prevent timing-based email enumeration.
 }
 
 // NewAuthService creates a new AuthService with default session TTL and inactivity settings.
-func NewAuthService(userRepository repository.UserRepository, sessionRepository repository.SessionRepository) AuthService {
-	return NewAuthServiceWithConfig(userRepository, sessionRepository, AuthConfig{})
+func NewAuthService(userRepository repository.UserRepository, sessionRepository repository.SessionRepository, setupToken string) AuthService {
+	return NewAuthServiceWithConfig(userRepository, sessionRepository, setupToken, AuthConfig{})
 }
 
 // NewAuthServiceWithConfig creates a new AuthService with custom session TTL, idle timeout, and clock function.
-func NewAuthServiceWithConfig(userRepository repository.UserRepository, sessionRepository repository.SessionRepository, cfg AuthConfig) AuthService {
+func NewAuthServiceWithConfig(userRepository repository.UserRepository, sessionRepository repository.SessionRepository, setupToken string, cfg AuthConfig) AuthService {
 	ttl := cfg.SessionTTL
 	if ttl <= 0 {
 		ttl = DefaultSessionTTL
@@ -80,6 +88,7 @@ func NewAuthServiceWithConfig(userRepository repository.UserRepository, sessionR
 		sessionTTL:        ttl,
 		idleTimeout:       idle,
 		nowFunc:           nowFn,
+		setupToken:        setupToken,
 	}
 }
 
@@ -94,10 +103,32 @@ func (s *authService) getDummyHash() string {
 	return s.dummyHash
 }
 
-// Setup creates the single Super Admin account with a normalized lowercase email and an Argon2id password hash.
-func (s *authService) Setup(ctx context.Context, name, email, password string) (*model.User, error) {
+// Setup creates the single Super Admin account with a normalized lowercase email and an Argon2id password hash. It is gated by the out-of-band setup token and only allowed while the instance is uninitialized.
+func (s *authService) Setup(ctx context.Context, name, email, password, setupToken string) (*model.User, error) {
+	initialized, err := s.IsInitialized(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if initialized {
+		return nil, ErrSetupAlreadyDone
+	}
+
+	if s.setupToken == "" {
+		return nil, ErrSetupTokenNotSet
+	}
+
+	if subtle.ConstantTimeCompare([]byte(setupToken), []byte(s.setupToken)) != 1 {
+		return nil, ErrInvalidSetupToken
+	}
+
 	if len(password) < MinPasswordLength {
 		return nil, ErrWeakPassword
+	}
+	if len(password) > MaxPasswordLength {
+		return nil, ErrPasswordTooLong
+	}
+	if !crypto.IsStrongPassword(password) {
+		return nil, ErrPasswordNotComplex
 	}
 
 	passwordHash, err := crypto.HashPassword(password)
@@ -155,9 +186,15 @@ func (s *authService) Login(ctx context.Context, email, password, existingRawTok
 		return "", nil, nil, err
 	}
 
+	csrfToken, err := crypto.GenerateCSRFToken()
+	if err != nil {
+		return "", nil, nil, err
+	}
+
 	session := &model.Session{
 		UserID:         user.ID,
 		TokenHash:      tokenHash,
+		CSRFToken:      csrfToken,
 		CreatedAt:      now,
 		LastActivityAt: now,
 		ExpiresAt:      now.Add(s.sessionTTL),

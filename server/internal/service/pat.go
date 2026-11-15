@@ -132,6 +132,9 @@ func (s *patService) Rotate(ctx context.Context, userID id.ID, patID id.ID, ttl 
 	if existing.UserID != userID {
 		return "", nil, repository.ErrPATNotFound
 	}
+	if existing.IsRevoked() {
+		return "", nil, ErrPATRevoked
+	}
 
 	// Write-scoped tokens must expire to limit exposure if leaked; read-only tokens may live forever.
 	if ttl == 0 && existing.Scope == types.PATScopeWrite {

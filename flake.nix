@@ -318,7 +318,7 @@
             Cmd = [ "${yily}/bin/${name}" ];
             WorkingDir = "/data"; # SQLite lives in /data/instance.
             ExposedPorts = {
-              "16529/tcp" = { };
+              "52015/tcp" = { };
             };
             Volumes = {
               "/data" = { }; # Persist the database across containers.

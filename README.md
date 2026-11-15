@@ -44,7 +44,10 @@ The `client` contains the web interface, while the `server` contains the API, th
 A `linux/amd64` image is published to the GitHub Container Registry. Generate the master key once and keep it somewhere safe — if it is lost, the stored secrets become unrecoverable:
 
 ```bash
-echo "YILY_MASTER_KEY=$(openssl rand -base64 32)" > yily.env
+{
+  echo "YILY_MASTER_KEY=$(openssl rand -base64 32)"
+  echo "YILY_SETUP_TOKEN=$(openssl rand -base64 32)"
+} > yily.env
 chmod 600 yily.env
 ```
 
@@ -54,13 +57,13 @@ Run the container:
 docker run -d \
   --name yily \
   --restart unless-stopped \
-  -p 16529:16529 \
+  -p 52015:52015 \
   -v yily-data:/data \
   --env-file yily.env \
   ghcr.io/yannick2009/yily:1.0.0-beta.1
 ```
 
-The server listens on port `16529` and serves the web interface at `http://localhost:16529`. Its SQLite database lives in the `yily-data` volume under `/data/instance`. Keep both the volume and `yily.env` safe.
+The server listens on port `52015` and serves the web interface at `http://localhost:52015`. Its SQLite database lives in the `yily-data` volume under `/data/instance`. On first launch, open the web interface and complete setup using the `YILY_SETUP_TOKEN` from `yily.env`. Keep both the volume and `yily.env` safe.
 
 With Docker Compose:
 
@@ -71,7 +74,7 @@ services:
     container_name: yily
     restart: unless-stopped
     ports:
-      - "16529:16529"
+      - "52015:52015"
     volumes:
       - yily-data:/data
     env_file:
@@ -104,7 +107,10 @@ chmod -R u+w dist  # the web client is read-only in the archive
 Generate the master key once and keep it safe — if it is lost, the stored secrets become unrecoverable:
 
 ```bash
-echo "YILY_MASTER_KEY=$(openssl rand -base64 32)" > yily.env
+{
+  echo "YILY_MASTER_KEY=$(openssl rand -base64 32)"
+  echo "YILY_SETUP_TOKEN=$(openssl rand -base64 32)"
+} > yily.env
 chmod 600 yily.env
 ```
 
@@ -117,7 +123,7 @@ set +a
 ./yily
 ```
 
-The server listens on `http://localhost:16529`. Its SQLite database is created in `instance/` under the working directory. To upgrade, extract the new archive elsewhere and copy `yily` and `dist/` into the existing directory, keeping `instance/` and `yily.env`. If a `dist/` directory is read-only (older archives), run `chmod -R u+w dist` first. For a long-running service, run it under systemd or another process manager with the extracted directory as `WorkingDirectory`.
+The server listens on `http://localhost:52015`. Its SQLite database is created in `instance/` under the working directory. On first launch, complete setup using the `YILY_SETUP_TOKEN` from `yily.env`. To upgrade, extract the new archive elsewhere and copy `yily` and `dist/` into the existing directory, keeping `instance/` and `yily.env`. If a `dist/` directory is read-only (older archives), run `chmod -R u+w dist` first. For a long-running service, run it under systemd or another process manager with the extracted directory as `WorkingDirectory`.
 
 ### CLI
 
@@ -192,7 +198,7 @@ Yily encrypts secret values at rest using AES-256-GCM. The server requires a 32-
      ```bash
      export YILY_MASTER_KEY="<your-generated-base64-key>"
      ```
-   **Local development with Air:** from the `server` directory, copy `.env.example` to `.env` and set `YILY_MASTER_KEY`. Air loads `.env` into the process environment when running `air`.
+   **Local development with Air:** from the `server` directory, copy `.env.example` to `.env` and set `YILY_MASTER_KEY` and `YILY_SETUP_TOKEN`. Air loads `.env` into the process environment when running `air`.
    > **Note:** The Go binary reads `YILY_MASTER_KEY` directly from process environment variables via `os.LookupEnv`. If running without Air (e.g. `go run ./cmd/server` or `./tmp/server`), export the variable in your shell.
 
 3. **Important precautions:**
@@ -200,6 +206,25 @@ Yily encrypts secret values at rest using AES-256-GCM. The server requires a 32-
    - **Backup securely:** Store `YILY_MASTER_KEY` in a secure location separate from the SQLite database.
    - **Unrecoverable on loss:** If the master key is lost, all encrypted secrets become permanently unrecoverable.
    - **Persistence:** Do not generate a new key on every restart; reuse the same key to retain access to existing data.
+
+### Setup Token (`YILY_SETUP_TOKEN`)
+
+Yily locks first-run account creation behind an out-of-band secret so that anyone who reaches the instance before you cannot register as Super Admin. Provide it through the `YILY_SETUP_TOKEN` environment variable.
+
+1. **Generate a token:**
+   ```bash
+   openssl rand -base64 32
+   ```
+
+2. **Configure the token:**
+   - **Environment variable:** set `YILY_SETUP_TOKEN` in your environment or process manager, next to `YILY_MASTER_KEY`.
+   - **PaaS (Railway, Render, …):** use the platform's secret generator for the variable — it creates and stores the value for you. Copy it from the platform's variables dashboard when the setup form asks for it.
+   - **Local development with Air:** set `YILY_SETUP_TOKEN` in the `.env` copied from `.env.example`.
+
+3. **Lifecycle:**
+   - The token is required only for the **first-run setup** (creating the initial Super Admin). Enter it in the setup form.
+   - Once the Super Admin exists, `/auth/setup` is locked and the token is no longer needed. You can remove `YILY_SETUP_TOKEN` from the environment afterwards without affecting restarts.
+   - A fresh instance without `YILY_SETUP_TOKEN` still starts, but setup is refused until the variable is set.
 
 ## License
 
