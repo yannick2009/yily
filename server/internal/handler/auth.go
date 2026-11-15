@@ -157,18 +157,9 @@ func (h *authHandler) Status(c *echo.Context) error {
 	}{Initialized: initialized})
 }
 
-// isHTTPSRequest reports whether the request uses HTTPS directly via TLS or through a reverse proxy setting X-Forwarded-Proto: https.
+// isHTTPSRequest reports whether the request uses HTTPS. It delegates to the
+// request scheme resolver, which honors X-Forwarded-Proto only when the direct
+// peer is a trusted (loopback/private) address — never for arbitrary clients.
 func isHTTPSRequest(c *echo.Context) bool {
-	if c.Request().TLS != nil {
-		return true
-	}
-
-	if forwardedProto := c.Request().Header.Get("X-Forwarded-Proto"); forwardedProto != "" {
-		firstProto, _, _ := strings.Cut(forwardedProto, ",")
-		if strings.EqualFold(strings.TrimSpace(firstProto), "https") {
-			return true
-		}
-	}
-
 	return strings.EqualFold(c.Scheme(), "https")
 }
