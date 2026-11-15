@@ -123,7 +123,7 @@ func (h *authHandler) Logout(c *echo.Context) error {
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   isHTTPSRequest(c),
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	if err != nil {
