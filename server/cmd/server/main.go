@@ -72,6 +72,11 @@ func main() {
 	// Validator
 	server.Validator = NewValidator()
 
+	// Rate limiting and logging must key on the direct peer address only. Do not
+	// trust X-Forwarded-For / X-Real-IP from clients, otherwise an attacker could
+	// rotate their apparent IP and bypass the rate limiter.
+	server.IPExtractor = echo.ExtractIPDirect()
+
 	// Middleware configuration
 	server.Use(echomw.RequestLogger())                                     // Log incoming requests
 	server.Use(echomw.Recover())                                           // Recover from panics and return a 500 error
