@@ -328,12 +328,9 @@ func (s *authService) Recover(ctx context.Context, recoveryCode, newPassword str
 		return "", err
 	}
 
-	if err := s.userRepository.UpdateCredentials(ctx, user.ID, newPasswordHash, newRecoveryCodeHash); err != nil {
+	if err := s.userRepository.ResetCredentials(ctx, user.ID, newPasswordHash, newRecoveryCodeHash, s.nowFunc().UTC()); err != nil {
 		return "", err
 	}
-
-	// Kill every existing session so a stolen cookie cannot outlive the old password.
-	_ = s.sessionRepository.RevokeAll(ctx, s.nowFunc().UTC())
 
 	return newRecoveryCode, nil
 }

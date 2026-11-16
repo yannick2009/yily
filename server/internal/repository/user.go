@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/id"
@@ -16,12 +17,12 @@ var (
 
 // UserRepository defines the interface for user persistence.
 type UserRepository interface {
-	Create(ctx context.Context, user *model.User) error                                               // Create persists the single Super Admin user if none exists yet.
-	GetByEmail(ctx context.Context, email string) (*model.User, error)                                // GetByEmail retrieves the Super Admin by normalized lowercase email during login.
-	GetByID(ctx context.Context, userID id.ID) (*model.User, error)                                   // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
-	Count(ctx context.Context) (int64, error)                                                         // Count returns how many Super Admin accounts exist (0 or 1 by design).
-	GetAdmin(ctx context.Context) (*model.User, error)                                                // GetAdmin returns the single Super Admin account.
-	UpdateCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string) error // UpdateCredentials updates the password and recovery code hashes.
+	Create(ctx context.Context, user *model.User) error                                                                   // Create persists the single Super Admin user if none exists yet.
+	GetByEmail(ctx context.Context, email string) (*model.User, error)                                                    // GetByEmail retrieves the Super Admin by normalized lowercase email during login.
+	GetByID(ctx context.Context, userID id.ID) (*model.User, error)                                                       // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
+	Count(ctx context.Context) (int64, error)                                                                             // Count returns how many Super Admin accounts exist (0 or 1 by design).
+	GetAdmin(ctx context.Context) (*model.User, error)                                                                    // GetAdmin returns the single Super Admin account.
+	ResetCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string, revokedAt time.Time) error // ResetCredentials atomically replaces the password and recovery code hashes and revokes every active session and PAT.
 }
 
 // userRepository implements UserRepository.
@@ -101,13 +102,30 @@ func (r *userRepository) GetAdmin(ctx context.Context) (*model.User, error) {
 	return user, nil
 }
 
-// UpdateCredentials updates the password and recovery code hashes of the Super Admin.
-func (r *userRepository) UpdateCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string) error {
-	return r.DB.WithContext(ctx).
-		Model(&model.User{}).
-		Where("id = ?", userID).
-		Updates(map[string]any{
-			"password_hash":      passwordHash,
-			"recovery_code_hash": recoveryCodeHash,
-		}).Error
+// ResetCredentials replaces the password and recovery code hashes of the Super
+// Admin and revokes every active session and every unexpired Personal Access
+// Token, in a single transaction: either the whole reset applies or nothing
+// changes. Nothing obtained under the old password (a stolen session cookie, or
+// a token minted with it) can outlive the reset.
+func (r *userRepository) ResetCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string, revokedAt time.Time) error {
+	return r.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.User{}).
+			Where("id = ?", userID).
+			Updates(map[string]any{
+				"password_hash":      passwordHash,
+				"recovery_code_hash": recoveryCodeHash,
+			}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&model.Session{}).
+			Where("revoked_at IS NULL").
+			Update("revoked_at", revokedAt).Error; err != nil {
+			return err
+		}
+
+		return tx.Model(&model.PersonalAccessToken{}).
+			Where("user_id = ? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)", userID, revokedAt).
+			Update("revoked_at", revokedAt).Error
+	})
 }
