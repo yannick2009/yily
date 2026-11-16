@@ -119,12 +119,12 @@ func auditCSV(events []model.AuditEvent) ([]byte, error) {
 	for _, e := range events {
 		if err := w.Write([]string{
 			e.CreatedAt.UTC().Format(time.RFC3339),
-			e.ActorType,
-			e.ActorName,
-			e.Action,
-			e.ResourceType,
-			e.ResourceName,
-			e.Metadata,
+			csvSafe(e.ActorType),
+			csvSafe(e.ActorName),
+			csvSafe(e.Action),
+			csvSafe(e.ResourceType),
+			csvSafe(e.ResourceName),
+			csvSafe(e.Metadata),
 		}); err != nil {
 			return nil, err
 		}
@@ -134,6 +134,22 @@ func auditCSV(events []model.AuditEvent) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// csvSafe neutralizes spreadsheet formula injection. Excel, LibreOffice and
+// Google Sheets evaluate a cell starting with '=', '+', '-', '@', a tab or a
+// carriage return as a formula when the CSV is opened, and resource names are
+// user-controlled (e.g. a project named "=HYPERLINK(...)"). A leading single
+// quote makes the spreadsheet treat the cell as plain text.
+func csvSafe(s string) string {
+	if s == "" {
+		return s
+	}
+	switch s[0] {
+	case '=', '+', '-', '@', '\t', '\r':
+		return "'" + s
+	}
+	return s
 }
 
 // parseIntParam parses an integer query parameter, falling back to def on any error.
