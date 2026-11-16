@@ -124,7 +124,7 @@ const messages: Record<LangCode, Messages> = {
     "recover.submit": "Reset password",
     "recover.back": "Back to sign in",
     "recover.success":
-      "Password reset. A new recovery code was downloaded. Save it and sign in with your new password.",
+      "Password reset. A new recovery code was downloaded. Save it and sign in with your new password. All sessions and access tokens were revoked: create new tokens for your CLI and CI.",
     "recoveryCode.title": "Your recovery code",
     "recoveryCode.body":
       "A file with your recovery code (yily-recovery-code.txt) was downloaded. Keep it safe. It is the only way to reset your password if you forget it.",
@@ -478,7 +478,7 @@ const messages: Record<LangCode, Messages> = {
     "recover.submit": "Réinitialiser",
     "recover.back": "Retour à la connexion",
     "recover.success":
-      "Mot de passe réinitialisé. Un nouveau code de récupération a été téléchargé. Conservez-le et connectez-vous avec votre nouveau mot de passe.",
+      "Mot de passe réinitialisé. Un nouveau code de récupération a été téléchargé. Conservez-le et connectez-vous avec votre nouveau mot de passe. Toutes les sessions et tous les jetons d'accès ont été révoqués : créez de nouveaux jetons pour votre CLI et votre CI.",
     "recoveryCode.title": "Votre code de récupération",
     "recoveryCode.body":
       "Un fichier avec votre code de récupération (yily-recovery-code.txt) a été téléchargé. Conservez-le précieusement. C'est le seul moyen de réinitialiser votre mot de passe en cas d'oubli.",
@@ -830,7 +830,7 @@ const messages: Record<LangCode, Messages> = {
     "recover.submit": "Restablecer contraseña",
     "recover.back": "Volver a iniciar sesión",
     "recover.success":
-      "Contraseña restablecida. Se descargó un nuevo código de recuperación. Guárdalo e inicia sesión con tu nueva contraseña.",
+      "Contraseña restablecida. Se descargó un nuevo código de recuperación. Guárdalo e inicia sesión con tu nueva contraseña. Se revocaron todas las sesiones y todos los tokens de acceso: crea nuevos tokens para tu CLI y tu CI.",
     "recoveryCode.title": "Tu código de recuperación",
     "recoveryCode.body":
       "Se descargó un archivo con tu código de recuperación (yily-recovery-code.txt). Guárdalo en un lugar seguro. Es la única forma de restablecer tu contraseña si la olvidas.",
@@ -1181,7 +1181,7 @@ const messages: Record<LangCode, Messages> = {
     "recover.submit": "Passwort zurücksetzen",
     "recover.back": "Zurück zur Anmeldung",
     "recover.success":
-      "Passwort zurückgesetzt. Ein neuer Wiederherstellungscode wurde heruntergeladen. Speichere ihn und melde dich mit deinem neuen Passwort an.",
+      "Passwort zurückgesetzt. Ein neuer Wiederherstellungscode wurde heruntergeladen. Speichere ihn und melde dich mit deinem neuen Passwort an. Alle Sitzungen und Zugriffstokens wurden widerrufen: Erstelle neue Tokens für deine CLI und CI.",
     "recoveryCode.title": "Dein Wiederherstellungscode",
     "recoveryCode.body":
       "Eine Datei mit deinem Wiederherstellungscode (yily-recovery-code.txt) wurde heruntergeladen. Bewahre sie sicher auf. Sie ist die einzige Möglichkeit, dein Passwort zurückzusetzen, wenn du es vergisst.",
@@ -1536,7 +1536,7 @@ const messages: Record<LangCode, Messages> = {
     "recover.submit": "Reimposta password",
     "recover.back": "Torna all'accesso",
     "recover.success":
-      "Password reimpostata. È stato scaricato un nuovo codice di recupero. Salvalo e accedi con la nuova password.",
+      "Password reimpostata. È stato scaricato un nuovo codice di recupero. Salvalo e accedi con la nuova password. Tutte le sessioni e tutti i token di accesso sono stati revocati: crea nuovi token per la CLI e la CI.",
     "recoveryCode.title": "Il tuo codice di recupero",
     "recoveryCode.body":
       "È stato scaricato un file con il tuo codice di recupero (yily-recovery-code.txt). Conservalo al sicuro. È l'unico modo per reimpostare la password se la dimentichi.",
@@ -1888,7 +1888,7 @@ const messages: Record<LangCode, Messages> = {
     "recover.submit": "Redefinir senha",
     "recover.back": "Voltar para entrar",
     "recover.success":
-      "Senha redefinida. Um novo código de recuperação foi baixado. Guarde-o e entre com sua nova senha.",
+      "Senha redefinida. Um novo código de recuperação foi baixado. Guarde-o e entre com sua nova senha. Todas as sessões e todos os tokens de acesso foram revogados: crie novos tokens para sua CLI e sua CI.",
     "recoveryCode.title": "Seu código de recuperação",
     "recoveryCode.body":
       "Um arquivo com seu código de recuperação (yily-recovery-code.txt) foi baixado. Guarde-o em local seguro. É a única forma de redefinir sua senha se você esquecê-la.",
@@ -2237,7 +2237,7 @@ const messages: Record<LangCode, Messages> = {
     "recover.submit": "Сбросить пароль",
     "recover.back": "Вернуться ко входу",
     "recover.success":
-      "Пароль сброшен. Скачан новый код восстановления. Сохраните его и войдите с новым паролем.",
+      "Пароль сброшен. Скачан новый код восстановления. Сохраните его и войдите с новым паролем. Все сеансы и токены доступа отозваны: создайте новые токены для CLI и CI.",
     "recoveryCode.title": "Ваш код восстановления",
     "recoveryCode.body":
       "Скачан файл с кодом восстановления (yily-recovery-code.txt). Храните его в надёжном месте. Это единственный способ сбросить пароль, если вы его забудете.",
@@ -2588,7 +2588,8 @@ const messages: Record<LangCode, Messages> = {
     "recover.codeRequired": "请输入您的恢复代码。",
     "recover.submit": "重置密码",
     "recover.back": "返回登录",
-    "recover.success": "密码已重置。已下载新的恢复代码。请妥善保存，然后使用新密码登录。",
+    "recover.success":
+      "密码已重置。已下载新的恢复代码。请妥善保存，然后使用新密码登录。所有会话和访问令牌均已撤销：请为 CLI 和 CI 创建新的令牌。",
     "recoveryCode.title": "您的恢复代码",
     "recoveryCode.body":
       "已下载包含恢复代码的文件（yily-recovery-code.txt）。请妥善保存。这是忘记密码时重置密码的唯一方式。",
@@ -2929,7 +2930,7 @@ const messages: Record<LangCode, Messages> = {
     "recover.submit": "パスワードをリセット",
     "recover.back": "サインインに戻る",
     "recover.success":
-      "パスワードをリセットしました。新しいリカバリーコードがダウンロードされました。保存して、新しいパスワードでサインインしてください。",
+      "パスワードをリセットしました。新しいリカバリーコードがダウンロードされました。保存して、新しいパスワードでサインインしてください。すべてのセッションとアクセストークンが取り消されました。CLI と CI 用に新しいトークンを作成してください。",
     "recoveryCode.title": "リカバリーコード",
     "recoveryCode.body":
       "リカバリーコードを含むファイル（yily-recovery-code.txt）がダウンロードされました。安全な場所に保管してください。パスワードを忘れた場合、これがリセットする唯一の手段です。",
@@ -3280,7 +3281,7 @@ const messages: Record<LangCode, Messages> = {
     "recover.submit": "비밀번호 재설정",
     "recover.back": "로그인으로 돌아가기",
     "recover.success":
-      "비밀번호가 재설정되었습니다. 새 복구 코드가 다운로드되었습니다. 저장한 후 새 비밀번호로 로그인하세요.",
+      "비밀번호가 재설정되었습니다. 새 복구 코드가 다운로드되었습니다. 저장한 후 새 비밀번호로 로그인하세요. 모든 세션과 액세스 토큰이 취소되었습니다. CLI와 CI용 새 토큰을 만드세요.",
     "recoveryCode.title": "복구 코드",
     "recoveryCode.body":
       "복구 코드가 포함된 파일(yily-recovery-code.txt)이 다운로드되었습니다. 안전한 곳에 보관하세요. 비밀번호를 잊으면 이를 재설정하는 유일한 방법입니다.",

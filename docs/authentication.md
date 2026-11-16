@@ -4,11 +4,15 @@
 
 Yily implements a self-contained, zero-external-dependency authentication and authorization system. It does not rely on third-party identity providers, OAuth, or external SMTP servers.
 
-The system serves two distinct access models:
-1. **Web Interface**: State-managed server-side sessions via secure, `HttpOnly` HTTP cookies.
-2. **Programmatic / API Access**: Stateless Personal Access Tokens (PAT) transmitted via `Authorization: Bearer yily_<token>`.
+Access is restricted to a single account: the **Super Admin**. That account is reached through two access models:
 
-Access is restricted to a single account: the **Super Admin**.
+1. **Web Interface**: server-side sessions carried by an `HttpOnly` cookie, with a per-session CSRF token for state-changing requests.
+2. **Programmatic / API Access**: Personal Access Tokens (PAT) sent as `Authorization: Bearer yily_<token>`, each scoped to `read` or `write`.
+
+Two out-of-band secrets complete the model:
+
+* **Setup token** (`YILY_SETUP_TOKEN`): required once, to create the Super Admin on a fresh instance.
+* **Recovery code**: issued at setup, used to reset a forgotten password. It is single-use and replaced on every reset.
 
 ---
 
@@ -17,151 +21,151 @@ Access is restricted to a single account: the **Super Admin**.
 | Parameter | Specification | Rationale |
 | :--- | :--- | :--- |
 | **Password Hashing** | **Argon2id** (RFC 9106) | Memory-hard, side-channel resistant password hashing algorithm. |
-| **Argon2id Cost** | `t=3, m=64MB, p=4, keyLen=32` | Recommended OWASP baseline balancing verification speed and brute-force resistance. |
-| **Salt** | 16 bytes (128 bits) | Cryptographically random (`crypto/rand`), generated uniquely per password. |
-| **Session Token** | 32 bytes (256 bits) Base64URL | Cryptographically random (`crypto/rand`). Plaintext never stored in database. |
-| **Session Storage** | SHA-256 hex digest (64 chars) | Compromising the SQLite database does not yield usable session tokens. |
+| **Argon2id Cost** | `t=3, m=64MiB, p=4, keyLen=32` | OWASP baseline balancing verification speed and brute-force resistance. |
+| **Salt** | 16 bytes (128 bits) | Cryptographically random, generated uniquely per hash. |
+| **Password Policy** | 12–128 characters, with at least one uppercase letter, one lowercase letter, one digit and one special character | Enforced on setup and recovery. |
+| **Session Token** | 32 bytes (256 bits), Base64URL | Cryptographically random. Plaintext never stored in database. |
+| **Session Storage** | SHA-256 hex digest (64 chars) | Compromising the database does not yield usable session tokens. |
 | **Session Lifetime** | 24-hour absolute TTL / 2-hour idle timeout | Prevents stale sessions; activity is refreshed upon each authenticated request. |
-| **Session Cookie** | `yily_session`, `HttpOnly`, `SameSite=Lax`, `Secure` | Mitigates XSS token theft; detects HTTPS directly or via `X-Forwarded-Proto: https`. |
-| **PAT Format** | `yily_<base64url_256bit_token>` | Scoped token prefix identifying Yily credentials. |
-| **PAT Storage** | SHA-256 hex digest (64 chars) | Complete PAT is shown only once at creation time; only the SHA-256 hash is persisted. |
+| **Session Cookie** | `yily_session`, `HttpOnly`, `SameSite=Strict`, `Secure` on HTTPS, `Path=/` | Not readable by scripts and never sent on cross-site requests, including top-level navigations. |
+| **CSRF Token** | 32 bytes (256 bits), Base64URL, one per session | Required in the `X-CSRF-Token` header on state-changing session requests. |
+| **PAT Format** | `yily_<base64url_192bit_token>` | Prefix identifies Yily credentials; 192 bits of cryptographically random entropy. |
+| **PAT Storage** | SHA-256 hex digest (64 chars) | The complete PAT is shown only once; only its SHA-256 hash is persisted. |
+| **PAT Scopes** | `read` or `write` | `write` implies `read`. No PAT can manage tokens or reach session-only operations. |
+| **PAT Lifetime** | 7, 30, 60 or 90 days; `write` defaults to 30 days and always expires; `read` may never expire | Limits exposure of a leaked token, especially one that can modify secrets. |
+| **Recovery Code** | 16 bytes (128 bits), uppercase hex in groups of four (`XXXX-XXXX-…`) | Stored only as an Argon2id hash; single-use. |
 | **API Auth Header** | `Authorization: Bearer yily_<token>` | Standard RFC 6750 Bearer authentication scheme. |
 
 ---
 
 ## 3. Storage & Cryptographic Representations
 
-### 3.1. Password PHC String
-Passwords are saved in the `User.PasswordHash` column formatted according to the standard PHC string format:
+### 3.1. Password and Recovery Code PHC Strings
+Passwords and recovery codes are stored as Argon2id hashes in the standard PHC string format:
 
 ```text
 $argon2id$v=19$m=65536,t=3,p=4$<base64_salt>$<base64_hash>
 ```
 
-### 3.2. Session & PAT SQLite Storage
+Recovery codes are normalized before hashing and before verification (separators and whitespace removed, letters uppercased), so the Super Admin can type them with or without dashes and in any case.
+
+### 3.2. Session & PAT Storage
 Neither session tokens nor Personal Access Tokens are ever persisted in plaintext. Only their SHA-256 digests are stored:
 
 ```text
 token_hash = hex(sha256(raw_token))
 ```
 
-Both `model.User.PasswordHash`, `model.Session.TokenHash`, and `model.PersonalAccessToken.TokenHash` carry the `json:"-"` struct tag to prevent accidental serialization in API responses or logs.
+The CSRF token is the exception: it is stored in plaintext alongside its session, because the server must send it back to the web UI after a page reload. It is useless without the matching session cookie.
+
+Password hashes, recovery code hashes, token hashes and CSRF tokens are never serialized in API responses or logs. The CSRF token is returned on purpose, and only, by the login response and `GET /api/v1/auth/csrf`.
 
 ---
 
 ## 4. Security Guarantees & Lifecycle
 
-### 4.1. Timing Attack Mitigation (Email Enumeration)
-Password verification with Argon2id takes approximately 50–100ms. If an invalid email returns immediately in <1ms while an existing email takes ~80ms, attackers could enumerate whether the Super Admin email exists.
-* **Mitigation**: When `GetByEmail` returns `ErrUserNotFound`, `AuthService.Login` executes `crypto.VerifyPassword` against a lazily initialized dummy Argon2id hash. Every login attempt takes a uniform amount of time regardless of whether the email exists.
+### 4.1. Initial Setup
+* `POST /api/v1/auth/setup` creates the Super Admin. It requires the `setup_token` field to match `YILY_SETUP_TOKEN` (constant-time comparison).
+* If `YILY_SETUP_TOKEN` is unset or blank, setup is refused; the instance never falls back to open registration.
+* Setup is accepted only while no account exists. The check is repeated inside the account-creation transaction, so concurrent setup requests cannot create two accounts.
+* On success the response is the one-time recovery code, served as a downloadable `yily-recovery-code.txt` file.
 
-### 4.2. Session Fixation Prevention
-During authentication, if an existing session cookie is presented in the request:
-1. The prior session is immediately revoked on the server.
-2. A brand-new session token is generated with a new cryptographic ID.
+### 4.2. Timing Attack Mitigation (Email Enumeration)
+Password verification with Argon2id takes approximately 50–100ms. If an invalid email returned immediately while an existing email took ~80ms, attackers could enumerate whether the Super Admin email exists.
+* **Mitigation**: When the email is unknown, login still runs an Argon2id verification against a dummy hash. Every login attempt takes a uniform amount of time regardless of whether the email exists.
+
+### 4.3. Session Fixation Prevention
+When a login succeeds and the request already carries a session cookie:
+1. The prior session is revoked on the server (only after the credentials have been verified).
+2. A brand-new session token and CSRF token are generated.
 3. The new token is set in the response cookie.
 
-### 4.3. HTTPS & Reverse Proxy Handling
-Yily detects HTTPS connections through:
-1. Direct TLS connection (`c.Request().TLS != nil`).
-2. Reverse proxy header `X-Forwarded-Proto: https` (inspecting the leftmost protocol when chained).
-3. Echo URI scheme (`c.Scheme() == "https"`).
+### 4.4. CSRF Protection
+* Each session gets its own CSRF token at login. The web UI receives it in the login response, keeps it in memory, and re-fetches it with `GET /api/v1/auth/csrf` after a page reload.
+* Any `POST`, `PUT`, `PATCH` or `DELETE` request authenticated by a session cookie is rejected with `403` unless its `X-CSRF-Token` header matches the session's token (constant-time comparison).
+* PAT-authenticated requests are exempt: they carry an explicit `Authorization` header that a browser never attaches on its own.
+* `GET`, `HEAD` and `OPTIONS` requests are exempt and must never change state.
+* The server sends no CORS headers, so a cross-origin page cannot read any API response.
 
-When HTTPS is detected, cookies are marked `Secure=true`.
+### 4.5. HTTPS & Reverse Proxy Handling
+The `Secure` cookie flag is set when the request is detected as HTTPS:
+1. A direct TLS connection is always HTTPS.
+2. Forwarding headers (`X-Forwarded-Proto`, then `X-Forwarded-Protocol`, `X-Forwarded-Ssl`, `X-Url-Scheme`) are honored **only** when the direct peer is a loopback, link-local or private address, or a Unix socket. Headers sent by any other client are ignored.
+3. When `X-Forwarded-Proto` is present, its **last** value is used. A reverse proxy must therefore set (overwrite) the header rather than append to the value sent by the client.
 
-### 4.4. Personal Access Token (PAT) Lifecycle
-* **Creation**: The Super Admin creates a PAT via `POST /api/v1/tokens`. The raw token (`yily_...`) is returned in the response payload **only once**.
-* **Subsequent Queries**: `GET /api/v1/tokens` returns token metadata (`id`, `name`, `created_at`, `expires_at`, `revoked_at`) without ever exposing the raw token or token hash.
-* **Revocation**: A token can be revoked at any time via `DELETE /api/v1/tokens/:id`. Revoked tokens are immediately rejected.
+### 4.6. Personal Access Token (PAT) Lifecycle
+Token management is restricted to the web session: a PAT can never create, list, rotate or revoke tokens.
+
+* **Creation**: `POST /api/v1/tokens` with `name`, `scope` (`read` or `write`) and an optional `expires_in_days` (`7`, `30`, `60` or `90`). Without it, a `write` token expires after 30 days and a `read` token never expires. The raw token (`yily_...`) is returned in the response **only once**.
+* **Listing**: `GET /api/v1/tokens` returns metadata only (`id`, `name`, `scope`, `created_at`, `expires_at`, `revoked_at`, `last_used_at`), never the raw token or its hash.
+* **Rotation**: `POST /api/v1/tokens/:id/rotate` issues a replacement with the same name and scope (and an optional new `expires_in_days`), returns it once, and revokes the old token immediately. A revoked token cannot be rotated.
+* **Revocation**: `DELETE /api/v1/tokens/:id` revokes a token. Revoked tokens are rejected on the next request.
+* **Introspection**: `GET /api/v1/tokens/me` returns the metadata of the PAT used for the request (a session gets `403`).
+* **Usage tracking**: every successful authentication updates `last_used_at`.
+
+### 4.7. Password Recovery
+`POST /api/v1/auth/recover` resets a forgotten password with the recovery code (`recovery_code`, `password`, `confirm`).
+
+* The new password must satisfy the password policy, and the code is verified against its Argon2id hash after normalization.
+* On success, a single database transaction:
+  1. replaces the password hash,
+  2. replaces the recovery code hash with a newly generated code (the old code stops working),
+  3. revokes every active session,
+  4. revokes every unexpired PAT (already-expired tokens keep their expired status).
+* If any step fails, nothing changes: the old password and recovery code stay valid and the request returns an error.
+* The new recovery code is returned once, as a downloadable `yily-recovery-code.txt` file.
+
+Nothing obtained under the old password (a stolen session cookie, or a token created with it) survives a reset. Because every PAT is revoked, CLI and CI integrations need new tokens afterwards.
+
+Recovery is currently the only way to change the Super Admin password.
 
 ---
 
-## 5. Unified Authentication Middleware
+## 5. Request Authentication
 
-A single middleware in `internal/middleware` handles both access methods transparently:
+Every protected request goes through a single authentication step. An `Authorization` header always selects PAT authentication: there is no fallback to the cookie, so a request carrying an invalid or malformed header is rejected even if it also has a valid session cookie.
 
 ```text
 Incoming Request
       │
       ▼
-Has Authorization: Bearer <token> ?
-     ├── YES ──► Extract "yily_<token>"
+Authorization header present?
+     ├── YES ──► Parse "Bearer <token>" (scheme case-insensitive)
+     │                │
+     │                ├── Malformed ──► 401 Unauthorized
+     │                ▼
+     │           Token starts with "yily_"? ── NO ──► 401 Unauthorized
      │                │
      │                ▼
-     │           Compute SHA-256 hash
+     │           SHA-256 hash ──► Lookup PAT
      │                │
-     │                ▼
-     │           Lookup PAT in SQLite
-     │                │
-     │                ├── Expired / Revoked / Not Found ──► 401 Unauthorized
-     │                └── Valid ──► Attach User & PAT to Context ──► Next()
+     │                ├── Not Found / Revoked / Expired ──► 401 Unauthorized
+     │                └── Valid ──► Update last_used_at ──► Authenticated as PAT
      │
-     └── NO  ──► Extract "yily_session" Cookie
+     └── NO  ──► Read "yily_session" cookie
                       │
+                      ├── Missing / Empty ──► 401 Unauthorized
                       ▼
-                 Compute SHA-256 hash
+                 SHA-256 hash ──► Lookup Session
                       │
-                      ▼
-                 Lookup Session in SQLite
-                      │
-                      ├── Expired (TTL or Idle) / Revoked / Not Found ──► 401 Unauthorized
-                      └── Valid ──► Update LastActivityAt
-                                        │
-                                        ▼
-                                   Attach User & Session to Context ──► Next()
+                      ├── Not Found / Revoked / Expired (TTL or Idle) ──► 401 Unauthorized
+                      └── Valid ──► Update last_activity_at ──► Authenticated as Session
 ```
 
----
+Once authenticated, each operation requires one of these access levels:
 
-## 6. API Route Access Map
+| Access level | Allowed callers | Rejected callers |
+| :--- | :--- | :--- |
+| **Read** | Session, `read` PAT, `write` PAT | — |
+| **Write** | Session (with valid CSRF token), `write` PAT | `read` PAT (`403`) |
+| **Session only** | Session (with valid CSRF token on state-changing methods) | Any PAT (`403`) |
 
-| Endpoint | Method | Authentication | Description |
-| :--- | :--- | :--- | :--- |
-| `/api/v1/auth/setup` | `POST` | Public | Creates initial Super Admin account (single-tenant invariant). |
-| `/api/v1/auth/login` | `POST` | Public | Authenticates Super Admin and issues `yily_session` cookie. |
-| `/api/v1/auth/logout` | `POST` | Session / PAT | Revokes session on server and expires cookie on browser. |
-| `/api/v1/auth/me` | `GET` | Session / PAT | Returns authenticated Super Admin user profile. |
-| `/api/v1/tokens` | `POST` | Session / PAT | Issues a new PAT (raw token displayed once). |
-| `/api/v1/tokens` | `GET` | Session / PAT | Lists PAT metadata for the Super Admin. |
-| `/api/v1/tokens/:id` | `DELETE` | Session / PAT | Revokes a PAT by ID. |
-| `/api/v1/projects/*` | `*` | Session / PAT | Protected resource management. |
-| `/api/v1/environments/*` | `*` | Session / PAT | Protected resource management. |
-| `/api/v1/variables/*` | `*` | Session / PAT | Protected secret & version management. |
+Token management and the Super Admin profile are **session only**. Setup, login and recovery are public.
 
 ---
 
-## 7. Package Architecture
+## 6. Out of Scope (Future Phases)
 
-```text
-server/internal/
-├── crypto/
-│   ├── password.go       # Argon2id hashing & constant-time verification
-│   └── token.go          # crypto/rand session & PAT generator, SHA-256 hasher
-├── domain/model/
-│   ├── user.go           # Super Admin model (Name, Email, PasswordHash)
-│   ├── session.go        # Server-side Session model (TokenHash, Expirations)
-│   └── pat.go            # PersonalAccessToken model (TokenHash, RevokedAt)
-├── repository/
-│   ├── user.go           # Single Super Admin creation & lookups
-│   ├── session.go        # Session persistence, lookups & activity updates
-│   └── pat.go            # PAT persistence & ID-based revocation
-├── services/
-│   ├── auth.go           # Setup, Login (anti-fixation & timing mitigation), Session validation, Logout
-│   └── pat.go            # PAT generation, verification & revocation
-├── handler/
-│   ├── auth.go           # Setup, Login, Logout, Me endpoints
-│   └── pat.go            # Token creation, listing & revocation endpoints
-└── middleware/
-    └── auth.go           # Unified RequireAuth middleware (Bearer PAT + Cookie fallback)
-```
-
----
-
-## 8. Out of Scope (Future Phases)
-
-* Account recovery codes (one-time emergency recovery).
-* Strong password reset flows.
-* Rate limiting on consecutive failed login attempts (lockout threshold).
-* Multi-user role-based access control (RBAC).
-* CLI-specific local credential storage.
-
+* Changing the password from an authenticated session (today, recovery is the only way to change it).
+* Lockout after consecutive failed login or recovery attempts. The only protection today is the global per-address rate limiter; behind a reverse proxy, every client shares the proxy's address.
+* Multi-user accounts and role-based access control (RBAC).

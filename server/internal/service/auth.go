@@ -285,7 +285,9 @@ func normalizeEmail(email string) string {
 }
 
 // Recover resets the Super Admin password using the one-time recovery code. On
-// success every active session is revoked and a fresh recovery code is issued
+// success, in a single transaction, the password and recovery code are replaced
+// and every active session and unexpired PAT is revoked; the fresh recovery code
+// is returned. On failure nothing changes and the old recovery code stays valid.
 func (s *authService) Recover(ctx context.Context, recoveryCode, newPassword string) (string, error) {
 	if len(newPassword) < MinPasswordLength {
 		return "", ErrWeakPassword
@@ -328,12 +330,9 @@ func (s *authService) Recover(ctx context.Context, recoveryCode, newPassword str
 		return "", err
 	}
 
-	if err := s.userRepository.UpdateCredentials(ctx, user.ID, newPasswordHash, newRecoveryCodeHash); err != nil {
+	if err := s.userRepository.ResetCredentials(ctx, user.ID, newPasswordHash, newRecoveryCodeHash, s.nowFunc().UTC()); err != nil {
 		return "", err
 	}
-
-	// Kill every existing session so a stolen cookie cannot outlive the old password.
-	_ = s.sessionRepository.RevokeAll(ctx, s.nowFunc().UTC())
 
 	return newRecoveryCode, nil
 }

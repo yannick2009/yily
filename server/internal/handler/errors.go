@@ -58,19 +58,20 @@ const (
 	CodeTokenWriteForbidden    ErrorCode = "TOKEN_WRITE_FORBIDDEN"
 
 	// Resources
-	CodeProjectNotFound            ErrorCode = "PROJECT_NOT_FOUND"
-	CodeEnvironmentNotFound        ErrorCode = "ENVIRONMENT_NOT_FOUND"
-	CodeEnvironmentDescTooLong     ErrorCode = "ENVIRONMENT_DESCRIPTION_TOO_LONG"
-	CodeVariableNotFound           ErrorCode = "VARIABLE_NOT_FOUND"
-	CodeVariableVersionNotFound    ErrorCode = "VARIABLE_VERSION_NOT_FOUND"
-	CodeVariableVersionInvalid     ErrorCode = "VARIABLE_VERSION_INVALID"
-	CodeVariableSelectionDuplicate ErrorCode = "VARIABLE_SELECTION_DUPLICATE"
-	CodeVariableNameExists         ErrorCode = "VARIABLE_NAME_ALREADY_EXISTS"
-	CodeNameTooLong                ErrorCode = "NAME_TOO_LONG"
-	CodeNameInvalidChars           ErrorCode = "NAME_INVALID_CHARS"
-	CodeTagNotFound                ErrorCode = "TAG_NOT_FOUND"
-	CodeTagNameExists              ErrorCode = "TAG_NAME_ALREADY_EXISTS"
-	CodeTagNotInProject            ErrorCode = "TAG_NOT_IN_PROJECT"
+	CodeProjectNotFound             ErrorCode = "PROJECT_NOT_FOUND"
+	CodeEnvironmentNotFound         ErrorCode = "ENVIRONMENT_NOT_FOUND"
+	CodeEnvironmentDescTooLong      ErrorCode = "ENVIRONMENT_DESCRIPTION_TOO_LONG"
+	CodeEnvironmentDescInvalidChars ErrorCode = "ENVIRONMENT_DESCRIPTION_INVALID_CHARS"
+	CodeVariableNotFound            ErrorCode = "VARIABLE_NOT_FOUND"
+	CodeVariableVersionNotFound     ErrorCode = "VARIABLE_VERSION_NOT_FOUND"
+	CodeVariableVersionInvalid      ErrorCode = "VARIABLE_VERSION_INVALID"
+	CodeVariableSelectionDuplicate  ErrorCode = "VARIABLE_SELECTION_DUPLICATE"
+	CodeVariableNameExists          ErrorCode = "VARIABLE_NAME_ALREADY_EXISTS"
+	CodeNameTooLong                 ErrorCode = "NAME_TOO_LONG"
+	CodeNameInvalidChars            ErrorCode = "NAME_INVALID_CHARS"
+	CodeTagNotFound                 ErrorCode = "TAG_NOT_FOUND"
+	CodeTagNameExists               ErrorCode = "TAG_NAME_ALREADY_EXISTS"
+	CodeTagNotInProject             ErrorCode = "TAG_NOT_IN_PROJECT"
 
 	// Import
 	CodeFileUnsupportedType   ErrorCode = "FILE_UNSUPPORTED_TYPE"
@@ -115,6 +116,7 @@ var sentinelCodes = []struct {
 	{repository.ErrProjectNotFound, CodeProjectNotFound},
 	{repository.ErrEnvironmentNotFound, CodeEnvironmentNotFound},
 	{service.ErrEnvironmentDescriptionTooLong, CodeEnvironmentDescTooLong},
+	{service.ErrEnvironmentDescriptionInvalidChars, CodeEnvironmentDescInvalidChars},
 	{repository.ErrVariableNotFound, CodeVariableNotFound},
 	{repository.ErrVariableVersionNotFound, CodeVariableVersionNotFound},
 	{service.ErrInvalidVariableVersion, CodeVariableVersionInvalid},

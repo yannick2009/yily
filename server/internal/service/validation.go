@@ -55,14 +55,27 @@ func validateVariableName(name string) error {
 // in an environment description.
 const MaxEnvironmentDescriptionLength = 50
 
-// ErrEnvironmentDescriptionTooLong is returned when a description exceeds the
-// maximum allowed length.
-var ErrEnvironmentDescriptionTooLong = errors.New("environment description must be at most 50 characters")
+var (
+	// ErrEnvironmentDescriptionTooLong is returned when a description exceeds the
+	// maximum allowed length.
+	ErrEnvironmentDescriptionTooLong = errors.New("environment description must be at most 50 characters")
+	// ErrEnvironmentDescriptionInvalidChars is returned when a description contains
+	// characters that are not allowed.
+	ErrEnvironmentDescriptionInvalidChars = errors.New("environment description contains characters that are not allowed")
+)
 
-// validateDescription rejects a description longer than the maximum length.
+// validateDescription rejects a description longer than the maximum length or
+// containing anything other than printable characters. Descriptions are printed
+// raw by the CLI, so control characters (e.g. ANSI/OSC escape sequences) must
+// never be stored.
 func validateDescription(description string) error {
 	if utf8.RuneCountInString(description) > MaxEnvironmentDescriptionLength {
 		return ErrEnvironmentDescriptionTooLong
+	}
+	for _, r := range description {
+		if !unicode.IsPrint(r) {
+			return ErrEnvironmentDescriptionInvalidChars
+		}
 	}
 	return nil
 }
