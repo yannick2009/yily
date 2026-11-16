@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"unicode"
 
 	"github.com/labstack/echo/v5"
 	"github.com/yannick2009/yily/internal/api"
@@ -224,10 +225,20 @@ func (h *environmentHandler) Export(c *echo.Context) error {
 	return c.Blob(http.StatusOK, exportContentType(fileType), content)
 }
 
-// exportFilename builds a safe download filename from an environment name and file type.
+// exportFilename builds a safe download filename from an environment name and
+// file type. Environment names may contain any printable character, so every
+// rune that is not a letter, a digit, '.', '-' or '_' is replaced with '_'.
+// Path separators, quotes and spaces therefore never reach the
+// Content-Disposition header, and a client that saves the file under this name
+// (browser or CLI) always writes "export_<name><ext>", never another file.
 func exportFilename(name string, fileType types.FileType) string {
-	name = strings.NewReplacer(`"`, "", "\r", "", "\n", "").Replace(name)
-	return "export_" + name + fileType.Extension()
+	safe := strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '-' || r == '_' {
+			return r
+		}
+		return '_'
+	}, name)
+	return "export_" + safe + fileType.Extension()
 }
 
 // exportContentType returns the HTTP content type for an exported file.
