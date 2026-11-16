@@ -15,6 +15,9 @@ import (
 	"github.com/yannick2009/yily/internal/httputil"
 )
 
+// maxUniqueFileAttempts bounds the "-2", "-3"… suffixes tried by createUniquePrivateFile.
+const maxUniqueFileAttempts = 100
+
 // GetFile downloads a file from path and returns its content and server-provided filename.
 func (c *Client) GetFile(ctx context.Context, path string) ([]byte, string, error) {
 	resp, err := c.request(ctx, http.MethodGet, c.endpoint(path), nil, "")
@@ -80,6 +83,34 @@ func (c *Client) PostFile[T any](ctx context.Context, path, filePath string) (*h
 	}
 
 	return decodeResponse[T](resp)
+}
+
+// createUniquePrivateFile creates a new owner-only file in dir (or the current directory),
+// never overwrites or follows symlinks, and tries numbered names if the file already exists.
+func createUniquePrivateFile(dir, stem, ext string, data []byte) (string, error) {
+	for n := 1; n <= maxUniqueFileAttempts; n++ {
+		name := stem + ext
+		if n > 1 {
+			name = fmt.Sprintf("%s-%d%s", stem, n, ext)
+		}
+		path := filepath.Join(dir, name)
+
+		f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return "", fmt.Errorf("create file: %w", err)
+		}
+
+		_, writeErr := f.Write(data)
+		if err := errors.Join(writeErr, f.Close()); err != nil {
+			_ = os.Remove(path) // never leave a truncated copy of the secrets behind
+			return "", fmt.Errorf("write file: %w", err)
+		}
+		return path, nil
+	}
+	return "", fmt.Errorf("create file: %s%s and its numbered variants already exist", stem, ext)
 }
 
 // writePrivateFile writes data to path with owner-only permissions.

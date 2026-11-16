@@ -6,8 +6,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aquasecurity/table"
 	"github.com/spf13/cobra"
@@ -16,6 +18,13 @@ import (
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 )
+
+// exportTimestampLayout is the timestamp format used in exported filenames.
+const exportTimestampLayout = "20060102-150405"
+
+// serverExportName matches the only filename shape the server produces for an
+// export: "export_", then letters, digits, '.', '-' or '_', then a known extension.
+var serverExportName = regexp.MustCompile(`^export_[\p{L}\p{N}._-]+\.(env|json|yaml)$`)
 
 var (
 	environmentDescription  string
@@ -250,6 +259,19 @@ var environmentsDeleteCmd = &cobra.Command{
 	},
 }
 
+// exportFileStem returns the export filename without its extension. The
+// server's suggestion is only a hint: it is used when it matches
+// serverExportName with the extension of the requested format, and otherwise
+// (e.g. a compromised server proposing "Makefile" or ".bashrc") the name falls
+// back to "export_<id>", so the server never picks which file the CLI writes.
+func exportFileStem(serverFilename, id string, fileType types.FileType) string {
+	ext := fileType.Extension()
+	if serverExportName.MatchString(serverFilename) && strings.HasSuffix(serverFilename, ext) {
+		return strings.TrimSuffix(serverFilename, ext)
+	}
+	return "export_" + id
+}
+
 // environmentsExportCmd downloads an environment's variables to a file.
 var environmentsExportCmd = &cobra.Command{
 	Use:   "export <id>",
@@ -284,23 +306,27 @@ var environmentsExportCmd = &cobra.Command{
 			return err
 		}
 
-		filename := serverFilename
-		if filename == "" {
-			filename = "export_" + id + fileType.Extension()
+		dir := ""
+		if output := environmentExportOutput; output != "" {
+			info, err := os.Stat(output)
+			if err != nil || !info.IsDir() {
+				// An explicit file path is the user's choice: write (or overwrite) exactly there.
+				if err := writePrivateFile(output, content); err != nil {
+					return err
+				}
+				return PrintSuccess(cmd.OutOrStdout(), fmt.Sprintf("Exported to %s.", filepath.Clean(output)))
+			}
+			dir = output
 		}
 
-		output := environmentExportOutput
-		if output == "" {
-			output = filename
-		} else if info, err := os.Stat(output); err == nil && info.IsDir() {
-			output = filepath.Join(output, filename)
-		}
-
-		if err := writePrivateFile(output, content); err != nil {
+		// The CLI picks the name: timestamp it and never overwrite an existing file.
+		stem := exportFileStem(serverFilename, id, fileType) + "_" + time.Now().Format(exportTimestampLayout)
+		written, err := createUniquePrivateFile(dir, stem, fileType.Extension(), content)
+		if err != nil {
 			return err
 		}
 
-		return PrintSuccess(cmd.OutOrStdout(), fmt.Sprintf("Exported to %s.", filepath.Clean(output)))
+		return PrintSuccess(cmd.OutOrStdout(), fmt.Sprintf("Exported to %s.", filepath.Clean(written)))
 	},
 }
 
@@ -347,7 +373,7 @@ func init() {
 	environmentsCloneCmd.Flags().BoolVar(&environmentCopyTags, "copy-tags", false, "Copy the source environment's tags")
 	environmentsDeleteCmd.Flags().BoolVarP(&environmentDeleteYes, "yes", "y", false, "Skip the confirmation prompt")
 	environmentsExportCmd.Flags().StringVarP(&environmentExportFormat, "format", "f", "env", "Export format: json, yaml or env")
-	environmentsExportCmd.Flags().StringVarP(&environmentExportOutput, "output", "o", "", "Output file or directory (default: current directory)")
+	environmentsExportCmd.Flags().StringVarP(&environmentExportOutput, "output", "o", "", "Output file (overwritten if it exists) or directory; without a file name, a new timestamped file is created (default: current directory)")
 
 	EnvironmentsCmd.AddCommand(
 		environmentsListCmd,
