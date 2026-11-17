@@ -9,6 +9,7 @@ import (
 
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
+	"github.com/yannick2009/yily/internal/id"
 )
 
 type authUserContextKey struct{}
@@ -56,6 +57,40 @@ func AuthenticatedScopeFromContext(ctx context.Context) (types.PATScope, bool) {
 		return types.PATScopeWrite, true
 	}
 	return "", false
+}
+
+// AllowsGlobal reports whether the authenticated caller has instance-wide acess.
+// Web sessions and global PATs return true; project/environment-scoped PATs return false.
+func AllowsGlobal(ctx context.Context) bool {
+	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
+		return pat.IsGlobal()
+	}
+	return true
+}
+
+// AllowsProject reports whether the authenticated caller may read within projectID.
+func AllowsProject(ctx context.Context, projectID id.ID) bool {
+	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
+		return pat.AllowsProject(projectID)
+	}
+	return true
+}
+
+// AllowsProjectManage reports whether the authenticated caller may manage project-level
+// resources (environments, tags) within projectID.
+func AllowsProjectManage(ctx context.Context, projectID id.ID) bool {
+	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
+		return pat.AllowsProjectManage(projectID)
+	}
+	return true
+}
+
+// AllowsEnvironment reports whether the authenticated caller may access environmentID within projectID.
+func AllowsEnvironment(ctx context.Context, environmentID, projectID id.ID) bool {
+	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
+		return pat.AllowsEnvironment(environmentID, projectID)
+	}
+	return true
 }
 
 // ActorFromContext resolves the authenticated actor from the context for audit attribution.

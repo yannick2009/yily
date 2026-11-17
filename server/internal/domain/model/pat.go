@@ -10,15 +10,19 @@ import (
 
 // PersonalAccessToken represents a programmatic API token owned by the Super Admin.
 type PersonalAccessToken struct {
-	ID         id.ID          `gorm:"primaryKey;type:text" json:"id"`                 // Unique identifier for the PAT
-	UserID     id.ID          `gorm:"not null;index;type:text" json:"user_id"`        // Foreign key referencing the associated user
-	Name       string         `gorm:"type:varchar(255);not null" json:"name"`         // Human-readable name for the PAT
-	Scope      types.PATScope `gorm:"type:varchar(16);not null;index" json:"scope"`   // Permission level granted to this PAT (read or write)
-	TokenHash  string         `gorm:"type:varchar(64);not null;uniqueIndex" json:"-"` // SHA-256 hex digest of the full yily_<token> (never serialized)
-	CreatedAt  time.Time      `gorm:"autoCreateTime" json:"created_at"`               // Timestamp when the PAT was created
-	ExpiresAt  *time.Time     `gorm:"index" json:"expires_at,omitempty"`              // Timestamp when the PAT expires (nil means never expires; only allowed for read scope)
-	RevokedAt  *time.Time     `gorm:"index" json:"revoked_at,omitempty"`              // Timestamp when the PAT was revoked (nil if active)
-	LastUsedAt *time.Time     `gorm:"index" json:"last_used_at,omitempty"`            // Timestamp of the most recent successful authentication with this PAT
+	ID              id.ID          `gorm:"primaryKey;type:text" json:"id"`                  // Unique identifier for the PAT
+	UserID          id.ID          `gorm:"not null;index;type:text" json:"user_id"`         // Foreign key referencing the associated user
+	Name            string         `gorm:"type:varchar(255);not null" json:"name"`          // Human-readable name for the PAT
+	Scope           types.PATScope `gorm:"type:varchar(16);not null;index" json:"scope"`    // Permission level granted to this PAT (read or write)
+	ProjectID       *id.ID         `gorm:"index;type:text" json:"project_id,omitempty"`     // Optional project restriction (nil means all projects)
+	EnvironmentID   *id.ID         `gorm:"index;type:text" json:"environment_id,omitempty"` // Optional environment restriction within ProjectID (nil means all environments in scope)
+	ProjectName     string         `gorm:"-" json:"project_name,omitempty"`                 // Resolved project name (computed on read, never persisted)
+	EnvironmentName string         `gorm:"-" json:"environment_name,omitempty"`             // Resolved environment name (computed on read, never persisted)
+	TokenHash       string         `gorm:"type:varchar(64);not null;uniqueIndex" json:"-"`  // SHA-256 hex digest of the full yily_<token> (never serialized)
+	CreatedAt       time.Time      `gorm:"autoCreateTime" json:"created_at"`                // Timestamp when the PAT was created
+	ExpiresAt       *time.Time     `gorm:"index" json:"expires_at,omitempty"`               // Timestamp when the PAT expires (nil means never expires; only allowed for read scope)
+	RevokedAt       *time.Time     `gorm:"index" json:"revoked_at,omitempty"`               // Timestamp when the PAT was revoked (nil if active)
+	LastUsedAt      *time.Time     `gorm:"index" json:"last_used_at,omitempty"`             // Timestamp of the most recent successful authentication with this PAT
 }
 
 // BeforeCreate is a GORM hook that assigns an identifier before creating a new PersonalAccessToken record.
@@ -40,4 +44,37 @@ func (p *PersonalAccessToken) IsExpired(now time.Time) bool {
 		return false
 	}
 	return !now.Before(*p.ExpiresAt)
+}
+
+// Is Global rports whether the PAT grants instance-wide access across all projects and environments
+func (p *PersonalAccessToken) IsGlobal() bool {
+	return p.ProjectID == nil && p.EnvironmentID == nil
+}
+
+// AllowsProject reports whether the PAT grants access to the given project
+func (p *PersonalAccessToken) AllowsProject(projectID id.ID) bool {
+	if p.ProjectID == nil {
+		return true
+	}
+	return *p.ProjectID == projectID
+}
+
+// AllowsProjectManage reports whether the PAT allows project-wide mutations (e.g. creating environments or tags).
+// Environment-scoped PATs are restricted to their single environment and return false.
+func (p *PersonalAccessToken) AllowsProjectManage(projectID id.ID) bool {
+	if p.EnvironmentID != nil {
+		return false
+	}
+	return p.AllowsProject(projectID)
+}
+
+// AllowsEnvironment reports whether the PAT grants access to environmentID within projectID
+func (p *PersonalAccessToken) AllowsEnvironment(projectID, environmentID id.ID) bool {
+	if !p.AllowsProject(projectID) {
+		return false
+	}
+	if p.EnvironmentID == nil {
+		return true
+	}
+	return *p.EnvironmentID == environmentID
 }
