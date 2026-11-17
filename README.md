@@ -4,6 +4,13 @@
   </picture>
 </p>
 
+<p align="center">
+  <a href="https://github.com/yannick2009/yily/releases"><img src="https://img.shields.io/github/v/release/yannick2009/yily?include_prereleases&label=release&color=8338EC" alt="GitHub release"></a>
+  <a href="https://github.com/yannick2009/yily/blob/main/LICENSE"><img src="https://img.shields.io/github/license/yannick2009/yily?color=8338EC" alt="License"></a>
+  <a href="https://github.com/yannick2009/yily/blob/main/server/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/yannick2009/yily?filename=server/go.mod&label=go&color=00ADD8" alt="Go version"></a>
+  <a href="https://github.com/yannick2009/yily/actions"><img src="https://img.shields.io/github/actions/workflow/status/yannick2009/yily/ci.yml?branch=main&label=ci" alt="CI status"></a>
+</p>
+
 **Yily** is a lightweight and fast **open-source secret management application** designed to help you securely store and manage sensitive information such as API keys, passwords, tokens, and other secrets.
 
 The project was born from a simple need: having a **self-hosted secret management solution that is easy to deploy, simple to use, and efficient**, without the complexity that can come with more advanced solutions such as HashiCorp Vault or Infisical.
