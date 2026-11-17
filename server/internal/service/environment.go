@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/yannick2009/yily/internal/api"
+	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/id"
@@ -35,9 +36,14 @@ func NewEnvironmentService(environmentRepository repository.EnvironmentRepositor
 
 // Create creates a new environment.
 func (s *environmentService) Create(ctx context.Context, projectID id.ID, name, description string) (*model.Environment, error) {
+	if !authctx.AllowsProjectManage(ctx, projectID) {
+		return nil, ErrPATResourceForbidden
+	}
+
 	if err := validateName(name); err != nil {
 		return nil, err
 	}
+
 	if err := validateDescription(description); err != nil {
 		return nil, err
 	}
@@ -47,6 +53,7 @@ func (s *environmentService) Create(ctx context.Context, projectID id.ID, name, 
 		Name:        name,
 		Description: description,
 	}
+
 	if err := s.environmentRepository.Create(ctx, environment); err != nil {
 		return nil, err
 	}
@@ -61,6 +68,10 @@ func (s *environmentService) Clone(ctx context.Context, sourceEnvironmentID id.I
 	source, err := s.environmentRepository.GetByID(ctx, sourceEnvironmentID)
 	if err != nil {
 		return err
+	}
+
+	if !authctx.AllowsProjectManage(ctx, source.ProjectID) {
+		return ErrPATResourceForbidden
 	}
 
 	target, err := s.Create(ctx, source.ProjectID, newName, source.Description)
@@ -78,6 +89,7 @@ func (s *environmentService) Clone(ctx context.Context, sourceEnvironmentID id.I
 			Name:          src.Name,
 			EnvironmentID: target.ID,
 		}
+
 		if err := s.variableRepository.Create(ctx, clone); err != nil {
 			return err
 		}
@@ -100,11 +112,24 @@ func (s *environmentService) Clone(ctx context.Context, sourceEnvironmentID id.I
 
 // GetByID retrieves an environment by its ID.
 func (s *environmentService) GetByID(ctx context.Context, environmentID id.ID) (*model.Environment, error) {
-	return s.environmentRepository.GetByID(ctx, environmentID)
+	environment, err := s.environmentRepository.GetByID(ctx, environmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !authctx.AllowsEnvironment(ctx, environment.ProjectID, environment.ID) {
+		return nil, ErrPATResourceForbidden
+	}
+
+	return environment, nil
 }
 
 // GetAll retrieves all environments of a project with their variable counts.
 func (s *environmentService) GetAll(ctx context.Context, projectID id.ID) ([]api.EnvironmentSummaryResponse, error) {
+	if !authctx.AllowsProject(ctx, projectID) {
+		return nil, ErrPATResourceForbidden
+	}
+
 	environments, err := s.environmentRepository.GetAll(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -112,6 +137,10 @@ func (s *environmentService) GetAll(ctx context.Context, projectID id.ID) ([]api
 
 	dtos := make([]api.EnvironmentSummaryResponse, 0, len(environments))
 	for _, environment := range environments {
+		if !authctx.AllowsEnvironment(ctx, environment.ProjectID, environment.ID) {
+			continue
+		}
+
 		variableCount, err := s.variableRepository.CountByEnvironmentID(ctx, environment.ID)
 		if err != nil {
 			return nil, err
@@ -133,27 +162,44 @@ func (s *environmentService) GetAll(ctx context.Context, projectID id.ID) ([]api
 
 // SetName updates the name of an environment.
 func (s *environmentService) SetName(ctx context.Context, environmentID id.ID, name string) error {
+	environment, err := s.environmentRepository.GetByID(ctx, environmentID)
+	if err != nil {
+		return err
+	}
+
+	if !authctx.AllowsEnvironment(ctx, environment.ProjectID, environment.ID) {
+		return ErrPATResourceForbidden
+	}
+
 	if err := validateName(name); err != nil {
 		return err
 	}
 
-	oldName := ""
-	if environment, err := s.environmentRepository.GetByID(ctx, environmentID); err == nil {
-		oldName = environment.Name
-	}
+	oldName := environment.Name
 	if err := s.environmentRepository.SetName(ctx, environmentID, name); err != nil {
 		return err
 	}
+
 	var metadata map[string]string
 	if oldName != "" && oldName != name {
 		metadata = map[string]string{"old_name": oldName, "new_name": name}
 	}
+
 	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, name, metadata)
 	return nil
 }
 
 // SetDescription updates the description of an environment.
 func (s *environmentService) SetDescription(ctx context.Context, environmentID id.ID, description string) error {
+	environment, err := s.environmentRepository.GetByID(ctx, environmentID)
+	if err != nil {
+		return err
+	}
+
+	if !authctx.AllowsEnvironment(ctx, environment.ProjectID, environment.ID) {
+		return ErrPATResourceForbidden
+	}
+
 	if err := validateDescription(description); err != nil {
 		return err
 	}
@@ -161,23 +207,26 @@ func (s *environmentService) SetDescription(ctx context.Context, environmentID i
 	if err := s.environmentRepository.SetDescription(ctx, environmentID, description); err != nil {
 		return err
 	}
-	if environment, err := s.environmentRepository.GetByID(ctx, environmentID); err == nil {
-		_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, environment.Name, nil)
-	}
+
+	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceEnvironment, environmentID, environment.Name, nil)
 	return nil
 }
 
 // Delete deletes an environment.
 func (s *environmentService) Delete(ctx context.Context, environmentID id.ID) error {
-	name := ""
-	if environment, err := s.environmentRepository.GetByID(ctx, environmentID); err == nil {
-		name = environment.Name
+	environment, err := s.environmentRepository.GetByID(ctx, environmentID)
+	if err != nil {
+		return err
 	}
+
+	if !authctx.AllowsProjectManage(ctx, environment.ProjectID) {
+		return ErrPATResourceForbidden
+	}
+
 	if err := s.environmentRepository.Delete(ctx, environmentID); err != nil {
 		return err
 	}
-	if name != "" {
-		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceEnvironment, environmentID, name, nil)
-	}
+
+	_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceEnvironment, environmentID, environment.Name, nil)
 	return nil
 }
