@@ -27,6 +27,7 @@ with the permissions granted to that token.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cmd.SilenceUsage = true
 		rawToken := strings.TrimSpace(token)
+
 		if rawToken == "" || rawToken == "-" {
 			secret, err := readSecret(cmd, "Token")
 			if err != nil {
@@ -34,11 +35,12 @@ with the permissions granted to that token.`,
 			}
 			rawToken = strings.TrimSpace(secret)
 		}
+
 		if rawToken == "" {
 			return &UserError{Message: "token cannot be empty"}
 		}
-		client := NewClient(baseURL, rawToken)
 
+		client := NewClient(baseURL, rawToken)
 		resp, err := client.Get[model.PersonalAccessToken](cmd.Context(), "/api/v1/tokens/me")
 		if err != nil {
 			return err
@@ -50,6 +52,7 @@ with the permissions granted to that token.`,
 			Scope:    string(resp.Data.Scope),
 			ExpireAt: resp.Data.ExpiresAt,
 		}
+
 		if err := WriteConfigFile(cfg); err != nil {
 			return fmt.Errorf("save configuration: %w", err)
 		}
@@ -57,6 +60,7 @@ with the permissions granted to that token.`,
 		if err := PrintSuccess(cmd.OutOrStdout(), "Authenticated successfully."); err != nil {
 			return fmt.Errorf("write output: %w", err)
 		}
+
 		return nil
 	},
 }
@@ -72,9 +76,11 @@ var LogoutCmd = &cobra.Command{
 		if err := CleanupConfigFile(); err != nil {
 			return fmt.Errorf("remove configuration: %w", err)
 		}
+
 		if err := PrintSuccess(cmd.OutOrStdout(), "Logged out successfully."); err != nil {
 			return fmt.Errorf("write output: %w", err)
 		}
+
 		return nil
 	},
 }
@@ -88,6 +94,7 @@ var WhoamiCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cmd.SilenceUsage = true
 		client, err := NewClientFromConfig()
+
 		if err != nil {
 			return err
 		}
@@ -104,11 +111,48 @@ var WhoamiCmd = &cobra.Command{
 		if err := PrintSuccess(cmd.OutOrStdout(), fmt.Sprintf("Authenticated as %q (scope: %s)", resp.Data.Name, resp.Data.Scope)); err != nil {
 			return fmt.Errorf("write output: %w", err)
 		}
+
 		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "  Expires: %s\n", expires); err != nil {
 			return fmt.Errorf("write output: %w", err)
 		}
+
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "  Access:  %s\n", formatPATResourceScope(resp.Data)); err != nil {
+			return fmt.Errorf("write output: %w", err)
+		}
+
 		return nil
 	},
+}
+
+// formatPATResourceScope formats the resource scope of a personal access token for display.
+func formatPATResourceScope(pat model.PersonalAccessToken) string {
+	projectLabel := ""
+	if pat.ProjectID != nil {
+		projectLabel = pat.ProjectID.String()
+
+		if pat.ProjectName != "" {
+			projectLabel = fmt.Sprintf("%s (%s)", pat.ProjectName, pat.ProjectID.String())
+		}
+	}
+
+	if pat.EnvironmentID != nil {
+		envLabel := pat.EnvironmentID.String()
+		if pat.EnvironmentName != "" {
+			envLabel = fmt.Sprintf("%s (%s)", pat.EnvironmentName, pat.EnvironmentID.String())
+		}
+
+		if projectLabel != "" {
+			return fmt.Sprintf("project %s / environment %s", projectLabel, envLabel)
+		}
+
+		return fmt.Sprintf("environment %s", envLabel)
+	}
+
+	if projectLabel != "" {
+		return fmt.Sprintf("project %s (all environments)", projectLabel)
+	}
+
+	return "all projects"
 }
 
 // init initializes the command-line flags for the login command.
