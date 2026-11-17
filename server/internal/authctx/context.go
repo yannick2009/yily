@@ -53,9 +53,11 @@ func AuthenticatedScopeFromContext(ctx context.Context) (types.PATScope, bool) {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
 		return pat.Scope, true
 	}
+
 	if _, ok := AuthenticatedSessionFromContext(ctx); ok {
 		return types.PATScopeWrite, true
 	}
+
 	return "", false
 }
 
@@ -65,6 +67,7 @@ func AllowsGlobal(ctx context.Context) bool {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
 		return pat.IsGlobal()
 	}
+
 	return true
 }
 
@@ -73,6 +76,7 @@ func AllowsProject(ctx context.Context, projectID id.ID) bool {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
 		return pat.AllowsProject(projectID)
 	}
+
 	return true
 }
 
@@ -82,14 +86,16 @@ func AllowsProjectManage(ctx context.Context, projectID id.ID) bool {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
 		return pat.AllowsProjectManage(projectID)
 	}
+
 	return true
 }
 
 // AllowsEnvironment reports whether the authenticated caller may access environmentID within projectID.
-func AllowsEnvironment(ctx context.Context, environmentID, projectID id.ID) bool {
+func AllowsEnvironment(ctx context.Context, projectID, environmentID id.ID) bool {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
-		return pat.AllowsEnvironment(environmentID, projectID)
+		return pat.AllowsEnvironment(projectID, environmentID)
 	}
+
 	return true
 }
 
@@ -99,8 +105,10 @@ func ActorFromContext(ctx context.Context) types.AuditActor {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
 		return types.AuditActor{Type: types.ActorTypeToken, ID: pat.ID, Name: pat.Name}
 	}
+
 	if user, ok := AuthenticatedUserFromContext(ctx); ok {
 		return types.AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}
 	}
+
 	return types.AuditActor{Type: types.ActorTypeSystem}
 }
