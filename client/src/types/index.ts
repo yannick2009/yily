@@ -83,6 +83,10 @@ export interface Token {
   id: string;
   name: string;
   scope: TokenScope;
+  project_id?: string | null;
+  environment_id?: string | null;
+  project_name?: string;
+  environment_name?: string;
   created_at: string;
   expires_at: string | null;
   revoked_at: string | null;
@@ -96,6 +100,10 @@ export interface CreatedToken {
   user_id: string;
   name: string;
   scope: TokenScope;
+  project_id?: string | null;
+  environment_id?: string | null;
+  project_name?: string;
+  environment_name?: string;
   token: string;
   created_at: string;
   expires_at: string | null;

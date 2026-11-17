@@ -1,6 +1,6 @@
 // Create-token dialog. Shows a form, then the secret once on success (one-time reveal).
-import { createSignal, Show } from "solid-js";
-import { tokens } from "../../api";
+import { createResource, createSignal, For, Show } from "solid-js";
+import { environments, projects, tokens } from "../../api";
 import { t } from "../../lib/i18n";
 import { errorMessage } from "../../lib/errors";
 import { copyToClipboard } from "../../lib/clipboard";
@@ -19,15 +19,28 @@ export function CreateTokenDialog(props: {
   const [name, setName] = createSignal("");
   const [scope, setScope] = createSignal<TokenScope>(DEFAULT_SCOPE);
   const [days, setDays] = createSignal<number>(DEFAULT_EXPIRATION_DAYS);
+  const [projectId, setProjectId] = createSignal("");
+  const [environmentId, setEnvironmentId] = createSignal("");
   const [created, setCreated] = createSignal<string | null>(null);
   const [copied, setCopied] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
+  const [projectList] = createResource(
+    () => (props.open ? true : false),
+    () => projects.list(),
+  );
+  const [environmentList] = createResource(
+    () => (props.open && projectId() !== "" ? projectId() : false),
+    (pid) => environments.list(pid),
+  );
+
   const reset = () => {
     setName("");
     setScope(DEFAULT_SCOPE);
     setDays(DEFAULT_EXPIRATION_DAYS);
+    setProjectId("");
+    setEnvironmentId("");
     setCreated(null);
     setCopied(false);
     setError(null);
@@ -44,6 +57,11 @@ export function CreateTokenDialog(props: {
     if (next === "write" && days() === EXPIRATION_NEVER) setDays(DEFAULT_EXPIRATION_DAYS);
   };
 
+  const changeProject = (nextProjectId: string) => {
+    setProjectId(nextProjectId);
+    setEnvironmentId("");
+  };
+
   const submit = async (e: Event) => {
     e.preventDefault();
     const n = name().trim();
@@ -56,6 +74,8 @@ export function CreateTokenDialog(props: {
         name: n,
         scope: scope(),
         expires_in_days: d === EXPIRATION_NEVER ? null : d,
+        project_id: projectId() || null,
+        environment_id: projectId() && environmentId() ? environmentId() : null,
       });
       setCreated(createdToken.token);
       setName("");
@@ -128,6 +148,32 @@ export function CreateTokenDialog(props: {
           <Field label={t("tokens.scopeLabel")} hint={t("tokens.scopeHint")}>
             <ScopePicker value={scope()} onChange={changeScope} />
           </Field>
+          <Field label={t("tokens.projectLabel")} hint={t("tokens.projectHint")}>
+            <select
+              class="input"
+              value={projectId()}
+              onChange={(e) => changeProject(e.currentTarget.value)}
+            >
+              <option value="">{t("tokens.allProjects")}</option>
+              <For each={projectList() ?? []}>
+                {(project) => <option value={project.id}>{project.name}</option>}
+              </For>
+            </select>
+          </Field>
+          <Show when={projectId() !== ""}>
+            <Field label={t("tokens.environmentLabel")} hint={t("tokens.environmentHint")}>
+              <select
+                class="input"
+                value={environmentId()}
+                onChange={(e) => setEnvironmentId(e.currentTarget.value)}
+              >
+                <option value="">{t("tokens.allEnvironments")}</option>
+                <For each={environmentList() ?? []}>
+                  {(env) => <option value={env.id}>{env.name}</option>}
+                </For>
+              </select>
+            </Field>
+          </Show>
           <Field label={t("tokens.expirationLabel")} hint={t("tokens.expirationHint")}>
             <ExpirationPicker value={days()} onChange={setDays} allowNever={scope() === "read"} />
           </Field>

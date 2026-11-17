@@ -12,6 +12,8 @@ export async function create(input: {
   name: string;
   scope: TokenScope;
   expires_in_days?: number | null;
+  project_id?: string | null;
+  environment_id?: string | null;
 }): Promise<CreatedToken> {
   return request<CreatedToken>("POST", "/tokens", {
     body: JSON.stringify(input),
