@@ -46,31 +46,30 @@ func (p *PersonalAccessToken) IsExpired(now time.Time) bool {
 	return !now.Before(*p.ExpiresAt)
 }
 
-// Is Global rports whether the PAT grants instance-wide access across all projects and environments
-func (p *PersonalAccessToken) IsGlobal() bool {
+// CoversGlobal reports whether the PAT has unrestricted access across the entire instance.
+func (p *PersonalAccessToken) CoversGlobal() bool {
 	return p.ProjectID == nil && p.EnvironmentID == nil
 }
 
-// AllowsProject reports whether the PAT grants access to the given project
-func (p *PersonalAccessToken) AllowsProject(projectID id.ID) bool {
+// CoversProject reports whether the PAT covers the given project, either wholly or for a single environment.
+func (p *PersonalAccessToken) CoversProject(projectID id.ID) bool {
 	if p.ProjectID == nil {
 		return true
 	}
 	return *p.ProjectID == projectID
 }
 
-// AllowsProjectManage reports whether the PAT allows project-wide mutations (e.g. creating environments or tags).
-// Environment-scoped PATs are restricted to their single environment and return false.
-func (p *PersonalAccessToken) AllowsProjectManage(projectID id.ID) bool {
+// CoversWholeProject reports whether the PAT covers every environment in the given project.
+func (p *PersonalAccessToken) CoversWholeProject(projectID id.ID) bool {
 	if p.EnvironmentID != nil {
 		return false
 	}
-	return p.AllowsProject(projectID)
+	return p.CoversProject(projectID)
 }
 
-// AllowsEnvironment reports whether the PAT grants access to environmentID within projectID
+// AllowsEnvironment reports whether the PAT grants access to environmentID within projectID.
 func (p *PersonalAccessToken) AllowsEnvironment(projectID, environmentID id.ID) bool {
-	if !p.AllowsProject(projectID) {
+	if !p.CoversProject(projectID) {
 		return false
 	}
 	if p.EnvironmentID == nil {

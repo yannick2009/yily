@@ -61,11 +61,11 @@ func AuthenticatedScopeFromContext(ctx context.Context) (types.PATScope, bool) {
 	return "", false
 }
 
-// AllowsGlobal reports whether the authenticated caller has instance-wide acess.
+// AllowsGlobal reports whether the authenticated caller has instance-wide access.
 // Web sessions and global PATs return true; project/environment-scoped PATs return false.
 func AllowsGlobal(ctx context.Context) bool {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
-		return pat.IsGlobal()
+		return pat.CoversGlobal()
 	}
 
 	return true
@@ -74,7 +74,7 @@ func AllowsGlobal(ctx context.Context) bool {
 // AllowsProject reports whether the authenticated caller may read within projectID.
 func AllowsProject(ctx context.Context, projectID id.ID) bool {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
-		return pat.AllowsProject(projectID)
+		return pat.CoversProject(projectID)
 	}
 
 	return true
@@ -84,7 +84,7 @@ func AllowsProject(ctx context.Context, projectID id.ID) bool {
 // resources (environments, tags) within projectID.
 func AllowsProjectManage(ctx context.Context, projectID id.ID) bool {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
-		return pat.AllowsProjectManage(projectID)
+		return pat.CoversWholeProject(projectID)
 	}
 
 	return true

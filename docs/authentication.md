@@ -103,9 +103,9 @@ Token management is restricted to the web session: a PAT can never create, list,
 * **Revocation**: `DELETE /api/v1/tokens/:id` revokes a token. Revoked tokens are rejected on the next request.
 * **Introspection**: `GET /api/v1/tokens/me` returns the metadata of the PAT used for the request, including its resolved `project_name` and `environment_name` when restricted (a session gets `403` `TOKEN_REQUIRED`).
 * **Resource enforcement**:
-  * **Instance-wide** (`project_id` and `environment_id` omitted): allowed on all non-session-only read and write endpoints across all projects.
-  * **Project-scoped** (`project_id` set, `environment_id` omitted): restricted to that project and its environments, tags, and variables. Instance-wide operations (`GET /api/v1/dashboard`, `GET /api/v1/audit`, `GET /api/v1/audit/export`, `POST /api/v1/projects`, `PATCH /api/v1/projects/:id`, `DELETE /api/v1/projects/:id`) and resources in other projects return `403` (`TOKEN_RESOURCE_FORBIDDEN`). `GET /api/v1/projects` filters its response to the permitted project only.
-  * **Environment-scoped** (`environment_id` set, with its parent `project_id`): restricted to reading the parent project and its tags, and reading or writing that specific environment and its variables, versions, and imports/exports. Project-level mutations (creating, cloning, or deleting environments; creating or deleting tags) and operations on any other environment return `403` (`TOKEN_RESOURCE_FORBIDDEN`). `GET /api/v1/projects` and `GET /api/v1/projects/:projectID/environments` filter their lists to the permitted project and environment.
+  * **Instance-wide** (`project_id` and `environment_id` omitted): allowed on all non-session-only read and write operations across all projects.
+  * **Project-scoped** (`project_id` set, `environment_id` omitted): restricted to that project and its environments, tags, and variables. Instance-wide operations (dashboard, audit logs, creating/renaming/deleting projects) and resources in other projects return `403` (`TOKEN_RESOURCE_FORBIDDEN`). Project listings are filtered to the permitted project only.
+  * **Environment-scoped** (`environment_id` set, with its parent `project_id`): restricted to reading the parent project and its tags, and reading or writing that specific environment and its variables, versions, and imports/exports. Project-level mutations (creating, cloning, or deleting environments; creating or deleting tags) and operations on any other environment return `403` (`TOKEN_RESOURCE_FORBIDDEN`). Project and environment listings are filtered to the permitted project and environment.
   * If the target project or environment referenced by a restricted PAT is later deleted, token validation fails with `401 Unauthorized`.
 * **Usage tracking**: every successful authentication updates `last_used_at`.
 
@@ -167,18 +167,7 @@ Once authenticated, each operation requires one of these access levels (plus any
 | **PAT only** | `read` PAT, `write` PAT | Session (`403` `TOKEN_REQUIRED`) |
 | **Session only** | Session (with valid CSRF token on state-changing methods) | Any PAT (`403`) |
 
-### 5.1. Route Access Classification
-
-| Group | Access requirement | Routes (`/api/v1/...`) |
-| :--- | :--- | :--- |
-| **Public** | Unauthenticated | `GET /auth/status`, `POST /auth/setup`, `POST /auth/login`, `POST /auth/recover` |
-| **Session only** | Web session (+ CSRF on mutating requests) | `POST /auth/logout`, `GET /auth/me`, `GET /auth/csrf`, `GET /version`, `GET /version/update`, `POST /tokens`, `GET /tokens`, `POST /tokens/:id/rotate`, `DELETE /tokens/:id`, `DELETE /projects` |
-| **PAT only** | Any valid PAT (`read` or `write`) | `GET /tokens/me` |
-| **Global Read** | Session or global PAT | `GET /dashboard`, `GET /audit` |
-| **Global Write** | Session or global `write` PAT | `POST /projects`, `PATCH /projects/:id`, `DELETE /projects/:id`, `GET /audit/export` |
-| **Project / Env Read** | Session or matching-scope PAT (lists filtered for scoped PATs) | `GET /projects`, `GET /projects/:id`, `GET /projects/:projectID/tags`, `GET /projects/:projectID/environments`, `GET /environments/:id`, `GET /environments/:id/export`, `GET /environments/:environmentID/variables`, `POST /environments/:environmentID/variables/values`, `GET /variables/:id`, `GET /variables/:id/value`, `GET /variables/:id/versions`, `GET /variables/:id/versions/current` |
-| **Project Write** | Session, global `write` PAT, or project-scoped `write` PAT | `POST /projects/:projectID/environments`, `POST /environments/:id/clone`, `DELETE /environments/:id`, `POST /projects/:projectID/tags`, `DELETE /projects/:projectID/tags/:tagID` |
-| **Environment Write** | Session, global `write` PAT, project-scoped `write` PAT, or matching env-scoped `write` PAT | `PATCH /environments/:id/name`, `PATCH /environments/:id/description`, `POST /environments/:id/imports`, `POST /environments/:environmentID/variables`, `PATCH /variables/:id`, `DELETE /variables/:id`, `PUT /variables/:id/tags`, `POST /variables/:id/versions`, `PATCH /variables/:id/versions/:versionID`, `DELETE /variables/:id/value` |
+Token management and the Super Admin profile are **session only**. Setup, login and recovery are public.
 
 ---
 

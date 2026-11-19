@@ -301,6 +301,8 @@ func (s *patService) Validate(ctx context.Context, rawToken string) (*model.User
 }
 
 // GetAll retrieves all PAT metadata belonging to a user without exposing raw tokens or SHA-256 hashes.
+// Because project_name and environment_name are transient display fields (gorm:"-"), this method resolves
+// them in memory with per-call lookup caches so repeated scoped tokens avoid redundant database queries.
 func (s *patService) GetAll(ctx context.Context, userID id.ID) ([]model.PersonalAccessToken, error) {
 	pats, err := s.patRepository.GetAllByUserID(ctx, userID)
 	if err != nil {
@@ -311,35 +313,46 @@ func (s *patService) GetAll(ctx context.Context, userID id.ID) ([]model.Personal
 	envNames := make(map[id.ID]string)
 
 	for i := range pats {
-		if pats[i].ProjectID != nil {
-			pid := *pats[i].ProjectID
-			name, cached := projectNames[pid]
-
-			if !cached {
-				if proj, err := s.projectRepository.GetByID(ctx, pid); err == nil {
-					name = proj.Name
-				}
-				projectNames[pid] = name
+		pats[i].ProjectName = resolveCachedName(pats[i].ProjectID, projectNames, func(pid id.ID) (string, error) {
+			proj, err := s.projectRepository.GetByID(ctx, pid)
+			if err != nil {
+				return "", err
 			}
-			pats[i].ProjectName = name
-		}
+			return proj.Name, nil
+		})
 
-		if pats[i].EnvironmentID != nil {
-			eid := *pats[i].EnvironmentID
-			name, cached := envNames[eid]
-
-			if !cached {
-				if env, err := s.environmentRepository.GetByID(ctx, eid); err == nil {
-					name = env.Name
-				}
-				envNames[eid] = name
+		pats[i].EnvironmentName = resolveCachedName(pats[i].EnvironmentID, envNames, func(eid id.ID) (string, error) {
+			env, err := s.environmentRepository.GetByID(ctx, eid)
+			if err != nil {
+				return "", err
 			}
-			pats[i].EnvironmentName = name
-		}
+			return env.Name, nil
+		})
 	}
 
 	return pats, nil
 }
+
+// resolveCachedName returns the resource name for targetID using cache to avoid duplicate lookups within a call.
+func resolveCachedName(targetID *id.ID, cache map[id.ID]string, fetch func(id.ID) (string, error)) string {
+	if targetID == nil {
+		return ""
+	}
+
+	if name, cached := cache[*targetID]; cached {
+		return name
+	}
+
+	name := ""
+	if fetched, err := fetch(*targetID); err == nil {
+		name = fetched
+	}
+
+	cache[*targetID] = name
+	return name
+}
+
+// populateScopeNames resolves the transient project and environment names of a scoped PAT for API responses.
 func (s *patService) populateScopeNames(ctx context.Context, pat *model.PersonalAccessToken) {
 	if pat.ProjectID != nil {
 		if proj, err := s.projectRepository.GetByID(ctx, *pat.ProjectID); err == nil {
