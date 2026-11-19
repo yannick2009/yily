@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/id"
@@ -38,6 +39,10 @@ func NewTagService(tagRepository repository.TagRepository, audit AuditService) T
 
 // Create creates a new tag for a project.
 func (s *tagService) Create(ctx context.Context, projectID id.ID, name string) (*model.Tag, error) {
+	if !authctx.AllowsProjectManage(ctx, projectID) {
+		return nil, ErrPATResourceForbidden
+	}
+
 	if err := validateName(name); err != nil {
 		return nil, err
 	}
@@ -54,18 +59,24 @@ func (s *tagService) Create(ctx context.Context, projectID id.ID, name string) (
 
 // CreateBatch creates several tags for a project in one call. The input is trimmed and deduplicated case-sensitively; names that already exist in the project are reported in Skipped instead of returning an error. Any other persistence error aborts the batch and returns what was created so far along with the error.
 func (s *tagService) CreateBatch(ctx context.Context, projectID id.ID, names []string) (*TagBatchResult, error) {
+	if !authctx.AllowsProjectManage(ctx, projectID) {
+		return nil, ErrPATResourceForbidden
+	}
 	// Clean up the input: trim whitespace, drop empties, deduplicate while
 	// preserving first-seen order so audit entries follow user intent.
 	seen := make(map[string]struct{}, len(names))
 	cleaned := make([]string, 0, len(names))
+
 	for _, raw := range names {
 		n := strings.TrimSpace(raw)
 		if n == "" {
 			continue
 		}
+
 		if _, dup := seen[n]; dup {
 			continue
 		}
+
 		seen[n] = struct{}{}
 		cleaned = append(cleaned, n)
 	}
@@ -78,36 +89,51 @@ func (s *tagService) CreateBatch(ctx context.Context, projectID id.ID, names []s
 		if err := validateName(name); err != nil {
 			return result, err
 		}
+
 		tag := &model.Tag{Name: name, ProjectID: projectID}
 		if err := s.tagRepository.Create(ctx, tag); err != nil {
 			if errors.Is(err, repository.ErrTagNameAlreadyExists) {
 				result.Skipped = append(result.Skipped, name)
 				continue
 			}
+
 			return result, err
 		}
+
 		_ = s.audit.Record(ctx, types.ActionCreated, types.ResourceTag, tag.ID, tag.Name, nil)
 		result.Created = append(result.Created, *tag)
 	}
+
 	return result, nil
 }
 
 // Delete deletes a tag of a project.
 func (s *tagService) Delete(ctx context.Context, projectID, tagID id.ID) error {
+	if !authctx.AllowsProjectManage(ctx, projectID) {
+		return ErrPATResourceForbidden
+	}
+
 	name := ""
 	if tag, err := s.tagRepository.GetByID(ctx, tagID); err == nil {
 		name = tag.Name
 	}
+
 	if err := s.tagRepository.Delete(ctx, projectID, tagID); err != nil {
 		return err
 	}
+
 	if name != "" {
 		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceTag, tagID, name, nil)
 	}
+
 	return nil
 }
 
 // GetAll retrieves all tags of a project.
 func (s *tagService) GetAll(ctx context.Context, projectID id.ID) ([]model.Tag, error) {
+	if !authctx.AllowsProject(ctx, projectID) {
+		return nil, ErrPATResourceForbidden
+	}
+
 	return s.tagRepository.GetAll(ctx, projectID)
 }

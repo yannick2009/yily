@@ -67,9 +67,11 @@ func httpStatus(err error) int {
 		errors.Is(err, repository.ErrUserAlreadyExists),
 		errors.Is(err, service.ErrSetupAlreadyDone):
 		return http.StatusConflict
-	case errors.Is(err, service.ErrPATWriteForbidden):
+	case errors.Is(err, service.ErrPATWriteForbidden),
+		errors.Is(err, service.ErrPATResourceForbidden):
 		return http.StatusForbidden
 	case errors.Is(err, repository.ErrTagNotInProject),
+		errors.Is(err, service.ErrPATEnvironmentNotInProject),
 		errors.Is(err, env.ErrInvalidJSONFormat),
 		errors.Is(err, env.ErrInvalidYAMLFormat),
 		errors.Is(err, env.ErrInvalidEnvFileFormat),

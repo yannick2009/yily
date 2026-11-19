@@ -23,6 +23,16 @@ export function TokenRow(props: {
     return t("tokens.expires", { date: formatDate(props.token.expires_at) });
   };
 
+  const resourceScopeLabel = () => {
+    const projectLabel = props.token.project_name || props.token.project_id;
+    const environmentLabel = props.token.environment_name || props.token.environment_id;
+    if (environmentLabel) {
+      return projectLabel ? `${projectLabel} / ${environmentLabel}` : environmentLabel;
+    }
+    if (projectLabel) return projectLabel;
+    return t("tokens.accessGlobal");
+  };
+
   return (
     <div class="flex items-center gap-4 px-4 py-3.5">
       <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-ink-muted">
@@ -32,6 +42,9 @@ export function TokenRow(props: {
         <div class="flex items-center gap-2">
           <p class="truncate text-sm font-medium text-ink">{props.token.name}</p>
           <ScopeBadge scope={props.token.scope} />
+          <Chip variant="neutral" class="shrink-0">
+            {resourceScopeLabel()}
+          </Chip>
           <Show when={expiringSoon()}>
             <Chip variant="danger" class="shrink-0">
               {t("tokens.expiringSoon")}

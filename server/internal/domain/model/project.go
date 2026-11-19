@@ -9,12 +9,13 @@ import (
 
 // Project represents a project in the system.
 type Project struct {
-	ID           id.ID         `gorm:"primaryKey;type:text" json:"id"`                                    // Unique identifier for the project
-	Name         string        `gorm:"type:varchar(255);not null" json:"name"`                            // Name of the project
-	CreatedAt    time.Time     `gorm:"autoCreateTime" json:"created_at"`                                  // Timestamp when the project was created
-	UpdatedAt    time.Time     `gorm:"autoUpdateTime" json:"updated_at"`                                  // Timestamp when the project was last updated
-	Environments []Environment `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"environments"` // List of environments associated with the project
-	Tags         []Tag         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"tags"`         // List of tags associated with the project
+	ID                   id.ID                 `gorm:"primaryKey;type:text" json:"id"`                                    // Unique identifier for the project
+	Name                 string                `gorm:"type:varchar(255);not null" json:"name"`                            // Name of the project
+	CreatedAt            time.Time             `gorm:"autoCreateTime" json:"created_at"`                                  // Timestamp when the project was created
+	UpdatedAt            time.Time             `gorm:"autoUpdateTime" json:"updated_at"`                                  // Timestamp when the project was last updated
+	Environments         []Environment         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"environments"` // List of environments associated with the project
+	Tags                 []Tag                 `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"tags"`         // List of tags associated with the project
+	PersonalAccessTokens []PersonalAccessToken `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`            // Scoped PATs restricted to this project
 }
 
 // BeforeCreate is a GORM hook that is triggered before creating a new Project record.

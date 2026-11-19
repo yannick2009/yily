@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/yannick2009/yily/internal/api"
+	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/id"
 	"github.com/yannick2009/yily/internal/repository"
@@ -51,6 +52,10 @@ func NewDashboardService(projectRepository repository.ProjectRepository, environ
 
 // GetDashboard aggregates the dashboard data for the authenticated user.
 func (s *dashboardService) GetDashboard(ctx context.Context, userID id.ID) (*Dashboard, error) {
+	if !authctx.AllowsGlobal(ctx) {
+		return nil, ErrPATResourceForbidden
+	}
+
 	projects, err := s.projectRepository.GetAll(ctx)
 	if err != nil {
 		return nil, err
@@ -93,6 +98,7 @@ func (s *dashboardService) projectSummaries(ctx context.Context, projects []mode
 		if err != nil {
 			return nil, 0, 0, err
 		}
+
 		variableCount, err := s.variableRepository.CountByProjectID(ctx, project.ID)
 		if err != nil {
 			return nil, 0, 0, err
@@ -109,9 +115,11 @@ func (s *dashboardService) projectSummaries(ctx context.Context, projects []mode
 			UpdatedAt:        project.UpdatedAt,
 		})
 	}
+
 	sort.Slice(summaries, func(i, j int) bool { return summaries[i].UpdatedAt.After(summaries[j].UpdatedAt) })
 	if len(summaries) > dashboardListLimit {
 		summaries = summaries[:dashboardListLimit]
 	}
+
 	return summaries, totalEnvironments, totalVariables, nil
 }

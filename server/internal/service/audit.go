@@ -71,6 +71,10 @@ func (s *auditService) Record(ctx context.Context, action types.Action, resource
 
 // List returns a page of audit events, newest first.
 func (s *auditService) List(ctx context.Context, filter AuditFilter) (*AuditList, error) {
+	if !authctx.AllowsGlobal(ctx) {
+		return nil, ErrPATResourceForbidden
+	}
+
 	events, total, err := s.auditRepository.List(ctx, repository.AuditListFilter{
 		Search:    filter.Search,
 		ActorType: filter.ActorType,
@@ -80,6 +84,7 @@ func (s *auditService) List(ctx context.Context, filter AuditFilter) (*AuditList
 		Limit:     filter.Limit,
 		Offset:    filter.Offset,
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +93,10 @@ func (s *auditService) List(ctx context.Context, filter AuditFilter) (*AuditList
 
 // Export returns every audit event matching the filter, oldest first.
 func (s *auditService) Export(ctx context.Context, filter AuditFilter) ([]model.AuditEvent, error) {
+	if !authctx.AllowsGlobal(ctx) {
+		return nil, ErrPATResourceForbidden
+	}
+
 	return s.auditRepository.ListAll(ctx, repository.AuditListFilter{
 		Search:    filter.Search,
 		ActorType: filter.ActorType,

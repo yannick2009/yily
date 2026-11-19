@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/crypto"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
@@ -83,6 +84,10 @@ func NewVariableService(variableRepository repository.VariableRepository, versio
 
 // Create creates a new variable with its first version.
 func (s *variableService) Create(ctx context.Context, environmentID id.ID, name, value string) (*model.Variable, error) {
+	if _, err := s.accessibleEnvironment(ctx, environmentID); err != nil {
+		return nil, err
+	}
+
 	variable, err := s.create(ctx, environmentID, name, value)
 	if err != nil {
 		return nil, err
@@ -107,6 +112,7 @@ func (s *variableService) create(ctx context.Context, environmentID id.ID, name,
 		Name:          normalized,
 		EnvironmentID: environmentID,
 	}
+
 	if err := s.variableRepository.Create(ctx, variable); err != nil {
 		return nil, err
 	}
@@ -124,11 +130,15 @@ func (s *variableService) create(ctx context.Context, environmentID id.ID, name,
 
 // GetByID retrieves a variable by its ID.
 func (s *variableService) GetByID(ctx context.Context, variableID id.ID) (*model.Variable, error) {
-	return s.variableRepository.GetByID(ctx, variableID)
+	return s.accessibleVariable(ctx, variableID)
 }
 
 // List retrieves the variables of an environment matching the given filter.
 func (s *variableService) List(ctx context.Context, environmentID id.ID, filter VariableListFilter) ([]model.Variable, error) {
+	if _, err := s.accessibleEnvironment(ctx, environmentID); err != nil {
+		return nil, err
+	}
+
 	return s.variableRepository.List(ctx, environmentID, repository.VariableListFilter{
 		Search: filter.Search,
 		TagIDs: filter.TagIDs,
@@ -139,46 +149,56 @@ func (s *variableService) List(ctx context.Context, environmentID id.ID, filter 
 
 // SetName updates the name of a variable.
 func (s *variableService) SetName(ctx context.Context, variableID id.ID, name string) error {
+	variable, err := s.accessibleVariable(ctx, variableID)
+	if err != nil {
+		return err
+	}
+
 	normalized := normalizeVariableName(name)
 	if err := validateVariableName(normalized); err != nil {
 		return err
 	}
 
-	oldName := ""
-	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
-		oldName = variable.Name
-	}
+	oldName := variable.Name
 	if err := s.variableRepository.SetName(ctx, variableID, normalized); err != nil {
 		return err
 	}
+
 	var metadata map[string]string
 	if oldName != "" && oldName != normalized {
 		metadata = map[string]string{"old_name": oldName, "new_name": normalized}
 	}
+
 	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceVariable, variableID, normalized, metadata)
 	return nil
 }
 
 // Delete deletes a variable (and its versions via cascade).
 func (s *variableService) Delete(ctx context.Context, variableID id.ID) error {
-	name := ""
-	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
-		name = variable.Name
+	variable, err := s.accessibleVariable(ctx, variableID)
+	if err != nil {
+		return err
 	}
+
 	if err := s.variableRepository.Delete(ctx, variableID); err != nil {
 		return err
 	}
-	if name != "" {
-		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceVariable, variableID, name, nil)
+	if variable.Name != "" {
+		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceVariable, variableID, variable.Name, nil)
 	}
 	return nil
 }
 
 // SetTags replaces the set of tags associated with a variable.
 func (s *variableService) SetTags(ctx context.Context, variableID id.ID, tagIDs []id.ID) error {
+	if _, err := s.accessibleVariable(ctx, variableID); err != nil {
+		return err
+	}
+
 	if err := s.variableRepository.SetTags(ctx, variableID, tagIDs); err != nil {
 		return err
 	}
+
 	s.auditVariable(ctx, types.ActionUpdated, variableID)
 	return nil
 }
@@ -186,19 +206,29 @@ func (s *variableService) SetTags(ctx context.Context, variableID id.ID, tagIDs 
 // SetVersionActive activates or deactivates a version. The version must belong
 // to the given variable, otherwise the change is rejected.
 func (s *variableService) SetVersionActive(ctx context.Context, variableID id.ID, variableVersionID id.ID, active bool) error {
+	if _, err := s.accessibleVariable(ctx, variableID); err != nil {
+		return err
+	}
+
 	if err := s.versionRepository.SetActive(ctx, variableID, variableVersionID, active); err != nil {
 		return err
 	}
+
 	s.auditVariable(ctx, types.ActionUpdated, variableID)
 	return nil
 }
 
 // GetCurrentVersion returns the current active version of a variable, without its value.
 func (s *variableService) GetCurrentVersion(ctx context.Context, variableID id.ID) (*model.VariableVersion, error) {
+	if _, err := s.accessibleVariable(ctx, variableID); err != nil {
+		return nil, err
+	}
+
 	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
 	if err != nil {
 		return nil, err
 	}
+
 	if version == nil {
 		return nil, repository.ErrVariableVersionNotFound
 	}
@@ -211,6 +241,10 @@ func (s *variableService) GetCurrentVersion(ctx context.Context, variableID id.I
 
 // GetValue returns the current decrypted value of a variable.
 func (s *variableService) GetValue(ctx context.Context, variableID id.ID) (string, error) {
+	if _, err := s.accessibleVariable(ctx, variableID); err != nil {
+		return "", err
+	}
+
 	version, err := s.versionRepository.GetCurrentActive(ctx, variableID)
 	if err != nil {
 		return "", err
@@ -231,6 +265,10 @@ func (s *variableService) GetValue(ctx context.Context, variableID id.ID) (strin
 // version. A name may appear only once; duplicate selections are rejected so a
 // request cannot silently pick one of two conflicting versions.
 func (s *variableService) GetValues(ctx context.Context, environmentID id.ID, selections []VariableSelection) (map[string]string, error) {
+	if _, err := s.accessibleEnvironment(ctx, environmentID); err != nil {
+		return nil, err
+	}
+
 	prepared := make([]VariableSelection, 0, len(selections))
 	seen := make(map[string]struct{}, len(selections))
 	for _, selection := range selections {
@@ -248,9 +286,6 @@ func (s *variableService) GetValues(ctx context.Context, environmentID id.ID, se
 		prepared = append(prepared, VariableSelection{Name: name, Version: selection.Version})
 	}
 
-	if _, err := s.environmentRepository.GetByID(ctx, environmentID); err != nil {
-		return nil, err
-	}
 	if len(prepared) == 0 {
 		return map[string]string{}, nil
 	}
@@ -266,6 +301,7 @@ func (s *variableService) GetValues(ctx context.Context, environmentID id.ID, se
 	if err != nil {
 		return nil, err
 	}
+
 	if len(variables) == 0 {
 		return map[string]string{}, nil
 	}
@@ -282,6 +318,7 @@ func (s *variableService) GetValues(ctx context.Context, environmentID id.ID, se
 	for version := range versionGroups {
 		versions = append(versions, version)
 	}
+
 	sort.Ints(versions)
 
 	versionByVariable := make(map[id.ID]model.VariableVersion, len(variables))
@@ -299,6 +336,7 @@ func (s *variableService) GetValues(ctx context.Context, environmentID id.ID, se
 
 	values := make(map[string]string, len(variables))
 	revealed := make([]model.Variable, 0, len(variables))
+
 	for _, variable := range variables {
 		variableVersion, exists := versionByVariable[variable.ID]
 		if !exists {
@@ -314,9 +352,11 @@ func (s *variableService) GetValues(ctx context.Context, environmentID id.ID, se
 		if err != nil {
 			return nil, err
 		}
+
 		values[variable.Name] = value
 		revealed = append(revealed, variable)
 	}
+
 	for _, variable := range revealed {
 		_ = s.audit.Record(ctx, types.ActionRevealed, types.ResourceVariable, variable.ID, variable.Name, nil)
 	}
@@ -326,6 +366,10 @@ func (s *variableService) GetValues(ctx context.Context, environmentID id.ID, se
 
 // GetAllVersions returns all versions of a variable, newest first, without their values.
 func (s *variableService) GetAllVersions(ctx context.Context, variableID id.ID) ([]model.VariableVersion, error) {
+	if _, err := s.accessibleVariable(ctx, variableID); err != nil {
+		return nil, err
+	}
+
 	versions, err := s.versionRepository.GetAll(ctx, variableID)
 	if err != nil {
 		return nil, err
@@ -341,19 +385,29 @@ func (s *variableService) GetAllVersions(ctx context.Context, variableID id.ID) 
 
 // AddVersion adds a new active version to a variable and returns it.
 func (s *variableService) AddVersion(ctx context.Context, variableID id.ID, value string) (*model.VariableVersion, error) {
+	if _, err := s.accessibleVariable(ctx, variableID); err != nil {
+		return nil, err
+	}
+
 	version, err := s.addVersion(ctx, variableID, value)
 	if err != nil {
 		return nil, err
 	}
+
 	s.auditVariable(ctx, types.ActionUpdated, variableID)
 	return version, nil
 }
 
 // ClearValue clears the variable's current value by deactivating all its active versions.
 func (s *variableService) ClearValue(ctx context.Context, variableID id.ID) error {
+	if _, err := s.accessibleVariable(ctx, variableID); err != nil {
+		return err
+	}
+
 	if err := s.versionRepository.DeactivateAll(ctx, variableID); err != nil {
 		return err
 	}
+
 	s.auditVariable(ctx, types.ActionUpdated, variableID)
 	return nil
 }
@@ -393,8 +447,12 @@ func (s *variableService) addVersion(ctx context.Context, variableID id.ID, valu
 // Import imports variables from a file (JSON, YAML or .env) into the given environment.
 // New variables are created; existing ones get a new version only if their value changed.
 func (s *variableService) Import(ctx context.Context, environmentID id.ID, data []byte, fileType types.FileType, filename string) error {
+	environment, err := s.accessibleEnvironment(ctx, environmentID)
+	if err != nil {
+		return err
+	}
+
 	var raw map[string]string
-	var err error
 
 	switch fileType {
 	case types.FileTypeJSON:
@@ -406,6 +464,7 @@ func (s *variableService) Import(ctx context.Context, environmentID id.ID, data 
 	default:
 		return types.ErrUnsupportedFileType
 	}
+
 	if err != nil {
 		return err
 	}
@@ -417,6 +476,7 @@ func (s *variableService) Import(ctx context.Context, environmentID id.ID, data 
 		if _, exists := variables[normalized]; exists {
 			return env.ErrDuplicateVariableName
 		}
+
 		variables[normalized] = strings.TrimSpace(value)
 	}
 
@@ -425,6 +485,7 @@ func (s *variableService) Import(ctx context.Context, environmentID id.ID, data 
 	if err != nil {
 		return err
 	}
+
 	byName := make(map[string]*model.Variable, len(existing))
 	for i := range existing {
 		byName[existing[i].Name] = &existing[i]
@@ -435,10 +496,12 @@ func (s *variableService) Import(ctx context.Context, environmentID id.ID, data 
 	for name := range variables {
 		names = append(names, name)
 	}
+
 	sort.Strings(names)
 
 	createdCount := 0
 	updatedCount := 0
+
 	for _, name := range names {
 		value := variables[name]
 		variable, exists := byName[name]
@@ -459,10 +522,6 @@ func (s *variableService) Import(ctx context.Context, environmentID id.ID, data 
 	}
 
 	// Record a single import event rather than one per created/updated variable.
-	environment, err := s.environmentRepository.GetByID(ctx, environmentID)
-	if err != nil {
-		return err
-	}
 	_ = s.audit.Record(ctx, types.ActionImport, types.ResourceEnvironment, environmentID, environment.Name, map[string]string{
 		"file":          filepath.Base(filename),
 		"file_type":     string(fileType),
@@ -494,11 +553,17 @@ func (s *variableService) applyImportValue(ctx context.Context, variableID id.ID
 	if _, err := s.addVersion(ctx, variableID, value); err != nil {
 		return false, err
 	}
+
 	return true, nil
 }
 
 // Export serializes all variables of an environment (name → current decrypted value) into the given file format.
 func (s *variableService) Export(ctx context.Context, environmentID id.ID, fileType types.FileType) ([]byte, error) {
+	environment, err := s.accessibleEnvironment(ctx, environmentID)
+	if err != nil {
+		return nil, err
+	}
+
 	variables, err := s.variableRepository.List(ctx, environmentID, repository.VariableListFilter{})
 	if err != nil {
 		return nil, err
@@ -533,15 +598,12 @@ func (s *variableService) Export(ctx context.Context, environmentID id.ID, fileT
 	default:
 		return nil, types.ErrUnsupportedFileType
 	}
+
 	if err != nil {
 		return nil, err
 	}
 
 	// Record a single export event rather than a reveal per variable.
-	environment, err := s.environmentRepository.GetByID(ctx, environmentID)
-	if err != nil {
-		return nil, err
-	}
 	_ = s.audit.Record(ctx, types.ActionExport, types.ResourceEnvironment, environmentID, environment.Name, map[string]string{
 		"file_type":      string(fileType),
 		"variable_count": strconv.Itoa(len(variables)),
@@ -571,5 +633,36 @@ func (s *variableService) auditVariable(ctx context.Context, action types.Action
 	if variable, err := s.variableRepository.GetByID(ctx, variableID); err == nil {
 		name = variable.Name
 	}
+
 	_ = s.audit.Record(ctx, action, types.ResourceVariable, variableID, name, nil)
+}
+
+// accessibleEnvironment checks if the context allows access to the environment and returns it.
+func (s *variableService) accessibleEnvironment(ctx context.Context, environmentID id.ID) (*model.Environment, error) {
+	environment, err := s.environmentRepository.GetByID(ctx, environmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !authctx.AllowsEnvironment(ctx, environment.ProjectID, environment.ID) {
+		return nil, ErrPATResourceForbidden
+	}
+
+	return environment, nil
+}
+
+// accessibleVariable checks if the context allows access to the variable and returns it.
+func (s *variableService) accessibleVariable(ctx context.Context, variableID id.ID) (*model.Variable, error) {
+	variable, err := s.variableRepository.GetByID(ctx, variableID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !authctx.AllowsGlobal(ctx) {
+		if _, err := s.accessibleEnvironment(ctx, variable.EnvironmentID); err != nil {
+			return nil, err
+		}
+	}
+
+	return variable, nil
 }

@@ -7,7 +7,7 @@ Yily implements a self-contained, zero-external-dependency authentication and au
 Access is restricted to a single account: the **Super Admin**. That account is reached through two access models:
 
 1. **Web Interface**: server-side sessions carried by an `HttpOnly` cookie, with a per-session CSRF token for state-changing requests.
-2. **Programmatic / API Access**: Personal Access Tokens (PAT) sent as `Authorization: Bearer yily_<token>`, each scoped to `read` or `write`.
+2. **Programmatic / API Access**: Personal Access Tokens (PAT) sent as `Authorization: Bearer yily_<token>`, each scoped to `read` or `write` and optionally restricted to a single project or environment.
 
 Two out-of-band secrets complete the model:
 
@@ -32,6 +32,7 @@ Two out-of-band secrets complete the model:
 | **PAT Format** | `yily_<base64url_192bit_token>` | Prefix identifies Yily credentials; 192 bits of cryptographically random entropy. |
 | **PAT Storage** | SHA-256 hex digest (64 chars) | The complete PAT is shown only once; only its SHA-256 hash is persisted. |
 | **PAT Scopes** | `read` or `write` | `write` implies `read`. No PAT can manage tokens or reach session-only operations. |
+| **PAT Resource Scope** | Instance-wide (`all projects`), single project (`project_id`), or single environment (`project_id` + `environment_id`) | Enforces least privilege so CI/CD pipelines and team scripts can only access their assigned project or environment. |
 | **PAT Lifetime** | 7, 30, 60 or 90 days; `write` defaults to 30 days and always expires; `read` may never expire | Limits exposure of a leaked token, especially one that can modify secrets. |
 | **Recovery Code** | 16 bytes (128 bits), uppercase hex in groups of four (`XXXX-XXXX-…`) | Stored only as an Argon2id hash; single-use. |
 | **API Auth Header** | `Authorization: Bearer yily_<token>` | Standard RFC 6750 Bearer authentication scheme. |
@@ -96,11 +97,16 @@ The `Secure` cookie flag is set when the request is detected as HTTPS:
 ### 4.6. Personal Access Token (PAT) Lifecycle
 Token management is restricted to the web session: a PAT can never create, list, rotate or revoke tokens.
 
-* **Creation**: `POST /api/v1/tokens` with `name`, `scope` (`read` or `write`) and an optional `expires_in_days` (`7`, `30`, `60` or `90`). Without it, a `write` token expires after 30 days and a `read` token never expires. The raw token (`yily_...`) is returned in the response **only once**.
-* **Listing**: `GET /api/v1/tokens` returns metadata only (`id`, `name`, `scope`, `created_at`, `expires_at`, `revoked_at`, `last_used_at`), never the raw token or its hash.
-* **Rotation**: `POST /api/v1/tokens/:id/rotate` issues a replacement with the same name and scope (and an optional new `expires_in_days`), returns it once, and revokes the old token immediately. A revoked token cannot be rotated.
+* **Creation**: `POST /api/v1/tokens` with `name`, `scope` (`read` or `write`), optional `expires_in_days` (`7`, `30`, `60` or `90`), and optional resource restriction fields `project_id` and `environment_id`. If both `project_id` and `environment_id` are supplied, the environment must belong to that project (`400` `ENVIRONMENT_NOT_IN_PROJECT`); if only `environment_id` is supplied, its parent `project_id` is resolved automatically. Without `expires_in_days`, a `write` token expires after 30 days and a `read` token never expires. The raw token (`yily_...`) is returned in the response **only once**.
+* **Listing**: `GET /api/v1/tokens` returns metadata only (`id`, `name`, `scope`, `project_id`, `environment_id`, `project_name`, `environment_name`, `created_at`, `expires_at`, `revoked_at`, `last_used_at`), never the raw token or its hash.
+* **Rotation**: `POST /api/v1/tokens/:id/rotate` issues a replacement with the same name, permission `scope`, and resource restriction (`project_id` / `environment_id`) — plus an optional new `expires_in_days` — returns it once, and revokes the old token immediately. A revoked token cannot be rotated.
 * **Revocation**: `DELETE /api/v1/tokens/:id` revokes a token. Revoked tokens are rejected on the next request.
-* **Introspection**: `GET /api/v1/tokens/me` returns the metadata of the PAT used for the request (a session gets `403`).
+* **Introspection**: `GET /api/v1/tokens/me` returns the metadata of the PAT used for the request, including its resolved `project_name` and `environment_name` when restricted (a session gets `403` `TOKEN_REQUIRED`).
+* **Resource enforcement**:
+  * **Instance-wide** (`project_id` and `environment_id` omitted): allowed on all non-session-only read and write operations across all projects.
+  * **Project-scoped** (`project_id` set, `environment_id` omitted): restricted to that project and its environments, tags, and variables. Instance-wide operations (dashboard, audit logs, creating/renaming/deleting projects) and resources in other projects return `403` (`TOKEN_RESOURCE_FORBIDDEN`). Project listings are filtered to the permitted project only.
+  * **Environment-scoped** (`environment_id` set, with its parent `project_id`): restricted to reading the parent project and its tags, and reading or writing that specific environment and its variables, versions, and imports/exports. Project-level mutations (creating, cloning, or deleting environments; creating or deleting tags) and operations on any other environment return `403` (`TOKEN_RESOURCE_FORBIDDEN`). Project and environment listings are filtered to the permitted project and environment.
+  * If the target project or environment referenced by a restricted PAT is later deleted, token validation fails with `401 Unauthorized`.
 * **Usage tracking**: every successful authentication updates `last_used_at`.
 
 ### 4.7. Password Recovery
@@ -152,12 +158,13 @@ Authorization header present?
                       └── Valid ──► Update last_activity_at ──► Authenticated as Session
 ```
 
-Once authenticated, each operation requires one of these access levels:
+Once authenticated, each operation requires one of these access levels (plus any PAT resource restriction enforced by the service layer):
 
 | Access level | Allowed callers | Rejected callers |
 | :--- | :--- | :--- |
-| **Read** | Session, `read` PAT, `write` PAT | — |
-| **Write** | Session (with valid CSRF token), `write` PAT | `read` PAT (`403`) |
+| **Read** | Session, `read` PAT, `write` PAT (within PAT resource scope) | Out-of-scope PAT (`403` `TOKEN_RESOURCE_FORBIDDEN`) |
+| **Write** | Session (with valid CSRF token), `write` PAT (within PAT resource scope) | `read` PAT (`403`), out-of-scope PAT (`403` `TOKEN_RESOURCE_FORBIDDEN`) |
+| **PAT only** | `read` PAT, `write` PAT | Session (`403` `TOKEN_REQUIRED`) |
 | **Session only** | Session (with valid CSRF token on state-changing methods) | Any PAT (`403`) |
 
 Token management and the Super Admin profile are **session only**. Setup, login and recovery are public.

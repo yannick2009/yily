@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/yannick2009/yily/internal/api"
+	"github.com/yannick2009/yily/internal/authctx"
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
 	"github.com/yannick2009/yily/internal/id"
@@ -38,6 +39,10 @@ func NewProjectService(projectRepository repository.ProjectRepository, environme
 
 // Create creates a new project along with its "default" environment.
 func (s *projectService) Create(ctx context.Context, name string) (*model.Project, error) {
+	if !authctx.AllowsGlobal(ctx) {
+		return nil, ErrPATResourceForbidden
+	}
+
 	if err := validateName(name); err != nil {
 		return nil, err
 	}
@@ -63,6 +68,10 @@ func (s *projectService) Create(ctx context.Context, name string) (*model.Projec
 
 // GetByID retrieves a project by its ID.
 func (s *projectService) GetByID(ctx context.Context, projectID id.ID) (*model.Project, error) {
+	if !authctx.AllowsProject(ctx, projectID) {
+		return nil, ErrPATResourceForbidden
+	}
+
 	return s.projectRepository.GetByID(ctx, projectID)
 }
 
@@ -75,10 +84,15 @@ func (s *projectService) GetAll(ctx context.Context) ([]api.ProjectSummaryRespon
 
 	dtos := make([]api.ProjectSummaryResponse, 0, len(projects))
 	for _, project := range projects {
+		if !authctx.AllowsProject(ctx, project.ID) {
+			continue
+		}
+
 		environmentCount, err := s.environmentRepository.CountByProjectID(ctx, project.ID)
 		if err != nil {
 			return nil, err
 		}
+
 		tagCount, err := s.tagRepository.CountByProjectID(ctx, project.ID)
 		if err != nil {
 			return nil, err
@@ -99,6 +113,10 @@ func (s *projectService) GetAll(ctx context.Context) ([]api.ProjectSummaryRespon
 
 // SetName updates the name of a project.
 func (s *projectService) SetName(ctx context.Context, projectID id.ID, name string) error {
+	if !authctx.AllowsGlobal(ctx) {
+		return ErrPATResourceForbidden
+	}
+
 	if err := validateName(name); err != nil {
 		return err
 	}
@@ -107,34 +125,48 @@ func (s *projectService) SetName(ctx context.Context, projectID id.ID, name stri
 	if project, err := s.projectRepository.GetByID(ctx, projectID); err == nil {
 		oldName = project.Name
 	}
+
 	if err := s.projectRepository.SetName(ctx, projectID, name); err != nil {
 		return err
 	}
+
 	var metadata map[string]string
 	if oldName != "" && oldName != name {
 		metadata = map[string]string{"old_name": oldName, "new_name": name}
 	}
+
 	_ = s.audit.Record(ctx, types.ActionUpdated, types.ResourceProject, projectID, name, metadata)
 	return nil
 }
 
 // Delete deletes a project.
 func (s *projectService) Delete(ctx context.Context, projectID id.ID) error {
+	if !authctx.AllowsGlobal(ctx) {
+		return ErrPATResourceForbidden
+	}
+
 	name := ""
 	if project, err := s.projectRepository.GetByID(ctx, projectID); err == nil {
 		name = project.Name
 	}
+
 	if err := s.projectRepository.Delete(ctx, projectID); err != nil {
 		return err
 	}
+
 	if name != "" {
 		_ = s.audit.Record(ctx, types.ActionDeleted, types.ResourceProject, projectID, name, nil)
 	}
+
 	return nil
 }
 
 // Clear deletes all projects.
 func (s *projectService) Clear(ctx context.Context) error {
+	if !authctx.AllowsGlobal(ctx) {
+		return ErrPATResourceForbidden
+	}
+
 	if err := s.projectRepository.DeleteAll(ctx); err != nil {
 		return err
 	}

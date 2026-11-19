@@ -9,6 +9,7 @@ import (
 
 	"github.com/yannick2009/yily/internal/domain/model"
 	"github.com/yannick2009/yily/internal/domain/types"
+	"github.com/yannick2009/yily/internal/id"
 )
 
 type authUserContextKey struct{}
@@ -52,10 +53,50 @@ func AuthenticatedScopeFromContext(ctx context.Context) (types.PATScope, bool) {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
 		return pat.Scope, true
 	}
+
 	if _, ok := AuthenticatedSessionFromContext(ctx); ok {
 		return types.PATScopeWrite, true
 	}
+
 	return "", false
+}
+
+// AllowsGlobal reports whether the authenticated caller has instance-wide access.
+// Web sessions and global PATs return true; project/environment-scoped PATs return false.
+func AllowsGlobal(ctx context.Context) bool {
+	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
+		return pat.CoversGlobal()
+	}
+
+	return true
+}
+
+// AllowsProject reports whether the authenticated caller may read within projectID.
+func AllowsProject(ctx context.Context, projectID id.ID) bool {
+	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
+		return pat.CoversProject(projectID)
+	}
+
+	return true
+}
+
+// AllowsProjectManage reports whether the authenticated caller may manage project-level
+// resources (environments, tags) within projectID.
+func AllowsProjectManage(ctx context.Context, projectID id.ID) bool {
+	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
+		return pat.CoversWholeProject(projectID)
+	}
+
+	return true
+}
+
+// AllowsEnvironment reports whether the authenticated caller may access environmentID within projectID.
+func AllowsEnvironment(ctx context.Context, projectID, environmentID id.ID) bool {
+	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
+		return pat.AllowsEnvironment(projectID, environmentID)
+	}
+
+	return true
 }
 
 // ActorFromContext resolves the authenticated actor from the context for audit attribution.
@@ -64,8 +105,10 @@ func ActorFromContext(ctx context.Context) types.AuditActor {
 	if pat, ok := AuthenticatedPATFromContext(ctx); ok {
 		return types.AuditActor{Type: types.ActorTypeToken, ID: pat.ID, Name: pat.Name}
 	}
+
 	if user, ok := AuthenticatedUserFromContext(ctx); ok {
 		return types.AuditActor{Type: types.ActorTypeUser, ID: user.ID, Name: user.Name}
 	}
+
 	return types.AuditActor{Type: types.ActorTypeSystem}
 }

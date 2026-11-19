@@ -48,14 +48,16 @@ const (
 	CodeAuthRecoveryUnavailable ErrorCode = "AUTH_RECOVERY_UNAVAILABLE"
 
 	// Personal Access Tokens
-	CodeTokenRequired          ErrorCode = "TOKEN_REQUIRED"
-	CodeTokenExpired           ErrorCode = "TOKEN_EXPIRED"
-	CodeTokenRevoked           ErrorCode = "TOKEN_REVOKED"
-	CodeTokenNotFound          ErrorCode = "TOKEN_NOT_FOUND"
-	CodeTokenInvalidName       ErrorCode = "TOKEN_INVALID_NAME"
-	CodeTokenInvalidExpiration ErrorCode = "TOKEN_INVALID_EXPIRATION"
-	CodeTokenInvalidScope      ErrorCode = "TOKEN_INVALID_SCOPE"
-	CodeTokenWriteForbidden    ErrorCode = "TOKEN_WRITE_FORBIDDEN"
+	CodeTokenRequired           ErrorCode = "TOKEN_REQUIRED"
+	CodeTokenExpired            ErrorCode = "TOKEN_EXPIRED"
+	CodeTokenRevoked            ErrorCode = "TOKEN_REVOKED"
+	CodeTokenNotFound           ErrorCode = "TOKEN_NOT_FOUND"
+	CodeTokenInvalidName        ErrorCode = "TOKEN_INVALID_NAME"
+	CodeTokenInvalidExpiration  ErrorCode = "TOKEN_INVALID_EXPIRATION"
+	CodeTokenInvalidScope       ErrorCode = "TOKEN_INVALID_SCOPE"
+	CodeTokenWriteForbidden     ErrorCode = "TOKEN_WRITE_FORBIDDEN"
+	CodeTokenResourceForbidden  ErrorCode = "TOKEN_RESOURCE_FORBIDDEN"
+	CodeEnvironmentNotInProject ErrorCode = "ENVIRONMENT_NOT_IN_PROJECT"
 
 	// Resources
 	CodeProjectNotFound             ErrorCode = "PROJECT_NOT_FOUND"
@@ -111,6 +113,8 @@ var sentinelCodes = []struct {
 	{service.ErrInvalidPATExpiration, CodeTokenInvalidExpiration},
 	{service.ErrInvalidPATScope, CodeTokenInvalidScope},
 	{service.ErrPATWriteForbidden, CodeTokenWriteForbidden},
+	{service.ErrPATResourceForbidden, CodeTokenResourceForbidden},
+	{service.ErrPATEnvironmentNotInProject, CodeEnvironmentNotInProject},
 
 	// Resources
 	{repository.ErrProjectNotFound, CodeProjectNotFound},
