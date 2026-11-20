@@ -10,14 +10,18 @@ import (
 
 	"github.com/yannick2009/yily/internal/crypto"
 	"github.com/yannick2009/yily/internal/domain/model"
+	"github.com/yannick2009/yily/internal/id"
+	"github.com/yannick2009/yily/internal/qr"
 	"github.com/yannick2009/yily/internal/repository"
 )
 
 const (
-	DefaultSessionTTL         = 24 * time.Hour // DefaultSessionTTL is the default maximum session lifetime.
-	DefaultSessionIdleTimeout = 2 * time.Hour  // DefaultSessionIdleTimeout is the default maximum session inactivity duration.
-	MinPasswordLength         = 12             // MinPasswordLength is the minimum Super Admin password length.
-	MaxPasswordLength         = 128            // MaxPasswordLength is the maximum Super Admin password length.
+	DefaultSessionTTL         = 24 * time.Hour  // DefaultSessionTTL is the default maximum session lifetime.
+	DefaultSessionIdleTimeout = 2 * time.Hour   // DefaultSessionIdleTimeout is the default maximum session inactivity duration.
+	MinPasswordLength         = 12              // MinPasswordLength is the minimum Super Admin password length.
+	MaxPasswordLength         = 128             // MaxPasswordLength is the maximum Super Admin password length.
+	TOTPMaxAttempts           = 5               // TOTPMaxAttempts is the number of consecutive invalid codes that triggers a lockout.
+	TOTPLockoutDuration       = 5 * time.Minute // TOTPLockoutDuration is how long TOTP verification stays locked after too many failures.
 )
 
 var (
@@ -33,16 +37,32 @@ var (
 	ErrSetupTokenNotSet    = errors.New("setup token is not configured; set YILY_SETUP_TOKEN")                                                            // ErrSetupTokenNotSet is returned when setup is attempted on an uninitialized instance without a configured setup token.
 	ErrInvalidRecoveryCode = errors.New("invalid recovery code")                                                                                          // ErrInvalidRecoveryCode is returned when the provided recovery code does not match the stored hash.
 	ErrRecoveryUnavailable = errors.New("password recovery is not available")                                                                             // ErrRecoveryUnavailable is returned when the Super Admin has no recovery code configured.
+	ErrTOTPRequired        = errors.New("a TOTP code is required")                                                                                        // ErrTOTPRequired is returned when the password is valid but TOTP is enabled and no code was supplied.
+	ErrInvalidTOTPCode     = errors.New("invalid TOTP code")                                                                                              // ErrInvalidTOTPCode is returned when a code does not match the current or adjacent time steps, or was already used.
+	ErrTOTPAlreadyEnabled  = errors.New("TOTP is already enabled")                                                                                        // ErrTOTPAlreadyEnabled is returned when enrollment starts for an account that already requires TOTP.
+	ErrTOTPNotEnabled      = errors.New("TOTP is not enabled")                                                                                            // ErrTOTPNotEnabled is returned when TOTP is confirmed or disabled without an active or pending enrollment.
+	ErrTOTPLocked          = errors.New("too many invalid TOTP codes; try again later")                                                                   // ErrTOTPLocked is returned while the account is locked after repeated invalid codes.
 )
 
 // AuthService defines the interface for Super Admin authentication and server-side session management.
 type AuthService interface {
-	Setup(ctx context.Context, name, email, password, setupToken string) (*model.User, string, error)                 // Setup creates the initial Super Admin account, gated by the out-of-band setup token, and returns the one-time recovery code.
-	Login(ctx context.Context, email, password, existingRawToken string) (string, *model.Session, *model.User, error) // Login verifies credentials, rotates any prior session, and issues a new session.
-	ValidateSession(ctx context.Context, rawToken string) (*model.User, *model.Session, error)                        // ValidateSession verifies a raw session token against its stored SHA-256 hash and loads the owning user.
-	Logout(ctx context.Context, rawToken string) error                                                                // Logout revokes a server-side session by hashing its raw token.
-	IsInitialized(ctx context.Context) (bool, error)                                                                  // IsInitialized reports whether the Super Admin account has been created.
-	Recover(ctx context.Context, recoveryCode, newPassword string) (string, error)                                    // Recover resets the Super Admin password using the recovery code and returns a new recovery code.
+	Setup(ctx context.Context, name, email, password, setupToken string) (*model.User, string, error)                           // Setup creates the initial Super Admin account, gated by the out-of-band setup token, and returns the one-time recovery code.
+	Login(ctx context.Context, email, password, totpCode, existingRawToken string) (string, *model.Session, *model.User, error) // Login verifies the password and, when enabled, a TOTP code, rotates any prior session, and issues a new session.
+	LoginWithTOTP(ctx context.Context, email, code, existingRawToken string) (string, *model.Session, *model.User, error)       // LoginWithTOTP authenticates with a TOTP code alone, for passwordless sign-in.
+	ValidateSession(ctx context.Context, rawToken string) (*model.User, *model.Session, error)                                  // ValidateSession verifies a raw session token against its stored SHA-256 hash and loads the owning user.
+	Logout(ctx context.Context, rawToken string) error                                                                          // Logout revokes a server-side session by hashing its raw token.
+	IsInitialized(ctx context.Context) (bool, error)                                                                            // IsInitialized reports whether the Super Admin account has been created.
+	Recover(ctx context.Context, recoveryCode, newPassword string) (string, error)                                              // Recover resets the Super Admin password using the recovery code, disables TOTP, and returns a new recovery code.
+	SetupTOTP(ctx context.Context, userID id.ID) (*TOTPSetup, error)                                                            // SetupTOTP starts enrollment: it stores a new encrypted seed and returns it with a provisioning URI and QR image.
+	ConfirmTOTP(ctx context.Context, userID id.ID, code string) error                                                           // ConfirmTOTP verifies a code against the pending seed and enables TOTP.
+	DisableTOTP(ctx context.Context, userID id.ID, password string) error                                                       // DisableTOTP removes TOTP after re-verifying the account password.
+}
+
+// TOTPSetup is the one-time payload returned when TOTP enrollment starts.
+type TOTPSetup struct {
+	Secret string `json:"secret"`      // Secret is the Base32 seed for manual entry.
+	URI    string `json:"otpauth_uri"` // URI is the otpauth:// provisioning URI.
+	QR     string `json:"qr_png"`      // QR is a PNG data URI of the provisioning URI; empty when rendering failed.
 }
 
 // AuthConfig holds optional timing parameters for AuthService.
@@ -60,18 +80,19 @@ type authService struct {
 	idleTimeout       time.Duration                // idleTimeout is the session inactivity timeout duration.
 	nowFunc           func() time.Time             // nowFunc returns the current UTC timestamp.
 	setupToken        string                       // setupToken is the out-of-band secret required to create the initial Super Admin.
+	masterKey         []byte                       // masterKey encrypts the TOTP seed at rest.
 
 	dummyOnce sync.Once // dummyOnce ensures dummyHash is computed at most once.
 	dummyHash string    // dummyHash is a pre-computed Argon2id PHC hash used when login email is not found to equalize response time and prevent timing-based email enumeration.
 }
 
 // NewAuthService creates a new AuthService with default session TTL and inactivity settings.
-func NewAuthService(userRepository repository.UserRepository, sessionRepository repository.SessionRepository, setupToken string) AuthService {
-	return NewAuthServiceWithConfig(userRepository, sessionRepository, setupToken, AuthConfig{})
+func NewAuthService(userRepository repository.UserRepository, sessionRepository repository.SessionRepository, setupToken string, masterKey []byte) AuthService {
+	return NewAuthServiceWithConfig(userRepository, sessionRepository, setupToken, masterKey, AuthConfig{})
 }
 
 // NewAuthServiceWithConfig creates a new AuthService with custom session TTL, idle timeout, and clock function.
-func NewAuthServiceWithConfig(userRepository repository.UserRepository, sessionRepository repository.SessionRepository, setupToken string, cfg AuthConfig) AuthService {
+func NewAuthServiceWithConfig(userRepository repository.UserRepository, sessionRepository repository.SessionRepository, setupToken string, masterKey []byte, cfg AuthConfig) AuthService {
 	ttl := cfg.SessionTTL
 	if ttl <= 0 {
 		ttl = DefaultSessionTTL
@@ -92,6 +113,7 @@ func NewAuthServiceWithConfig(userRepository repository.UserRepository, sessionR
 		idleTimeout:       idle,
 		nowFunc:           nowFn,
 		setupToken:        setupToken,
+		masterKey:         masterKey,
 	}
 }
 
@@ -162,8 +184,10 @@ func (s *authService) Setup(ctx context.Context, name, email, password, setupTok
 	return user, recoveryCode, nil
 }
 
-// Login verifies the Super Admin's Argon2id password, revokes any previous session to prevent session fixation, and creates a new SHA-256 hashed session.
-func (s *authService) Login(ctx context.Context, email, password, existingRawToken string) (string, *model.Session, *model.User, error) {
+// Login verifies the Super Admin's Argon2id password and, when TOTP is
+// enabled, a code from the authenticator app. It then revokes any previous
+// session to prevent session fixation and creates a new SHA-256 hashed session.
+func (s *authService) Login(ctx context.Context, email, password, totpCode, existingRawToken string) (string, *model.Session, *model.User, error) {
 	normalizedEmail := normalizeEmail(email)
 	if normalizedEmail == "" || password == "" {
 		return "", nil, nil, ErrInvalidCredentials
@@ -186,6 +210,185 @@ func (s *authService) Login(ctx context.Context, email, password, existingRawTok
 		return "", nil, nil, ErrInvalidCredentials
 	}
 
+	if user.TOTPEnabled {
+		if err := s.verifyTOTP(ctx, user, totpCode); err != nil {
+			return "", nil, nil, err
+		}
+	}
+
+	return s.issueSession(ctx, user, existingRawToken)
+}
+
+// LoginWithTOTP authenticates the Super Admin with a TOTP code alone, for
+// passwordless sign-in. Unknown emails, accounts without TOTP, and wrong codes
+// all fail with ErrInvalidCredentials so the endpoint cannot be used to
+// enumerate accounts.
+func (s *authService) LoginWithTOTP(ctx context.Context, email, code, existingRawToken string) (string, *model.Session, *model.User, error) {
+	normalizedEmail := normalizeEmail(email)
+	if normalizedEmail == "" || crypto.NormalizeTOTPCode(code) == "" {
+		return "", nil, nil, ErrInvalidCredentials
+	}
+
+	user, err := s.userRepository.GetByEmail(ctx, normalizedEmail)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			s.runDummyTOTP(code)
+			return "", nil, nil, ErrInvalidCredentials
+		}
+		return "", nil, nil, err
+	}
+
+	if !user.TOTPEnabled || user.TOTPSecretEncrypted == "" {
+		s.runDummyTOTP(code)
+		return "", nil, nil, ErrInvalidCredentials
+	}
+
+	if err := s.verifyTOTP(ctx, user, code); err != nil {
+		// Keep the public endpoint non-enumerable: a wrong code and a locked
+		// account must be indistinguishable from an unknown email.
+		if errors.Is(err, ErrInvalidTOTPCode) || errors.Is(err, ErrTOTPLocked) {
+			return "", nil, nil, ErrInvalidCredentials
+		}
+		return "", nil, nil, err
+	}
+
+	return s.issueSession(ctx, user, existingRawToken)
+}
+
+// SetupTOTP starts enrollment for an account that does not have TOTP yet. The
+// seed is stored encrypted and inert until ConfirmTOTP proves the authenticator
+// app produces valid codes, so an abandoned setup cannot lock the account out.
+func (s *authService) SetupTOTP(ctx context.Context, userID id.ID) (*TOTPSetup, error) {
+	user, err := s.userRepository.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if user.TOTPEnabled {
+		return nil, ErrTOTPAlreadyEnabled
+	}
+
+	secret, err := crypto.GenerateTOTPSecret()
+	if err != nil {
+		return nil, err
+	}
+
+	encrypted, err := crypto.EncryptTOTPSecret(secret, s.masterKey, user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.userRepository.SetTOTPSecret(ctx, user.ID, encrypted); err != nil {
+		return nil, err
+	}
+
+	uri := crypto.TOTPURI(crypto.TOTPIssuer, user.Email, secret)
+
+	// The QR image is a convenience: enrollment still works without it because
+	// the response always carries the secret and URI for manual entry.
+	qrPNG, _ := qr.DataURI(uri, 6)
+
+	return &TOTPSetup{Secret: secret, URI: uri, QR: qrPNG}, nil
+}
+
+// ConfirmTOTP verifies a code against the pending seed and enables TOTP. The
+// accepted time step is recorded so the enrollment code cannot be replayed.
+func (s *authService) ConfirmTOTP(ctx context.Context, userID id.ID, code string) error {
+	user, err := s.userRepository.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user.TOTPEnabled {
+		return ErrTOTPAlreadyEnabled
+	}
+	if user.TOTPSecretEncrypted == "" {
+		return ErrTOTPNotEnabled
+	}
+
+	secret, err := crypto.DecryptTOTPSecret(user.TOTPSecretEncrypted, s.masterKey, user.ID)
+	if err != nil {
+		return err
+	}
+
+	step, ok := crypto.ValidateTOTP(secret, code, s.nowFunc().UTC())
+	if !ok {
+		return ErrInvalidTOTPCode
+	}
+
+	return s.userRepository.EnableTOTP(ctx, user.ID, step)
+}
+
+// DisableTOTP turns TOTP off after re-verifying the account password. The
+// recovery code path disables TOTP as well, so a lost authenticator app is
+// never a permanent lockout.
+func (s *authService) DisableTOTP(ctx context.Context, userID id.ID, password string) error {
+	user, err := s.userRepository.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !user.TOTPEnabled {
+		return ErrTOTPNotEnabled
+	}
+
+	valid, err := crypto.VerifyPassword(password, user.PasswordHash)
+	if err != nil || !valid {
+		return ErrInvalidCredentials
+	}
+
+	return s.userRepository.DisableTOTP(ctx, user.ID)
+}
+
+// verifyTOTP checks a code against the user's seed, enforces the lockout
+// window, and atomically consumes the matched time step to reject replays.
+func (s *authService) verifyTOTP(ctx context.Context, user *model.User, code string) error {
+	now := s.nowFunc().UTC()
+	if user.TOTPLockedUntil != nil && now.Before(*user.TOTPLockedUntil) {
+		return ErrTOTPLocked
+	}
+
+	normalized := crypto.NormalizeTOTPCode(code)
+	if normalized == "" {
+		// The password was valid: ask the UI for the missing second factor. A
+		// missing code is not a failed attempt and must not count toward lockout.
+		return ErrTOTPRequired
+	}
+
+	secret, err := crypto.DecryptTOTPSecret(user.TOTPSecretEncrypted, s.masterKey, user.ID)
+	if err != nil {
+		return err
+	}
+
+	step, ok := crypto.ValidateTOTP(secret, normalized, now)
+	if !ok {
+		if err := s.userRepository.RecordTOTPFailure(ctx, user.ID, TOTPMaxAttempts, now.Add(TOTPLockoutDuration)); err != nil {
+			return err
+		}
+		return ErrInvalidTOTPCode
+	}
+
+	consumed, err := s.userRepository.ConsumeTOTPStep(ctx, user.ID, step)
+	if err != nil {
+		return err
+	}
+	if !consumed {
+		return ErrInvalidTOTPCode
+	}
+
+	return nil
+}
+
+// dummyTOTPSecret is a random per-process seed used to spend the same HMAC work
+// when an email has no TOTP-enabled account, keeping passwordless login timing
+// uniform. It is never accepted for any account.
+var dummyTOTPSecret, _ = crypto.GenerateTOTPSecret()
+
+// runDummyTOTP performs a throwaway validation to equalize passwordless login timing.
+func (s *authService) runDummyTOTP(code string) {
+	_, _ = crypto.ValidateTOTP(dummyTOTPSecret, code, s.nowFunc().UTC())
+}
+
+// issueSession revokes any session supplied with the login request (to prevent
+// session fixation) and creates a new session with a fresh CSRF token.
+func (s *authService) issueSession(ctx context.Context, user *model.User, existingRawToken string) (string, *model.Session, *model.User, error) {
 	now := s.nowFunc().UTC()
 
 	// Revoke any existing session sent with the login request to prevent session fixation.
@@ -285,9 +488,10 @@ func normalizeEmail(email string) string {
 }
 
 // Recover resets the Super Admin password using the one-time recovery code. On
-// success, in a single transaction, the password and recovery code are replaced
-// and every active session and unexpired PAT is revoked; the fresh recovery code
-// is returned. On failure nothing changes and the old recovery code stays valid.
+// success, in a single transaction, the password and recovery code are replaced,
+// TOTP is disabled, and every active session and unexpired PAT is revoked; the
+// fresh recovery code is returned. On failure nothing changes and the old
+// recovery code stays valid.
 func (s *authService) Recover(ctx context.Context, recoveryCode, newPassword string) (string, error) {
 	if len(newPassword) < MinPasswordLength {
 		return "", ErrWeakPassword

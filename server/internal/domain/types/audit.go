@@ -6,16 +6,18 @@ import "github.com/yannick2009/yily/internal/id"
 type Action string
 
 const (
-	ActionCreated   Action = "created"    // ActionCreated records the creation of a resource.
-	ActionUpdated   Action = "updated"    // ActionUpdated records a change to a resource (rename, value, tags, …).
-	ActionDeleted   Action = "deleted"    // ActionDeleted records the deletion of a resource.
-	ActionRevealed  Action = "revealed"   // ActionRevealed records a decrypted secret value being returned.
-	ActionExport    Action = "export"     // ActionExport records an environment's variables being exported.
-	ActionImport    Action = "import"     // ActionImport records a file being imported into an environment.
-	ActionRevoked   Action = "revoked"    // ActionRevoked records the revocation of a Personal Access Token.
-	ActionRotated   Action = "rotated"    // ActionRotated records the rotation of a Personal Access Token (old revoked, new issued under the same name).
-	ActionSignedIn  Action = "signed_in"  // ActionSignedIn records a successful login.
-	ActionSignedOut Action = "signed_out" // ActionSignedOut records an explicit logout.
+	ActionCreated      Action = "created"       // ActionCreated records the creation of a resource.
+	ActionUpdated      Action = "updated"       // ActionUpdated records a change to a resource (rename, value, tags, …).
+	ActionDeleted      Action = "deleted"       // ActionDeleted records the deletion of a resource.
+	ActionRevealed     Action = "revealed"      // ActionRevealed records a decrypted secret value being returned.
+	ActionExport       Action = "export"        // ActionExport records an environment's variables being exported.
+	ActionImport       Action = "import"        // ActionImport records a file being imported into an environment.
+	ActionRevoked      Action = "revoked"       // ActionRevoked records the revocation of a Personal Access Token.
+	ActionRotated      Action = "rotated"       // ActionRotated records the rotation of a Personal Access Token (old revoked, new issued under the same name).
+	ActionSignedIn     Action = "signed_in"     // ActionSignedIn records a successful login.
+	ActionSignedOut    Action = "signed_out"    // ActionSignedOut records an explicit logout.
+	ActionTOTPEnabled  Action = "totp_enabled"  // ActionTOTPEnabled records TOTP being enabled for the Super Admin.
+	ActionTOTPDisabled Action = "totp_disabled" // ActionTOTPDisabled records TOTP being disabled for the Super Admin.
 )
 
 // ActorType identifies who performed an audited action.
@@ -43,4 +45,5 @@ const (
 	ResourceVariable    ResourceType = "variable"    // ResourceVariable is a variable (secret).
 	ResourceTag         ResourceType = "tag"         // ResourceTag is a tag.
 	ResourceToken       ResourceType = "token"       // ResourceToken is a Personal Access Token.
+	ResourceUser        ResourceType = "user"        // ResourceUser is the Super Admin account.
 )

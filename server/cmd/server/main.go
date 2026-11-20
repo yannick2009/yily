@@ -47,7 +47,7 @@ func main() {
 
 	// Services
 	auditService := service.NewAuditService(auditRepository)
-	authService := service.NewAuthService(userRepository, sessionRepository, cfg.SetupToken)
+	authService := service.NewAuthService(userRepository, sessionRepository, cfg.SetupToken, cfg.MasterKey)
 	patService := service.NewPATService(userRepository, patRepository, auditService)
 	projectService := service.NewProjectService(projectRepository, environmentRepository, tagRepository, auditService)
 	environmentService := service.NewEnvironmentService(environmentRepository, variableRepository, auditService)
@@ -103,6 +103,7 @@ func main() {
 	api.GET("/auth/status", authHandler.Status)
 	api.POST("/auth/setup", authHandler.Setup)
 	api.POST("/auth/login", authHandler.Login)
+	api.POST("/auth/login/totp", authHandler.LoginTOTP)
 	api.POST("/auth/recover", authHandler.Recover)
 
 	// Read routes: any authenticated caller (session, read PAT, write PAT).
@@ -116,6 +117,9 @@ func main() {
 	adminRoutes.POST("/auth/logout", authHandler.Logout)
 	adminRoutes.GET("/auth/me", authHandler.Me)
 	adminRoutes.GET("/auth/csrf", authHandler.CSRF)
+	adminRoutes.POST("/auth/totp/setup", authHandler.SetupTOTP)
+	adminRoutes.POST("/auth/totp/confirm", authHandler.ConfirmTOTP)
+	adminRoutes.POST("/auth/totp/disable", authHandler.DisableTOTP)
 	adminRoutes.POST("/tokens", patHandler.Create)
 	adminRoutes.GET("/tokens", patHandler.GetAll)
 	adminRoutes.POST("/tokens/:id/rotate", patHandler.Rotate)
