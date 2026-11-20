@@ -106,6 +106,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  // Whether login requires a code from an authenticator app.
+  totp_enabled?: boolean;
   created_at?: string;
   updated_at?: string;
 }

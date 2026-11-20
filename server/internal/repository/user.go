@@ -22,7 +22,12 @@ type UserRepository interface {
 	GetByID(ctx context.Context, userID id.ID) (*model.User, error)                                                       // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
 	Count(ctx context.Context) (int64, error)                                                                             // Count returns how many Super Admin accounts exist (0 or 1 by design).
 	GetAdmin(ctx context.Context) (*model.User, error)                                                                    // GetAdmin returns the single Super Admin account.
-	ResetCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string, revokedAt time.Time) error // ResetCredentials atomically replaces the password and recovery code hashes and revokes every active session and PAT.
+	ResetCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string, revokedAt time.Time) error // ResetCredentials atomically replaces the password and recovery code hashes, disables TOTP, and revokes every active session and PAT.
+	SetTOTPSecret(ctx context.Context, userID id.ID, encryptedSecret string) error                                        // SetTOTPSecret stores a pending, encrypted TOTP seed and leaves TOTP disabled until it is confirmed.
+	EnableTOTP(ctx context.Context, userID id.ID, step int64) error                                                       // EnableTOTP activates TOTP and records the first accepted time step.
+	DisableTOTP(ctx context.Context, userID id.ID) error                                                                  // DisableTOTP clears the seed, the replay marker, and every failure counter.
+	ConsumeTOTPStep(ctx context.Context, userID id.ID, step int64) (bool, error)                                          // ConsumeTOTPStep atomically accepts a time step once, rejecting replayed codes.
+	RecordTOTPFailure(ctx context.Context, userID id.ID, threshold int, lockedUntil time.Time) error                      // RecordTOTPFailure increments the failure counter and locks verification once the threshold is reached.
 }
 
 // userRepository implements UserRepository.
@@ -112,8 +117,13 @@ func (r *userRepository) ResetCredentials(ctx context.Context, userID id.ID, pas
 		if err := tx.Model(&model.User{}).
 			Where("id = ?", userID).
 			Updates(map[string]any{
-				"password_hash":      passwordHash,
-				"recovery_code_hash": recoveryCodeHash,
+				"password_hash":         passwordHash,
+				"recovery_code_hash":    recoveryCodeHash,
+				"totp_secret_encrypted": "",
+				"totp_enabled":          false,
+				"totp_last_step":        0,
+				"totp_failed_attempts":  0,
+				"totp_locked_until":     nil,
 			}).Error; err != nil {
 			return err
 		}
@@ -128,4 +138,75 @@ func (r *userRepository) ResetCredentials(ctx context.Context, userID id.ID, pas
 			Where("user_id = ? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)", userID, revokedAt).
 			Update("revoked_at", revokedAt).Error
 	})
+}
+
+// SetTOTPSecret stores a new pending TOTP seed and resets every TOTP state
+// field. TOTP stays disabled until EnableTOTP confirms the seed with a valid
+// code, so an abandoned enrollment never locks the account out.
+func (r *userRepository) SetTOTPSecret(ctx context.Context, userID id.ID, encryptedSecret string) error {
+	return r.DB.WithContext(ctx).Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{
+			"totp_secret_encrypted": encryptedSecret,
+			"totp_enabled":          false,
+			"totp_last_step":        0,
+			"totp_failed_attempts":  0,
+			"totp_locked_until":     nil,
+		}).Error
+}
+
+// EnableTOTP activates TOTP for the user and records the step of the code that
+// completed enrollment, so that same code cannot be replayed at login.
+func (r *userRepository) EnableTOTP(ctx context.Context, userID id.ID, step int64) error {
+	return r.DB.WithContext(ctx).Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{
+			"totp_enabled":         true,
+			"totp_last_step":       step,
+			"totp_failed_attempts": 0,
+			"totp_locked_until":    nil,
+		}).Error
+}
+
+// DisableTOTP removes the seed and every TOTP-related counter.
+func (r *userRepository) DisableTOTP(ctx context.Context, userID id.ID) error {
+	return r.DB.WithContext(ctx).Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{
+			"totp_secret_encrypted": "",
+			"totp_enabled":          false,
+			"totp_last_step":        0,
+			"totp_failed_attempts":  0,
+			"totp_locked_until":     nil,
+		}).Error
+}
+
+// ConsumeTOTPStep accepts a code's time step exactly once. The conditional
+// update makes concurrent requests with the same code race safely: only the
+// first one observes a higher step and wins, the rest are treated as replays.
+func (r *userRepository) ConsumeTOTPStep(ctx context.Context, userID id.ID, step int64) (bool, error) {
+	res := r.DB.WithContext(ctx).Model(&model.User{}).
+		Where("id = ? AND totp_last_step < ?", userID, step).
+		UpdateColumns(map[string]any{
+			"totp_last_step":       step,
+			"totp_failed_attempts": 0,
+			"totp_locked_until":    nil,
+		})
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
+}
+
+// RecordTOTPFailure increments the consecutive failure counter. When the
+// threshold is reached, the counter resets and verification is locked until
+// lockedUntil. Both CASE expressions read the same pre-update row, so the
+// decision is consistent within one statement.
+func (r *userRepository) RecordTOTPFailure(ctx context.Context, userID id.ID, threshold int, lockedUntil time.Time) error {
+	return r.DB.WithContext(ctx).Model(&model.User{}).
+		Where("id = ?", userID).
+		UpdateColumns(map[string]any{
+			"totp_failed_attempts": gorm.Expr("CASE WHEN totp_failed_attempts + 1 >= ? THEN 0 ELSE totp_failed_attempts + 1 END", threshold),
+			"totp_locked_until":    gorm.Expr("CASE WHEN totp_failed_attempts + 1 >= ? THEN ? ELSE totp_locked_until END", threshold, lockedUntil),
+		}).Error
 }

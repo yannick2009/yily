@@ -81,13 +81,36 @@ export async function setup(
   setInitialized(true);
 }
 
-// login signs the Super Admin in and stores the returned user.
-export async function login(email: string, password: string): Promise<void> {
-  const user = await auth.login({ email, password });
+// acceptLogin stores the authenticated user and loads server metadata shared
+// by the authenticated routes.
+async function acceptLogin(user: User): Promise<void> {
   setCurrentUser(user);
   setInitialized(true);
   void loadUpdate();
   await loadVersion();
+}
+
+// login signs the Super Admin in with a password and, when TOTP is enabled, a
+// code from the authenticator app.
+export async function login(email: string, password: string, totpCode?: string): Promise<void> {
+  const user = await auth.login({
+    email,
+    password,
+    ...(totpCode ? { totp_code: totpCode } : {}),
+  });
+  await acceptLogin(user);
+}
+
+// loginWithTOTP signs the Super Admin in with an authenticator code alone.
+export async function loginWithTOTP(email: string, code: string): Promise<void> {
+  const user = await auth.loginWithTOTP({ email, code });
+  await acceptLogin(user);
+}
+
+// setTOTPEnabled keeps the cached user in sync after enabling or disabling TOTP.
+export function setTOTPEnabled(enabled: boolean): void {
+  const user = currentUser();
+  if (user) setCurrentUser({ ...user, totp_enabled: enabled });
 }
 
 // logout revokes the server session and clears the local user state. The

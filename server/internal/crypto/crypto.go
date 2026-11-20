@@ -25,8 +25,16 @@ var (
 	ErrDecryptionFailed = errors.New("decryption failed: invalid ciphertext or authentication tag")
 )
 
-// Encrypt encrypts plaintext using AES-256-GCM and returns a versioned envelope
+// Encrypt encrypts a variable value using AES-256-GCM and returns a versioned envelope.
 func Encrypt(plaintext string, masterKey []byte, variableID id.ID, version int) (string, error) {
+	return EncryptWithAAD(plaintext, masterKey, buildAAD(variableID, version))
+}
+
+// EncryptWithAAD encrypts plaintext using AES-256-GCM with caller-provided
+// additional authenticated data and returns a versioned envelope. The AAD binds
+// the ciphertext to its purpose, so a payload cannot be moved to another
+// record or field without failing authentication.
+func EncryptWithAAD(plaintext string, masterKey, aad []byte) (string, error) {
 	if len(masterKey) != keySize {
 		return "", ErrInvalidKeyLength
 	}
@@ -46,7 +54,6 @@ func Encrypt(plaintext string, masterKey []byte, variableID id.ID, version int) 
 		return "", err
 	}
 
-	aad := buildAAD(variableID, version)
 	ciphertext := gcm.Seal(nil, nonce, []byte(plaintext), aad)
 
 	nonceB64 := base64.StdEncoding.EncodeToString(nonce)
@@ -55,8 +62,14 @@ func Encrypt(plaintext string, masterKey []byte, variableID id.ID, version int) 
 	return fmt.Sprintf("%s:%s:%s", versionPrefix, nonceB64, ciphertextB64), nil
 }
 
-// Decrypt authenticates and decrypts an envelope using AES-256-GCM.
+// Decrypt authenticates and decrypts a variable value envelope using AES-256-GCM.
 func Decrypt(payload string, masterKey []byte, variableID id.ID, version int) (string, error) {
+	return DecryptWithAAD(payload, masterKey, buildAAD(variableID, version))
+}
+
+// DecryptWithAAD authenticates and decrypts an envelope using AES-256-GCM with
+// caller-provided additional authenticated data.
+func DecryptWithAAD(payload string, masterKey, aad []byte) (string, error) {
 	if len(masterKey) != keySize {
 		return "", ErrInvalidKeyLength
 	}
@@ -90,7 +103,6 @@ func Decrypt(payload string, masterKey []byte, variableID id.ID, version int) (s
 		return "", ErrMalformedPayload
 	}
 
-	aad := buildAAD(variableID, version)
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, aad)
 	if err != nil {
 		return "", ErrDecryptionFailed

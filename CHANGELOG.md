@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Optional TOTP two-factor authentication for the web login and passwordless sign-in with an authenticator code (`POST /api/v1/auth/login/totp`). The TOTP seed is encrypted at rest with `YILY_MASTER_KEY` and bound to the user ID; codes are single-use, five invalid attempts trigger a five-minute lockout, and recovery codes disable TOTP so a lost authenticator app is never a permanent lockout. Personal access tokens are unchanged and remain the only credential for CLI and CI automation.
+
 ### Changed
 
 - `yily-cli environments export` now writes a new timestamped file (`export_<name>_<YYYYMMDD-HHMMSS>.<ext>`) when no output file is given, in the current directory or in the `-o <directory>`. It never overwrites an existing file: on a name collision it adds `-2`, `-3`, and so on. An explicit `-o <file>` still overwrites that file.

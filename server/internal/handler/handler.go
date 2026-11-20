@@ -60,15 +60,20 @@ func httpStatus(err error) int {
 		errors.Is(err, service.ErrSessionExpired),
 		errors.Is(err, service.ErrSessionRevoked),
 		errors.Is(err, service.ErrPATExpired),
-		errors.Is(err, service.ErrPATRevoked):
+		errors.Is(err, service.ErrPATRevoked),
+		errors.Is(err, service.ErrTOTPRequired),
+		errors.Is(err, service.ErrInvalidTOTPCode):
 		return http.StatusUnauthorized
 	case errors.Is(err, repository.ErrVariableNameAlreadyExists),
 		errors.Is(err, repository.ErrTagNameAlreadyExists),
 		errors.Is(err, repository.ErrUserAlreadyExists),
-		errors.Is(err, service.ErrSetupAlreadyDone):
+		errors.Is(err, service.ErrSetupAlreadyDone),
+		errors.Is(err, service.ErrTOTPAlreadyEnabled):
 		return http.StatusConflict
 	case errors.Is(err, service.ErrPATWriteForbidden):
 		return http.StatusForbidden
+	case errors.Is(err, service.ErrTOTPLocked):
+		return http.StatusTooManyRequests
 	case errors.Is(err, repository.ErrTagNotInProject),
 		errors.Is(err, env.ErrInvalidJSONFormat),
 		errors.Is(err, env.ErrInvalidYAMLFormat),
@@ -87,7 +92,8 @@ func httpStatus(err error) int {
 		errors.Is(err, service.ErrDuplicateVariableSelection),
 		errors.Is(err, service.ErrNameTooLong),
 		errors.Is(err, service.ErrInvalidNameChars),
-		errors.Is(err, service.ErrSetupTokenNotSet):
+		errors.Is(err, service.ErrSetupTokenNotSet),
+		errors.Is(err, service.ErrTOTPNotEnabled):
 		return http.StatusBadRequest
 	case errors.Is(err, repository.ErrProjectNotFound),
 		errors.Is(err, repository.ErrEnvironmentNotFound),

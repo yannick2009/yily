@@ -17,11 +17,15 @@ import (
 type AuthHandler interface {
 	Setup(c *echo.Context) error
 	Login(c *echo.Context) error
+	LoginTOTP(c *echo.Context) error
 	Logout(c *echo.Context) error
 	Me(c *echo.Context) error
 	Status(c *echo.Context) error
 	CSRF(c *echo.Context) error
 	Recover(c *echo.Context) error
+	SetupTOTP(c *echo.Context) error
+	ConfirmTOTP(c *echo.Context) error
+	DisableTOTP(c *echo.Context) error
 }
 
 // authHandler handles HTTP requests for authentication and server-side sessions.
@@ -45,8 +49,26 @@ type setupRequest struct {
 }
 
 // loginRequest represents the JSON body for authenticating the Super Admin.
+// TOTPCode is optional and required only when the account has TOTP enabled.
 type loginRequest struct {
 	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+	TOTPCode string `json:"totp_code"`
+}
+
+// totpLoginRequest represents the JSON body for passwordless TOTP login.
+type totpLoginRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	Code  string `json:"code" validate:"required"`
+}
+
+// totpConfirmRequest represents the JSON body for completing TOTP enrollment.
+type totpConfirmRequest struct {
+	Code string `json:"code" validate:"required"`
+}
+
+// totpDisableRequest represents the JSON body for turning TOTP off.
+type totpDisableRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
@@ -111,7 +133,7 @@ func (h *authHandler) Login(c *echo.Context) error {
 		existingToken = cookie.Value
 	}
 
-	rawToken, session, user, err := h.authService.Login(c.Request().Context(), req.Email, req.Password, existingToken)
+	rawToken, session, user, err := h.authService.Login(c.Request().Context(), req.Email, req.Password, req.TOTPCode, existingToken)
 	if err != nil {
 		return respondError(c, err)
 	}
@@ -119,6 +141,102 @@ func (h *authHandler) Login(c *echo.Context) error {
 		return respondErrorCode(c, http.StatusInternalServerError, CodeInternal, "login returned no user")
 	}
 
+	return h.startSession(c, rawToken, session, user)
+}
+
+// LoginTOTP handles POST /auth/login/totp to authenticate with a code from the
+// authenticator app alone, without a password.
+func (h *authHandler) LoginTOTP(c *echo.Context) error {
+	var req totpLoginRequest
+	if !bindAndValidate(c, &req) {
+		return nil
+	}
+
+	var existingToken string
+	if cookie, err := c.Cookie(httputil.SessionCookieName); err == nil && cookie != nil {
+		existingToken = cookie.Value
+	}
+
+	rawToken, session, user, err := h.authService.LoginWithTOTP(c.Request().Context(), req.Email, req.Code, existingToken)
+	if err != nil {
+		return respondError(c, err)
+	}
+	if user == nil {
+		return respondErrorCode(c, http.StatusInternalServerError, CodeInternal, "login returned no user")
+	}
+
+	return h.startSession(c, rawToken, session, user)
+}
+
+// SetupTOTP handles POST /auth/totp/setup to start enrollment for the signed-in
+// Super Admin and return the seed, provisioning URI, and QR image.
+func (h *authHandler) SetupTOTP(c *echo.Context) error {
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
+	if !ok {
+		return respondError(c, service.ErrUnauthorized)
+	}
+
+	setup, err := h.authService.SetupTOTP(c.Request().Context(), user.ID)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return httputil.NewHTTPResponse(c, http.StatusOK, "TOTP setup initialized", setup)
+}
+
+// ConfirmTOTP handles POST /auth/totp/confirm to verify a code against the
+// pending seed and enable TOTP.
+func (h *authHandler) ConfirmTOTP(c *echo.Context) error {
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
+	if !ok {
+		return respondError(c, service.ErrUnauthorized)
+	}
+
+	var req totpConfirmRequest
+	if !bindAndValidate(c, &req) {
+		return nil
+	}
+
+	ctx := c.Request().Context()
+	if err := h.authService.ConfirmTOTP(ctx, user.ID, req.Code); err != nil {
+		return respondError(c, err)
+	}
+
+	_ = h.audit.Record(ctx, types.ActionTOTPEnabled, types.ResourceUser, user.ID, user.Email, nil)
+
+	return httputil.NewHTTPResponse(c, http.StatusOK, "TOTP enabled", struct {
+		Enabled bool `json:"enabled"`
+	}{Enabled: true})
+}
+
+// DisableTOTP handles POST /auth/totp/disable to turn TOTP off after the
+// account password has been re-verified.
+func (h *authHandler) DisableTOTP(c *echo.Context) error {
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
+	if !ok {
+		return respondError(c, service.ErrUnauthorized)
+	}
+
+	var req totpDisableRequest
+	if !bindAndValidate(c, &req) {
+		return nil
+	}
+
+	ctx := c.Request().Context()
+	if err := h.authService.DisableTOTP(ctx, user.ID, req.Password); err != nil {
+		return respondError(c, err)
+	}
+
+	_ = h.audit.Record(ctx, types.ActionTOTPDisabled, types.ResourceUser, user.ID, user.Email, nil)
+
+	return httputil.NewHTTPResponse(c, http.StatusOK, "TOTP disabled", struct {
+		Enabled bool `json:"enabled"`
+	}{Enabled: false})
+}
+
+// startSession writes the session cookie and returns the login payload. Both
+// password and passwordless login share it.
+func (h *authHandler) startSession(c *echo.Context, rawToken string, session *model.Session, user *model.User) error {
 	maxAge := int(session.ExpiresAt.Sub(session.CreatedAt).Seconds())
 	if maxAge <= 0 {
 		maxAge = int(service.DefaultSessionTTL.Seconds())
