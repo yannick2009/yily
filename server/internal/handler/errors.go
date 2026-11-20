@@ -46,6 +46,11 @@ const (
 	CodeSetupTokenNotSet        ErrorCode = "SETUP_TOKEN_NOT_CONFIGURED"
 	CodeAuthInvalidRecoveryCode ErrorCode = "AUTH_INVALID_RECOVERY_CODE"
 	CodeAuthRecoveryUnavailable ErrorCode = "AUTH_RECOVERY_UNAVAILABLE"
+	CodeAuthTOTPRequired        ErrorCode = "AUTH_TOTP_REQUIRED"
+	CodeAuthInvalidTOTPCode     ErrorCode = "AUTH_INVALID_TOTP_CODE"
+	CodeAuthTOTPAlreadyEnabled  ErrorCode = "AUTH_TOTP_ALREADY_ENABLED"
+	CodeAuthTOTPNotEnabled      ErrorCode = "AUTH_TOTP_NOT_ENABLED"
+	CodeAuthTOTPLocked          ErrorCode = "AUTH_TOTP_LOCKED"
 
 	// Personal Access Tokens
 	CodeTokenRequired          ErrorCode = "TOKEN_REQUIRED"
@@ -100,6 +105,11 @@ var sentinelCodes = []struct {
 	{service.ErrSetupTokenNotSet, CodeSetupTokenNotSet},
 	{service.ErrInvalidRecoveryCode, CodeAuthInvalidRecoveryCode},
 	{service.ErrRecoveryUnavailable, CodeAuthRecoveryUnavailable},
+	{service.ErrTOTPRequired, CodeAuthTOTPRequired},
+	{service.ErrInvalidTOTPCode, CodeAuthInvalidTOTPCode},
+	{service.ErrTOTPAlreadyEnabled, CodeAuthTOTPAlreadyEnabled},
+	{service.ErrTOTPNotEnabled, CodeAuthTOTPNotEnabled},
+	{service.ErrTOTPLocked, CodeAuthTOTPLocked},
 	{repository.ErrUserAlreadyExists, CodeAuthUserExists},
 	{repository.ErrUserNotFound, CodeAuthUserNotFound},
 

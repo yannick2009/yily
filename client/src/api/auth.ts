@@ -59,14 +59,59 @@ async function downloadRecoveryCode(res: Response): Promise<void> {
   downloadBlob(blob, match?.[1] ?? "yily-recovery-code.txt");
 }
 
-// login authenticates, sets the session cookie and stores the returned CSRF
-// token for subsequent mutations.
-export async function login(input: { email: string; password: string }): Promise<User> {
-  const result = await request<LoginResult>("POST", "/auth/login", {
+// LoginInput carries the password and, when TOTP is enabled, the code from the
+// authenticator app.
+export interface LoginInput {
+  email: string;
+  password: string;
+  totp_code?: string;
+}
+
+// login authenticates with a password (plus an optional TOTP code), sets the
+// session cookie and stores the returned CSRF token for subsequent mutations.
+export async function login(input: LoginInput): Promise<User> {
+  return completeLogin("/auth/login", input);
+}
+
+// loginWithTOTP authenticates with an authenticator code alone.
+export async function loginWithTOTP(input: { email: string; code: string }): Promise<User> {
+  return completeLogin("/auth/login/totp", input);
+}
+
+// completeLogin performs a login request and stores the returned CSRF token.
+async function completeLogin(path: string, input: unknown): Promise<User> {
+  const result = await request<LoginResult>("POST", path, {
     body: JSON.stringify(input),
   });
   setCSRFToken(result.csrf_token);
   return result.user;
+}
+
+// TOTPSetup is the one-time enrollment payload: the Base32 seed, the
+// otpauth:// URI, and a PNG QR image encoded as a data URI.
+export interface TOTPSetup {
+  secret: string;
+  otpauth_uri: string;
+  qr_png: string;
+}
+
+// totpSetup starts enrollment and returns the seed and provisioning data.
+export async function totpSetup(): Promise<TOTPSetup> {
+  return request<TOTPSetup>("POST", "/auth/totp/setup");
+}
+
+// totpConfirm verifies a code against the pending seed and enables TOTP.
+export async function totpConfirm(code: string): Promise<void> {
+  await request<{ enabled: boolean }>("POST", "/auth/totp/confirm", {
+    body: JSON.stringify({ code }),
+  });
+}
+
+// totpDisable turns TOTP off after re-verifying the account password.
+export async function totpDisable(password: string): Promise<void> {
+  await request<{ enabled: boolean }>("POST", "/auth/totp/disable", {
+    body: JSON.stringify({ password }),
+  });
 }
 
 // fetchCSRFToken retrieves the current session's CSRF token after a page reload.
