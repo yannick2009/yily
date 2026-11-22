@@ -11,7 +11,14 @@
   <a href="https://github.com/yannick2009/yily/actions"><img src="https://img.shields.io/github/actions/workflow/status/yannick2009/yily/ci.yml?branch=main&label=ci" alt="CI status"></a>
 </p>
 
-**Yily** is a lightweight and fast **open-source secret management application** designed to help you securely store and manage sensitive information such as API keys, passwords, tokens, and other secrets.
+<p align="center">
+  <a href="https://github.com/yannick2009/yily/pkgs/container/yily"><img src="https://img.shields.io/badge/docker-ghcr.io%2Fyannick2009%2Fyily-2496ED" alt="Docker image"></a>
+  <a href="https://github.com/yannick2009/yily/stargazers"><img src="https://img.shields.io/github/stars/yannick2009/yily?color=8338EC" alt="GitHub stars"></a>
+  <a href="https://github.com/yannick2009/yily/releases"><img src="https://img.shields.io/badge/status-beta-8338EC" alt="Status"></a>
+  <a href="CONTRIBUTING.MD"><img src="https://img.shields.io/badge/contributions-welcome-8338EC" alt="Contributions welcome"></a>
+</p>
+
+[**Yily**](https://yily.dev) is a lightweight and fast **open-source secret management application** designed to help you securely store and manage sensitive information such as API keys, passwords, tokens, and other secrets.
 
 The project was born from a simple need: having a **self-hosted secret management solution that is easy to deploy, simple to use, and efficient**, without the complexity that can come with more advanced solutions such as HashiCorp Vault or Infisical.
 
@@ -168,6 +175,13 @@ curl -fsSL https://raw.githubusercontent.com/yannick2009/yily/main/scripts/insta
 less install.sh
 bash install.sh --pre-release
 ```
+
+## SDKs
+
+Official SDKs are available to integrate Yily into your applications:
+
+- **JavaScript / TypeScript** : [`yily-sdk-js`](https://www.npmjs.com/package/yily-sdk-js) on npm
+- **Go** : [`yily-sdk-go`](https://github.com/yannick2009/yily-sdk-go) on GitHub
 
 ## Development environment
 
