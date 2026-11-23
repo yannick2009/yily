@@ -66,6 +66,10 @@ func Decrypt(payload string, masterKey []byte, variableID id.ID, version int) (s
 		return "", ErrMalformedPayload
 	}
 
+	if parts[0] != versionPrefix {
+		return "", ErrMalformedPayload
+	}
+
 	nonce, err := base64.StdEncoding.DecodeString(parts[1])
 	if err != nil || len(nonce) != nonceSize {
 		return "", ErrMalformedPayload
@@ -100,6 +104,7 @@ func Decrypt(payload string, masterKey []byte, variableID id.ID, version int) (s
 }
 
 // buildAAD constructs the authenticated data bound to a variable and its version.
+// e.g., "yily:<variableID>:<version>"
 func buildAAD(variableID id.ID, version int) []byte {
 	return fmt.Appendf(nil, "yily:%s:%d", variableID, version)
 }
