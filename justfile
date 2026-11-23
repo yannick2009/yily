@@ -26,7 +26,7 @@ check:
 
 # format and check the server code
 test:
-    cd server && go test ./...
+    (cd server && mkdir -p coverage && go test ./... -race -coverprofile=coverage/coverage.out -covermode=atomic && go tool cover -html=coverage/coverage.out -o coverage/coverage.html)
 
 # format the nix code
 format-nix:

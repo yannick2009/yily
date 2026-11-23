@@ -145,7 +145,7 @@
           version = version;
           src = serverSrc;
           # Update after changing server/go.mod or go.sum.
-          vendorHash = "sha256-pUMKL38Ck5NzdcsewnZOCEfmwH/RaMP5ckaB2+UWepU=";
+          vendorHash = "sha256-BeZNiYQPTPS/nBaRFdohqWBE1Up6OPCbmLR3qmQ7qw4=";
           env.CGO_ENABLED = 0;
           ldflags = versionLdflags;
         };
