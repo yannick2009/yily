@@ -20,7 +20,7 @@ import (
 
 const (
 	// TOTPPeriod is the time step length in seconds. 30 seconds is the de-facto
-	// default understood by every authenticator app.
+	// default for authenticator apps.
 	TOTPPeriod = 30
 	// TOTPDigits is the number of digits in a generated code.
 	TOTPDigits = 6
@@ -112,7 +112,7 @@ func NormalizeTOTPCode(code string) string {
 }
 
 // TOTPURI builds the otpauth:// provisioning URI consumed by authenticator
-// apps. SHA1/6 digits/30 seconds are the defaults every app supports.
+// apps. SHA1/6 digits/30 seconds are the widely supported defaults.
 func TOTPURI(issuer, account, secret string) string {
 	label := url.PathEscape(issuer + ":" + account)
 	params := url.Values{}
@@ -161,9 +161,9 @@ func hotp(key []byte, counter uint64) string {
 	var counterBytes [8]byte
 	binary.BigEndian.PutUint64(counterBytes[:], counter)
 
-	// HMAC-SHA1 is the default TOTP profile in RFC 6238 and the only one every
-	// authenticator app implements. HMAC-SHA1 is not affected by the collision
-	// attacks on plain SHA-1 and remains safe for this MAC construction.
+	// This is HOTP with HMAC-SHA1 (RFC 4226); TOTP feeds it a time-derived
+	// counter (RFC 6238). HMAC-SHA1 is not affected by the collision attacks
+	// on plain SHA-1 and remains safe for this MAC construction.
 	mac := hmac.New(sha1.New, key)
 	mac.Write(counterBytes[:])
 	sum := mac.Sum(nil)

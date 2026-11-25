@@ -37,7 +37,7 @@ The TOTP seed is a third secret, but the server generates it during enrollment i
 | **PAT Storage** | SHA-256 hex digest (64 chars) | The complete PAT is shown only once; only its SHA-256 hash is persisted. |
 | **PAT Scopes** | `read` or `write` | `write` implies `read`. No PAT can manage tokens or reach session-only operations. |
 | **PAT Lifetime** | 7, 30, 60 or 90 days; `write` defaults to 30 days and always expires; `read` may never expire | Limits exposure of a leaked token, especially one that can modify secrets. |
-| **TOTP Algorithm** | RFC 6238, HMAC-SHA1, 6 digits, 30-second period | The default profile implemented by every authenticator app. |
+| **TOTP Algorithm** | RFC 6238, HMAC-SHA1, 6 digits, 30-second period | Widely supported default profile for authenticator apps. |
 | **TOTP Secret** | 20 bytes (160 bits), Base32 | RFC 4226 recommends at least 128 bits of entropy. |
 | **TOTP Secret Storage** | AES-256-GCM, AAD bound to the user ID | The server must recover the seed to verify codes, so it cannot be hashed; the AAD prevents moving the ciphertext between accounts. |
 | **TOTP Skew** | ±1 time step | Covers small clock differences without widening the guessing window. |

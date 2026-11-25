@@ -163,11 +163,7 @@ export function LoginRoute() {
             </Button>
 
             <div class="flex flex-col items-center gap-2 text-center">
-              <button
-                type="button"
-                class="text-sm text-brand hover:underline"
-                onClick={switchMode}
-              >
+              <button type="button" class="text-sm text-brand hover:underline" onClick={switchMode}>
                 {mode() === "password" ? t("login.useTotp") : t("login.usePassword")}
               </button>
               <button

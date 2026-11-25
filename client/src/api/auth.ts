@@ -1,16 +1,10 @@
 // Authentication API: first-run setup, login, logout and the current session.
 import { request, requestRaw, setCSRFToken } from "./client";
 import { downloadBlob } from "../lib/download";
-import type { User } from "../types";
+import type { LoginResult, TOTPSetup, User } from "../types";
 
 export interface SetupStatus {
   initialized: boolean;
-}
-
-// LoginResult is the server's login payload: the user plus the fresh CSRF token.
-interface LoginResult {
-  user: User;
-  csrf_token: string;
 }
 
 // status reports whether the instance has a Super Admin account yet.
@@ -85,14 +79,6 @@ async function completeLogin(path: string, input: unknown): Promise<User> {
   });
   setCSRFToken(result.csrf_token);
   return result.user;
-}
-
-// TOTPSetup is the one-time enrollment payload: the Base32 seed, the
-// otpauth:// URI, and a PNG QR image encoded as a data URI.
-export interface TOTPSetup {
-  secret: string;
-  otpauth_uri: string;
-  qr_png: string;
 }
 
 // totpSetup starts enrollment and returns the seed and provisioning data.

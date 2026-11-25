@@ -2,7 +2,7 @@
 import { createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { auth } from "../api";
-import type { TOTPSetup } from "../api/auth";
+import type { TOTPSetup } from "../types";
 import { Button, Chip, Icon, Input } from "../components/ui";
 import { Dialog, Field } from "../components/shared";
 import { copyToClipboard } from "../lib/clipboard";
@@ -267,7 +267,12 @@ export function ProfileRoute() {
             <Button variant="secondary" onClick={closeDisable}>
               {t("common.cancel")}
             </Button>
-            <Button variant="danger" onClick={disable} loading={busy()} disabled={!disablePassword()}>
+            <Button
+              variant="danger"
+              onClick={disable}
+              loading={busy()}
+              disabled={!disablePassword()}
+            >
               {t("settings.totpDisable")}
             </Button>
           </>
