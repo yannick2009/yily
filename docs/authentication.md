@@ -9,10 +9,14 @@ Access is restricted to a single account: the **Super Admin**. That account is r
 1. **Web Interface**: server-side sessions carried by an `HttpOnly` cookie, with a per-session CSRF token for state-changing requests.
 2. **Programmatic / API Access**: Personal Access Tokens (PAT) sent as `Authorization: Bearer yily_<token>`, each scoped to `read` or `write`.
 
+Interactive sign-in can optionally be protected by a **TOTP authenticator app** (RFC 6238). TOTP acts either as a second factor after the password or as the sole credential for passwordless sign-in. It never replaces a Personal Access Token: automated clients still authenticate with PATs.
+
 Two out-of-band secrets complete the model:
 
 * **Setup token** (`YILY_SETUP_TOKEN`): required once, to create the Super Admin on a fresh instance.
 * **Recovery code**: issued at setup, used to reset a forgotten password. It is single-use and replaced on every reset.
+
+The TOTP seed is a third secret, but the server generates it during enrollment instead of receiving it out of band.
 
 ---
 
@@ -33,6 +37,12 @@ Two out-of-band secrets complete the model:
 | **PAT Storage** | SHA-256 hex digest (64 chars) | The complete PAT is shown only once; only its SHA-256 hash is persisted. |
 | **PAT Scopes** | `read` or `write` | `write` implies `read`. No PAT can manage tokens or reach session-only operations. |
 | **PAT Lifetime** | 7, 30, 60 or 90 days; `write` defaults to 30 days and always expires; `read` may never expire | Limits exposure of a leaked token, especially one that can modify secrets. |
+| **TOTP Algorithm** | RFC 6238, HMAC-SHA1, 6 digits, 30-second period | Widely supported default profile for authenticator apps. |
+| **TOTP Secret** | 20 bytes (160 bits), Base32 | RFC 4226 recommends at least 128 bits of entropy. |
+| **TOTP Secret Storage** | AES-256-GCM, AAD bound to the user ID | The server must recover the seed to verify codes, so it cannot be hashed; the AAD prevents moving the ciphertext between accounts. |
+| **TOTP Skew** | ±1 time step | Covers small clock differences without widening the guessing window. |
+| **TOTP Replay Protection** | Last accepted time step persisted per account | A code can be used only once per step, including the code that completed enrollment. |
+| **TOTP Lockout** | 5 consecutive invalid codes → 5-minute lock | A 6-digit code has only 10⁶ possibilities; a per-account lock is required on top of the global rate limiter. |
 | **Recovery Code** | 16 bytes (128 bits), uppercase hex in groups of four (`XXXX-XXXX-…`) | Stored only as an Argon2id hash; single-use. |
 | **API Auth Header** | `Authorization: Bearer yily_<token>` | Standard RFC 6750 Bearer authentication scheme. |
 
@@ -59,6 +69,15 @@ token_hash = hex(sha256(raw_token))
 The CSRF token is the exception: it is stored in plaintext alongside its session, because the server must send it back to the web UI after a page reload. It is useless without the matching session cookie.
 
 Password hashes, recovery code hashes, token hashes and CSRF tokens are never serialized in API responses or logs. The CSRF token is returned on purpose, and only, by the login response and `GET /api/v1/auth/csrf`.
+
+### 3.3. TOTP Seed Storage
+A TOTP seed cannot be hashed: the server must recover it on every login to compute the expected code. It is therefore the only reversible authentication secret in the database, and it is protected accordingly:
+
+```text
+totp_secret_encrypted = AES-256-GCM(YILY_MASTER_KEY, seed, AAD = "yily:totp:<user_id>")
+```
+
+Binding the ciphertext to the user ID with the AAD means a seed copied to another account (or a database row swapped between users) fails authentication. The seed is never returned after enrollment, never serialized in `User` JSON, and never written to logs. Only the `totp_enabled` flag is exposed to clients.
 
 ---
 
@@ -110,14 +129,27 @@ Token management is restricted to the web session: a PAT can never create, list,
 * On success, a single database transaction:
   1. replaces the password hash,
   2. replaces the recovery code hash with a newly generated code (the old code stops working),
-  3. revokes every active session,
-  4. revokes every unexpired PAT (already-expired tokens keep their expired status).
+  3. disables TOTP and clears its seed, replay marker and failure counters,
+  4. revokes every active session,
+  5. revokes every unexpired PAT (already-expired tokens keep their expired status).
 * If any step fails, nothing changes: the old password and recovery code stay valid and the request returns an error.
 * The new recovery code is returned once, as a downloadable `yily-recovery-code.txt` file.
 
-Nothing obtained under the old password (a stolen session cookie, or a token created with it) survives a reset. Because every PAT is revoked, CLI and CI integrations need new tokens afterwards.
+Nothing obtained under the old password (a stolen session cookie, or a token created with it) survives a reset. Because every PAT is revoked, CLI and CI integrations need new tokens afterwards. Disabling TOTP here deliberately trades the second factor for account recovery: the recovery code is the only way back in when the authenticator app is lost.
 
 Recovery is currently the only way to change the Super Admin password.
+
+### 4.8. TOTP Two-Factor and Passwordless Login
+TOTP is optional per account and is enabled from the profile page after signing in with the password.
+
+* **Enrollment**: `POST /api/v1/auth/totp/setup` (session + CSRF) generates a fresh 160-bit seed, encrypts it with `YILY_MASTER_KEY` and binds the ciphertext to the user ID with AES-GCM AAD. The response contains the Base32 `secret`, the `otpauth://` provisioning URI and a PNG QR code as a data URI. TOTP stays disabled at this point.
+* **Confirmation**: `POST /api/v1/auth/totp/confirm` (session + CSRF) verifies a code against the pending seed and enables TOTP. The accepted time step is stored, so the enrollment code cannot be replayed at login. Restarting `setup` before confirming replaces the pending seed; an abandoned enrollment never locks the account.
+* **Password + code**: `POST /api/v1/auth/login` accepts an optional `totp_code`. When the password is correct but TOTP is enabled and the code is missing, the server returns `401` with code `AUTH_TOTP_REQUIRED`; the web UI then reveals the second-factor field and resubmits both values. Sessions are created only after both factors succeed.
+* **Passwordless login**: `POST /api/v1/auth/login/totp` accepts `email` and `code` and issues the same session cookie. Unknown emails, accounts without TOTP, wrong codes and locked accounts all return the generic `AUTH_INVALID_CREDENTIALS`, so the endpoint cannot be used to enumerate accounts or probe lockout state.
+* **Replay and lockout**: a code is accepted once per time step, with ±1 step of clock skew. Each invalid code increments a per-account counter; five consecutive failures lock TOTP verification for five minutes (`429` `AUTH_TOTP_LOCKED`). A missing code is not a failure. Because passwordless login is public, an attacker who knows the admin email can deliberately trigger this lockout; the trade-off is bounded (five minutes) and is what makes 6-digit online guessing impractical.
+* **Disabling**: `POST /api/v1/auth/totp/disable` (session + CSRF) requires the account password. A PAT cannot reach it.
+* **Recovery**: using the recovery code disables TOTP as part of the credential reset, so a lost authenticator app is never a permanent lockout.
+* **Audit**: enabling and disabling TOTP are recorded as `totp_enabled` / `totp_disabled` events with the `user` resource.
 
 ---
 
@@ -160,12 +192,12 @@ Once authenticated, each operation requires one of these access levels:
 | **Write** | Session (with valid CSRF token), `write` PAT | `read` PAT (`403`) |
 | **Session only** | Session (with valid CSRF token on state-changing methods) | Any PAT (`403`) |
 
-Token management and the Super Admin profile are **session only**. Setup, login and recovery are public.
+Token management, the Super Admin profile and all `/auth/totp/*` management endpoints are **session only**. Setup, login, passwordless login and recovery are public.
 
 ---
 
 ## 6. Out of Scope (Future Phases)
 
 * Changing the password from an authenticated session (today, recovery is the only way to change it).
-* Lockout after consecutive failed login or recovery attempts. The only protection today is the global per-address rate limiter; behind a reverse proxy, every client shares the proxy's address.
+* Lockout after consecutive failed password or recovery attempts. TOTP codes already have a per-account lockout (section 4.8); password and recovery attempts are protected only by the global per-address rate limiter, and behind a reverse proxy every client shares the proxy's address.
 * Multi-user accounts and role-based access control (RBAC).

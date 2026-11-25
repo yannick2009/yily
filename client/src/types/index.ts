@@ -106,8 +106,24 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  totp_enabled?: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+// LoginResult is the payload returned by both login endpoints: the signed-in
+// user and the fresh CSRF token for the new session.
+export interface LoginResult {
+  user: User;
+  csrf_token: string;
+}
+
+// TOTPSetup is the one-time payload returned when TOTP enrollment starts: the
+// Base32 seed, the otpauth:// URI, and a PNG QR image encoded as a data URI.
+export interface TOTPSetup {
+  secret: string;
+  otpauth_uri: string;
+  qr_png: string;
 }
 
 // --- Server metadata ---------------------------------------------------------
