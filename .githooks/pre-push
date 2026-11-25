@@ -1,0 +1,81 @@
+#!/bin/sh
+# Pre-push hook: run the project's full checks (lint + tests) before every push.
+#
+# When the checks auto-fix files, the fixes are amended into the commit at HEAD.
+# Git resolves the commits to push before it runs this hook, so those fixes
+# cannot ride along with the push in progress: the push is aborted and must be
+# started again.
+#
+# Enable once per clone with:
+#     git config core.hooksPath .githooks   # or: just install-hooks
+# Skip for an emergency push with:
+#     git push --no-verify
+
+set -eu
+
+# Git feeds one "<local ref> <local sha> <remote ref> <remote sha>" line per ref
+# on stdin. When every local sha is all zeros the push only deletes refs, so
+# there is nothing to check.
+zero=0000000000000000000000000000000000000000
+has_content=false
+pushing_current=false
+current_branch=$(git symbolic-ref --quiet --short HEAD || true)
+while read -r local_ref local_sha remote_ref remote_sha; do
+	if [ "$local_sha" != "$zero" ]; then
+		has_content=true
+	fi
+	if [ -n "$current_branch" ] && [ "$local_ref" = "refs/heads/$current_branch" ]; then
+		pushing_current=true
+	fi
+done
+
+if [ "$has_content" = false ]; then
+	exit 0
+fi
+
+before=$(mktemp)
+after=$(mktemp)
+fixed=$(mktemp)
+trap 'rm -f "$before" "$after" "$fixed"' EXIT INT TERM
+
+# Paths with tracked changes before the checks start. A path that appears only
+# afterwards was clean before and formatted by the checks, so committing it
+# cannot sweep unrelated work-in-progress into the fix commit.
+git -c core.quotePath=false status --porcelain -uno | cut -c4- | sort >"$before"
+
+echo "pre-push: running 'just check' (lint + tests)..." >&2
+
+if command -v just >/dev/null 2>&1; then
+	just check
+elif command -v nix >/dev/null 2>&1; then
+	# Outside the dev shell, fall back to the same command CI uses.
+	echo "pre-push: 'just' is not on PATH; falling back to nix develop." >&2
+	nix develop --command just check
+else
+	echo "pre-push: neither 'just' nor 'nix' was found. Run 'just check' manually or use 'git push --no-verify'." >&2
+	exit 1
+fi
+
+git -c core.quotePath=false status --porcelain -uno | cut -c4- | sort >"$after"
+comm -13 "$before" "$after" >"$fixed" || true
+
+if [ ! -s "$fixed" ]; then
+	exit 0
+fi
+
+count=$(wc -l <"$fixed" | tr -d ' ')
+echo "pre-push: 'just check' modified $count file(s):" >&2
+sed 's/^/  /' "$fixed" >&2
+
+if [ "$pushing_current" = true ]; then
+	if git branch -r --contains HEAD 2>/dev/null | grep -q .; then
+		echo "pre-push: warning: HEAD already exists on a remote; amending rewrites published history." >&2
+	fi
+	git commit -q --no-verify --amend --no-edit --pathspec-from-file="$fixed"
+	sha=$(git rev-parse --short HEAD)
+	echo "pre-push: fixes amended into $sha. Run 'git push' again to include them." >&2
+else
+	echo "pre-push: commit these files, then run 'git push' again." >&2
+fi
+
+exit 1

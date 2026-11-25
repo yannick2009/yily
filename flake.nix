@@ -341,6 +341,10 @@
               unset GOROOT
               (cd client && npm install --silent)
               (cd server && go mod tidy)
+              # Enable the repository hooks (pre-push runs `just check`).
+              if top=$(git rev-parse --show-toplevel 2>/dev/null) && [ -d "$top/.githooks" ]; then
+                git config --local core.hooksPath .githooks
+              fi
               echo "welcome to the ${name} v${version} dev shell!"
             '';
           };
