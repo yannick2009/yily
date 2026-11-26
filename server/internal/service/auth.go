@@ -55,6 +55,7 @@ type AuthService interface {
 	ValidateSession(ctx context.Context, rawToken string) (*model.User, *model.Session, error)                                  // ValidateSession verifies a raw session token against its stored SHA-256 hash and loads the owning user.
 	Logout(ctx context.Context, rawToken string) error                                                                          // Logout revokes a server-side session by hashing its raw token.
 	UpdateProfile(ctx context.Context, userID id.ID, name, email, currentPassword *string) (*model.User, error)                 // UpdateProfile updates the Super Admin's display name and/or email and returns the refreshed user.
+	ChangePassword(ctx context.Context, userID id.ID, currentSessionID id.ID, currentPassword, newPassword string) error        // ChangePassword re-verifies the current password, stores a new hash, and revokes every other session.
 	IsInitialized(ctx context.Context) (bool, error)                                                                            // IsInitialized reports whether the Super Admin account has been created.
 	Recover(ctx context.Context, recoveryCode, newPassword string) (string, error)                                              // Recover resets the Super Admin password using the recovery code, disables TOTP, and returns a new recovery code.
 	SetupTOTP(ctx context.Context, userID id.ID) (*TOTPSetup, error)                                                            // SetupTOTP starts enrollment: it stores a new encrypted seed and returns it with a provisioning URI and QR image.
@@ -545,6 +546,41 @@ func (s *authService) UpdateProfile(ctx context.Context, userID id.ID, name, ema
 	}
 
 	return s.userRepository.GetByID(ctx, userID)
+}
+
+// ChangePassword re-verifies the account password, stores a hash of the new
+// password, and revokes every session except the one performing the change so
+// stolen sessions cannot outlive it.
+func (s *authService) ChangePassword(ctx context.Context, userID id.ID, currentSessionID id.ID, currentPassword, newPassword string) error {
+	if currentSessionID == "" {
+		return ErrUnauthorized
+	}
+	if len(newPassword) < MinPasswordLength {
+		return ErrWeakPassword
+	}
+	if len(newPassword) > MaxPasswordLength {
+		return ErrPasswordTooLong
+	}
+	if !crypto.IsStrongPassword(newPassword) {
+		return ErrPasswordNotComplex
+	}
+
+	user, err := s.userRepository.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	valid, err := crypto.VerifyPassword(currentPassword, user.PasswordHash)
+	if err != nil || !valid {
+		return ErrInvalidCurrentPassword
+	}
+
+	passwordHash, err := crypto.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
+	return s.userRepository.ChangePassword(ctx, userID, passwordHash, currentSessionID, s.nowFunc().UTC())
 }
 
 // normalizeEmail trims leading/trailing whitespace and converts an email address to lowercase.

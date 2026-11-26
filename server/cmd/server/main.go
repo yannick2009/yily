@@ -117,6 +117,7 @@ func main() {
 	adminRoutes.POST("/auth/logout", authHandler.Logout)
 	adminRoutes.GET("/auth/me", authHandler.Me)
 	adminRoutes.PATCH("/auth/me", authHandler.UpdateProfile)
+	adminRoutes.PATCH("/auth/me/password", authHandler.ChangePassword)
 	adminRoutes.GET("/auth/csrf", authHandler.CSRF)
 	adminRoutes.POST("/auth/totp/setup", authHandler.SetupTOTP)
 	adminRoutes.POST("/auth/totp/confirm", authHandler.ConfirmTOTP)

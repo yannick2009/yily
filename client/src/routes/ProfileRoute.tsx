@@ -1,4 +1,4 @@
-// Dedicated profile page: account identity and editing, two-factor authentication and sign-out.
+// Dedicated profile page: account identity and editing, password, two-factor authentication and sign-out.
 import { createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { auth } from "../api";
@@ -8,6 +8,7 @@ import { Dialog, Field } from "../components/shared";
 import { copyToClipboard } from "../lib/clipboard";
 import { t } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
+import { isStrongPassword } from "../lib/password";
 import { currentUser, logout, setCurrentUser, setTOTPEnabled } from "../store";
 
 // Keep only digits so pasted codes with spaces or dashes are accepted.
@@ -33,6 +34,14 @@ export function ProfileRoute() {
   const [profileBusy, setProfileBusy] = createSignal(false);
   const [profileError, setProfileError] = createSignal<string | null>(null);
   const [profileNotice, setProfileNotice] = createSignal<string | null>(null);
+  const [passwordOpen, setPasswordOpen] = createSignal(false);
+  const [currentPassword, setCurrentPassword] = createSignal("");
+  const [newPassword, setNewPassword] = createSignal("");
+  const [confirmPassword, setConfirmPassword] = createSignal("");
+  const [showNewPassword, setShowNewPassword] = createSignal(false);
+  const [passwordBusy, setPasswordBusy] = createSignal(false);
+  const [passwordError, setPasswordError] = createSignal<string | null>(null);
+  const [passwordNotice, setPasswordNotice] = createSignal<string | null>(null);
 
   const totpEnabled = () => currentUser()?.totp_enabled === true;
 
@@ -102,6 +111,64 @@ export function ProfileRoute() {
       setProfileError(errorMessage(err));
     } finally {
       setProfileBusy(false);
+    }
+  };
+
+  const openPassword = () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowNewPassword(false);
+    setPasswordError(null);
+    setPasswordNotice(null);
+    setPasswordOpen(true);
+  };
+
+  const closePassword = () => {
+    setPasswordOpen(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordError(null);
+  };
+
+  const savePassword = async (event: Event) => {
+    event.preventDefault();
+    if (currentPassword() === "") {
+      setPasswordError(t("settings.enterCurrentPassword"));
+      return;
+    }
+    if (newPassword().length < 12) {
+      setPasswordError(t("init.passwordMin"));
+      return;
+    }
+    if (newPassword().length > 128) {
+      setPasswordError(t("init.passwordMax"));
+      return;
+    }
+    if (!isStrongPassword(newPassword())) {
+      setPasswordError(t("init.passwordComplexity"));
+      return;
+    }
+    if (newPassword() !== confirmPassword()) {
+      setPasswordError(t("settings.passwordMismatch"));
+      return;
+    }
+
+    setPasswordBusy(true);
+    setPasswordError(null);
+    try {
+      await auth.changePassword({
+        current_password: currentPassword(),
+        new_password: newPassword(),
+        confirm: confirmPassword(),
+      });
+      closePassword();
+      setPasswordNotice(t("settings.passwordChanged"));
+    } catch (err) {
+      setPasswordError(errorMessage(err));
+    } finally {
+      setPasswordBusy(false);
     }
   };
 
@@ -222,6 +289,21 @@ export function ProfileRoute() {
         </dl>
         <Show when={profileNotice()}>
           <p class="mt-3 text-sm text-success">{profileNotice()}</p>
+        </Show>
+      </section>
+
+      <section class="rounded-xl border border-line bg-surface p-4">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h2 class="text-sm font-semibold text-ink">{t("settings.password")}</h2>
+            <p class="mt-1 text-xs text-ink-muted">{t("settings.passwordDescription")}</p>
+          </div>
+          <Button variant="secondary" icon="lock" onClick={openPassword}>
+            {t("settings.changePassword")}
+          </Button>
+        </div>
+        <Show when={passwordNotice()}>
+          <p class="mt-3 text-sm text-success">{passwordNotice()}</p>
         </Show>
       </section>
 
@@ -410,6 +492,63 @@ export function ProfileRoute() {
           </Show>
           <Show when={profileError()}>
             <p class="text-sm text-danger">{profileError()}</p>
+          </Show>
+        </form>
+      </Dialog>
+
+      <Dialog
+        open={passwordOpen()}
+        onClose={closePassword}
+        title={t("settings.changePassword")}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closePassword}>
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" form="password-form" loading={passwordBusy()}>
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <form id="password-form" onSubmit={savePassword} class="space-y-4">
+          <Field label={t("settings.currentPassword")}>
+            <Input
+              type="password"
+              value={currentPassword()}
+              onInput={(e) => setCurrentPassword(e.currentTarget.value)}
+              autocomplete="current-password"
+            />
+          </Field>
+          <Field label={t("settings.newPassword")}>
+            <div class="relative">
+              <Input
+                type={showNewPassword() ? "text" : "password"}
+                value={newPassword()}
+                onInput={(e) => setNewPassword(e.currentTarget.value)}
+                autocomplete="new-password"
+                style={{ "padding-right": "2.5rem" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword((visible) => !visible)}
+                class="absolute inset-y-0 right-0 flex items-center px-3 text-ink-faint hover:text-ink"
+                aria-label={showNewPassword() ? t("login.hidePassword") : t("login.showPassword")}
+              >
+                <Icon name={showNewPassword() ? "eye-off" : "eye"} size={16} />
+              </button>
+            </div>
+          </Field>
+          <Field label={t("settings.confirmPassword")}>
+            <Input
+              type={showNewPassword() ? "text" : "password"}
+              value={confirmPassword()}
+              onInput={(e) => setConfirmPassword(e.currentTarget.value)}
+              autocomplete="new-password"
+            />
+          </Field>
+          <Show when={passwordError()}>
+            <p class="text-sm text-danger">{passwordError()}</p>
           </Show>
         </form>
       </Dialog>

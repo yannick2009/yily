@@ -21,6 +21,7 @@ type AuthHandler interface {
 	Logout(c *echo.Context) error
 	Me(c *echo.Context) error
 	UpdateProfile(c *echo.Context) error
+	ChangePassword(c *echo.Context) error
 	Status(c *echo.Context) error
 	CSRF(c *echo.Context) error
 	Recover(c *echo.Context) error
@@ -80,6 +81,15 @@ type updateProfileRequest struct {
 	Name            *string `json:"name" validate:"omitempty,min=1,max=255"`
 	Email           *string `json:"email" validate:"omitempty,email"`
 	CurrentPassword *string `json:"current_password"`
+}
+
+// changePasswordRequest represents the JSON body for changing the Super Admin
+// password. The current password is re-verified server-side and Confirm must
+// match NewPassword.
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required"`
+	NewPassword     string `json:"new_password" validate:"required,min=12,max=128"`
+	Confirm         string `json:"confirm" validate:"required,eqfield=NewPassword"`
 }
 
 // recoverRequest represents the JSON body for resetting the Super Admin password with the recovery code.
@@ -345,6 +355,34 @@ func (h *authHandler) UpdateProfile(c *echo.Context) error {
 	_ = h.audit.Record(ctx, types.ActionUpdated, types.ResourceUser, updated.ID, updated.Email, metadata)
 
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Profile updated successfully", updated)
+}
+
+// ChangePassword handles PATCH /auth/me/password to replace the signed-in Super
+// Admin's password and revoke every other session. The current session stays
+// usable, so the client does not need to sign in again.
+func (h *authHandler) ChangePassword(c *echo.Context) error {
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
+	if !ok {
+		return respondError(c, service.ErrUnauthorized)
+	}
+	session, ok := authctx.AuthenticatedSessionFromContext(c.Request().Context())
+	if !ok {
+		return respondError(c, service.ErrUnauthorized)
+	}
+
+	var req changePasswordRequest
+	if !bindAndValidate(c, &req) {
+		return nil
+	}
+
+	ctx := c.Request().Context()
+	if err := h.authService.ChangePassword(ctx, user.ID, session.ID, req.CurrentPassword, req.NewPassword); err != nil {
+		return respondError(c, err)
+	}
+
+	_ = h.audit.Record(ctx, types.ActionUpdated, types.ResourceUser, user.ID, user.Email, map[string]string{"field": "password"})
+
+	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Password changed successfully", nil)
 }
 
 // Status handles GET /auth/status to report whether the instance has been initialized.
