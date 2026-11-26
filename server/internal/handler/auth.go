@@ -352,7 +352,9 @@ func (h *authHandler) UpdateProfile(c *echo.Context) error {
 			metadata["new_email"] = updated.Email
 		}
 	}
-	_ = h.audit.Record(ctx, types.ActionUpdated, types.ResourceUser, updated.ID, updated.Email, metadata)
+	if metadata != nil {
+		_ = h.audit.Record(ctx, types.ActionProfileUpdated, types.ResourceUser, updated.ID, updated.Email, metadata)
+	}
 
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Profile updated successfully", updated)
 }
@@ -380,7 +382,7 @@ func (h *authHandler) ChangePassword(c *echo.Context) error {
 		return respondError(c, err)
 	}
 
-	_ = h.audit.Record(ctx, types.ActionUpdated, types.ResourceUser, user.ID, user.Email, map[string]string{"field": "password"})
+	_ = h.audit.Record(ctx, types.ActionPasswordChanged, types.ResourceUser, user.ID, user.Email, nil)
 
 	return httputil.NewHTTPResponse[any](c, http.StatusOK, "Password changed successfully", nil)
 }

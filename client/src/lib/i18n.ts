@@ -460,6 +460,8 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_TOTP_NOT_ENABLED": "Two-factor authentication is not enabled.",
     "audit.action.totp_enabled": "2FA enabled",
     "audit.action.totp_disabled": "2FA disabled",
+    "audit.action.password_changed": "Password changed",
+    "audit.action.profile_updated": "Profile updated",
     "audit.resource.user": "User",
   },
 
@@ -862,6 +864,8 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_TOTP_NOT_ENABLED": "L'authentification à deux facteurs n'est pas activée.",
     "audit.action.totp_enabled": "2FA activée",
     "audit.action.totp_disabled": "2FA désactivée",
+    "audit.action.password_changed": "Mot de passe modifié",
+    "audit.action.profile_updated": "Profil mis à jour",
     "audit.resource.user": "Utilisateur",
   },
 
@@ -1261,6 +1265,8 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_TOTP_NOT_ENABLED": "La autenticación de dos factores no está activada.",
     "audit.action.totp_enabled": "2FA activada",
     "audit.action.totp_disabled": "2FA desactivada",
+    "audit.action.password_changed": "Contraseña cambiada",
+    "audit.action.profile_updated": "Perfil actualizado",
     "audit.resource.user": "Usuario",
   },
 
@@ -1666,6 +1672,8 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_TOTP_NOT_ENABLED": "Die Zwei-Faktor-Authentifizierung ist nicht aktiviert.",
     "audit.action.totp_enabled": "2FA aktiviert",
     "audit.action.totp_disabled": "2FA deaktiviert",
+    "audit.action.password_changed": "Passwort geändert",
+    "audit.action.profile_updated": "Profil aktualisiert",
     "audit.resource.user": "Benutzer",
   },
 
@@ -2066,6 +2074,8 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_TOTP_NOT_ENABLED": "L'autenticazione a due fattori non è attiva.",
     "audit.action.totp_enabled": "2FA attivata",
     "audit.action.totp_disabled": "2FA disattivata",
+    "audit.action.password_changed": "Password modificata",
+    "audit.action.profile_updated": "Profilo aggiornato",
     "audit.resource.user": "Utente",
   },
 
@@ -2462,6 +2472,8 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_TOTP_NOT_ENABLED": "A autenticação de dois fatores não está ativada.",
     "audit.action.totp_enabled": "2FA ativada",
     "audit.action.totp_disabled": "2FA desativada",
+    "audit.action.password_changed": "Senha alterada",
+    "audit.action.profile_updated": "Perfil atualizado",
     "audit.resource.user": "Utilizador",
   },
 
@@ -2863,6 +2875,8 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_TOTP_NOT_ENABLED": "Двухфакторная аутентификация не включена.",
     "audit.action.totp_enabled": "2FA включена",
     "audit.action.totp_disabled": "2FA выключена",
+    "audit.action.password_changed": "Пароль изменён",
+    "audit.action.profile_updated": "Профиль обновлён",
     "audit.resource.user": "Пользователь",
   },
 
@@ -3247,6 +3261,8 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_TOTP_NOT_ENABLED": "双重认证未启用。",
     "audit.action.totp_enabled": "已启用 2FA",
     "audit.action.totp_disabled": "已停用 2FA",
+    "audit.action.password_changed": "密码已修改",
+    "audit.action.profile_updated": "个人资料已更新",
     "audit.resource.user": "用户",
   },
 
@@ -3646,6 +3662,8 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_TOTP_NOT_ENABLED": "二要素認証は有効になっていません。",
     "audit.action.totp_enabled": "2FA 有効化",
     "audit.action.totp_disabled": "2FA 無効化",
+    "audit.action.password_changed": "パスワード変更",
+    "audit.action.profile_updated": "プロフィール更新",
     "audit.resource.user": "ユーザー",
   },
 
@@ -4037,6 +4055,8 @@ const messages: Record<LangCode, Messages> = {
     "errors.AUTH_TOTP_NOT_ENABLED": "2단계 인증이 활성화되어 있지 않습니다.",
     "audit.action.totp_enabled": "2FA 활성화됨",
     "audit.action.totp_disabled": "2FA 비활성화됨",
+    "audit.action.password_changed": "비밀번호 변경됨",
+    "audit.action.profile_updated": "프로필 업데이트됨",
     "audit.resource.user": "사용자",
   },
 };
