@@ -116,6 +116,7 @@ func main() {
 	// Auth and token management (session-only)
 	adminRoutes.POST("/auth/logout", authHandler.Logout)
 	adminRoutes.GET("/auth/me", authHandler.Me)
+	adminRoutes.PATCH("/auth/me", authHandler.UpdateProfile)
 	adminRoutes.GET("/auth/csrf", authHandler.CSRF)
 	adminRoutes.POST("/auth/totp/setup", authHandler.SetupTOTP)
 	adminRoutes.POST("/auth/totp/confirm", authHandler.ConfirmTOTP)

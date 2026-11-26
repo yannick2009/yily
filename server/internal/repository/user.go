@@ -20,6 +20,8 @@ type UserRepository interface {
 	Create(ctx context.Context, user *model.User) error                                                                   // Create persists the single Super Admin user if none exists yet.
 	GetByEmail(ctx context.Context, email string) (*model.User, error)                                                    // GetByEmail retrieves the Super Admin by normalized lowercase email during login.
 	GetByID(ctx context.Context, userID id.ID) (*model.User, error)                                                       // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
+	SetName(ctx context.Context, userID id.ID, name string) error                                                         // SetName updates the Super Admin display name.
+	SetEmail(ctx context.Context, userID id.ID, email string) error                                                       // SetEmail updates the Super Admin email; callers must pass a normalized lowercase address.
 	Count(ctx context.Context) (int64, error)                                                                             // Count returns how many Super Admin accounts exist (0 or 1 by design).
 	GetAdmin(ctx context.Context) (*model.User, error)                                                                    // GetAdmin returns the single Super Admin account.
 	ResetCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string, revokedAt time.Time) error // ResetCredentials atomically replaces the password and recovery code hashes, disables TOTP, and revokes every active session and PAT.
@@ -209,4 +211,19 @@ func (r *userRepository) RecordTOTPFailure(ctx context.Context, userID id.ID, th
 			"totp_failed_attempts": gorm.Expr("CASE WHEN totp_failed_attempts + 1 >= ? THEN 0 ELSE totp_failed_attempts + 1 END", threshold),
 			"totp_locked_until":    gorm.Expr("CASE WHEN totp_failed_attempts + 1 >= ? THEN ? ELSE totp_locked_until END", threshold, lockedUntil),
 		}).Error
+}
+
+// SetName updates the display name of the Super Admin account.
+func (r *userRepository) SetName(ctx context.Context, userID id.ID, name string) error {
+	return r.DB.WithContext(ctx).Model(&model.User{}).
+		Where("id = ?", userID).
+		Update("name", name).Error
+}
+
+// SetEmail updates the email address of the Super Admin account. Callers must
+// pass a normalized lowercase address so login lookups keep matching.
+func (r *userRepository) SetEmail(ctx context.Context, userID id.ID, email string) error {
+	return r.DB.WithContext(ctx).Model(&model.User{}).
+		Where("id = ?", userID).
+		Update("email", email).Error
 }

@@ -20,6 +20,7 @@ type AuthHandler interface {
 	LoginTOTP(c *echo.Context) error
 	Logout(c *echo.Context) error
 	Me(c *echo.Context) error
+	UpdateProfile(c *echo.Context) error
 	Status(c *echo.Context) error
 	CSRF(c *echo.Context) error
 	Recover(c *echo.Context) error
@@ -70,6 +71,15 @@ type totpConfirmRequest struct {
 // totpDisableRequest represents the JSON body for turning TOTP off.
 type totpDisableRequest struct {
 	Password string `json:"password" validate:"required"`
+}
+
+// updateProfileRequest represents the JSON body for updating the signed-in
+// Super Admin's profile. Omitted fields are left unchanged; current_password is
+// required only when the email address changes.
+type updateProfileRequest struct {
+	Name            *string `json:"name" validate:"omitempty,min=1,max=255"`
+	Email           *string `json:"email" validate:"omitempty,email"`
+	CurrentPassword *string `json:"current_password"`
 }
 
 // recoverRequest represents the JSON body for resetting the Super Admin password with the recovery code.
@@ -299,6 +309,42 @@ func (h *authHandler) Me(c *echo.Context) error {
 	}
 
 	return httputil.NewHTTPResponse(c, http.StatusOK, "Authenticated user retrieved successfully", user)
+}
+
+// UpdateProfile handles PATCH /auth/me to update the signed-in Super Admin's
+// display name and email.
+func (h *authHandler) UpdateProfile(c *echo.Context) error {
+	user, ok := authctx.AuthenticatedUserFromContext(c.Request().Context())
+	if !ok {
+		return respondError(c, service.ErrUnauthorized)
+	}
+
+	var req updateProfileRequest
+	if !bindAndValidate(c, &req) {
+		return nil
+	}
+
+	ctx := c.Request().Context()
+	updated, err := h.authService.UpdateProfile(ctx, user.ID, req.Name, req.Email, req.CurrentPassword)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	var metadata map[string]string
+	if updated.Name != user.Name || updated.Email != user.Email {
+		metadata = make(map[string]string)
+		if updated.Name != user.Name {
+			metadata["old_name"] = user.Name
+			metadata["new_name"] = updated.Name
+		}
+		if updated.Email != user.Email {
+			metadata["old_email"] = user.Email
+			metadata["new_email"] = updated.Email
+		}
+	}
+	_ = h.audit.Record(ctx, types.ActionUpdated, types.ResourceUser, updated.ID, updated.Email, metadata)
+
+	return httputil.NewHTTPResponse(c, http.StatusOK, "Profile updated successfully", updated)
 }
 
 // Status handles GET /auth/status to report whether the instance has been initialized.

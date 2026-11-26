@@ -126,6 +126,15 @@ export interface TOTPSetup {
   qr_png: string;
 }
 
+// UpdateProfileInput carries the profile fields to change. Omitted fields are
+// left unchanged by the server; current_password is required only when the
+// email address changes.
+export interface UpdateProfileInput {
+  name?: string;
+  email?: string;
+  current_password?: string;
+}
+
 // --- Server metadata ---------------------------------------------------------
 
 // Server version returned by GET /version.

@@ -32,25 +32,28 @@ const (
 // Codes tied to sentinel errors from the service / repository / env packages.
 const (
 	// Auth
-	CodeAuthInvalidCredentials  ErrorCode = "AUTH_INVALID_CREDENTIALS"
-	CodeAuthUnauthorized        ErrorCode = "AUTH_UNAUTHORIZED"
-	CodeAuthSessionExpired      ErrorCode = "AUTH_SESSION_EXPIRED"
-	CodeAuthSessionRevoked      ErrorCode = "AUTH_SESSION_REVOKED"
-	CodeAuthWeakPassword        ErrorCode = "AUTH_WEAK_PASSWORD"
-	CodeAuthPasswordTooLong     ErrorCode = "AUTH_PASSWORD_TOO_LONG"
-	CodeAuthPasswordNotComplex  ErrorCode = "AUTH_PASSWORD_NOT_COMPLEX"
-	CodeAuthUserExists          ErrorCode = "AUTH_USER_ALREADY_EXISTS"
-	CodeAuthUserNotFound        ErrorCode = "AUTH_USER_NOT_FOUND"
-	CodeAuthInvalidSetupToken   ErrorCode = "AUTH_INVALID_SETUP_TOKEN"
-	CodeAuthAlreadyInitialized  ErrorCode = "AUTH_ALREADY_INITIALIZED"
-	CodeSetupTokenNotSet        ErrorCode = "SETUP_TOKEN_NOT_CONFIGURED"
-	CodeAuthInvalidRecoveryCode ErrorCode = "AUTH_INVALID_RECOVERY_CODE"
-	CodeAuthRecoveryUnavailable ErrorCode = "AUTH_RECOVERY_UNAVAILABLE"
-	CodeAuthTOTPRequired        ErrorCode = "AUTH_TOTP_REQUIRED"
-	CodeAuthInvalidTOTPCode     ErrorCode = "AUTH_INVALID_TOTP_CODE"
-	CodeAuthTOTPAlreadyEnabled  ErrorCode = "AUTH_TOTP_ALREADY_ENABLED"
-	CodeAuthTOTPNotEnabled      ErrorCode = "AUTH_TOTP_NOT_ENABLED"
-	CodeAuthTOTPLocked          ErrorCode = "AUTH_TOTP_LOCKED"
+	CodeAuthInvalidCredentials      ErrorCode = "AUTH_INVALID_CREDENTIALS"
+	CodeAuthUnauthorized            ErrorCode = "AUTH_UNAUTHORIZED"
+	CodeAuthSessionExpired          ErrorCode = "AUTH_SESSION_EXPIRED"
+	CodeAuthSessionRevoked          ErrorCode = "AUTH_SESSION_REVOKED"
+	CodeAuthWeakPassword            ErrorCode = "AUTH_WEAK_PASSWORD"
+	CodeAuthPasswordTooLong         ErrorCode = "AUTH_PASSWORD_TOO_LONG"
+	CodeAuthPasswordNotComplex      ErrorCode = "AUTH_PASSWORD_NOT_COMPLEX"
+	CodeAuthUserExists              ErrorCode = "AUTH_USER_ALREADY_EXISTS"
+	CodeAuthUserNotFound            ErrorCode = "AUTH_USER_NOT_FOUND"
+	CodeAuthInvalidSetupToken       ErrorCode = "AUTH_INVALID_SETUP_TOKEN"
+	CodeAuthAlreadyInitialized      ErrorCode = "AUTH_ALREADY_INITIALIZED"
+	CodeSetupTokenNotSet            ErrorCode = "SETUP_TOKEN_NOT_CONFIGURED"
+	CodeAuthInvalidRecoveryCode     ErrorCode = "AUTH_INVALID_RECOVERY_CODE"
+	CodeAuthRecoveryUnavailable     ErrorCode = "AUTH_RECOVERY_UNAVAILABLE"
+	CodeAuthInvalidEmail            ErrorCode = "AUTH_INVALID_EMAIL"
+	CodeAuthCurrentPasswordRequired ErrorCode = "AUTH_CURRENT_PASSWORD_REQUIRED"
+	CodeAuthInvalidCurrentPassword  ErrorCode = "AUTH_INVALID_CURRENT_PASSWORD"
+	CodeAuthTOTPRequired            ErrorCode = "AUTH_TOTP_REQUIRED"
+	CodeAuthInvalidTOTPCode         ErrorCode = "AUTH_INVALID_TOTP_CODE"
+	CodeAuthTOTPAlreadyEnabled      ErrorCode = "AUTH_TOTP_ALREADY_ENABLED"
+	CodeAuthTOTPNotEnabled          ErrorCode = "AUTH_TOTP_NOT_ENABLED"
+	CodeAuthTOTPLocked              ErrorCode = "AUTH_TOTP_LOCKED"
 
 	// Personal Access Tokens
 	CodeTokenRequired          ErrorCode = "TOKEN_REQUIRED"
@@ -74,6 +77,7 @@ const (
 	CodeVariableNameExists          ErrorCode = "VARIABLE_NAME_ALREADY_EXISTS"
 	CodeNameTooLong                 ErrorCode = "NAME_TOO_LONG"
 	CodeNameInvalidChars            ErrorCode = "NAME_INVALID_CHARS"
+	CodeNameRequired                ErrorCode = "NAME_REQUIRED"
 	CodeTagNotFound                 ErrorCode = "TAG_NOT_FOUND"
 	CodeTagNameExists               ErrorCode = "TAG_NAME_ALREADY_EXISTS"
 	CodeTagNotInProject             ErrorCode = "TAG_NOT_IN_PROJECT"
@@ -105,6 +109,10 @@ var sentinelCodes = []struct {
 	{service.ErrSetupTokenNotSet, CodeSetupTokenNotSet},
 	{service.ErrInvalidRecoveryCode, CodeAuthInvalidRecoveryCode},
 	{service.ErrRecoveryUnavailable, CodeAuthRecoveryUnavailable},
+	{service.ErrInvalidEmail, CodeAuthInvalidEmail},
+	{service.ErrCurrentPasswordRequired, CodeAuthCurrentPasswordRequired},
+	{service.ErrInvalidCurrentPassword, CodeAuthInvalidCurrentPassword},
+	{service.ErrNoProfileUpdate, CodeValidationFailed},
 	{service.ErrTOTPRequired, CodeAuthTOTPRequired},
 	{service.ErrInvalidTOTPCode, CodeAuthInvalidTOTPCode},
 	{service.ErrTOTPAlreadyEnabled, CodeAuthTOTPAlreadyEnabled},
@@ -134,6 +142,7 @@ var sentinelCodes = []struct {
 	{repository.ErrVariableNameAlreadyExists, CodeVariableNameExists},
 	{service.ErrNameTooLong, CodeNameTooLong},
 	{service.ErrInvalidNameChars, CodeNameInvalidChars},
+	{service.ErrNameRequired, CodeNameRequired},
 	{repository.ErrTagNotFound, CodeTagNotFound},
 	{repository.ErrTagNameAlreadyExists, CodeTagNameExists},
 	{repository.ErrTagNotInProject, CodeTagNotInProject},

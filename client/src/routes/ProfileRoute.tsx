@@ -1,4 +1,4 @@
-// Dedicated profile page: account identity, two-factor authentication and sign-out.
+// Dedicated profile page: account identity and editing, two-factor authentication and sign-out.
 import { createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { auth } from "../api";
@@ -8,7 +8,7 @@ import { Dialog, Field } from "../components/shared";
 import { copyToClipboard } from "../lib/clipboard";
 import { t } from "../lib/i18n";
 import { errorMessage } from "../lib/errors";
-import { currentUser, logout, setTOTPEnabled } from "../store";
+import { currentUser, logout, setCurrentUser, setTOTPEnabled } from "../store";
 
 // Keep only digits so pasted codes with spaces or dashes are accepted.
 function normalizeCode(value: string): string {
@@ -26,6 +26,13 @@ export function ProfileRoute() {
   const [error, setError] = createSignal<string | null>(null);
   const [notice, setNotice] = createSignal<string | null>(null);
   const [copied, setCopied] = createSignal(false);
+  const [profileOpen, setProfileOpen] = createSignal(false);
+  const [profileName, setProfileName] = createSignal("");
+  const [profileEmail, setProfileEmail] = createSignal("");
+  const [profilePassword, setProfilePassword] = createSignal("");
+  const [profileBusy, setProfileBusy] = createSignal(false);
+  const [profileError, setProfileError] = createSignal<string | null>(null);
+  const [profileNotice, setProfileNotice] = createSignal<string | null>(null);
 
   const totpEnabled = () => currentUser()?.totp_enabled === true;
 
@@ -43,6 +50,59 @@ export function ProfileRoute() {
       /* ignore; the boot gate will still clear the session on the next check */
     }
     navigate("/login", { replace: true });
+  };
+
+  const openProfile = () => {
+    setProfileName(currentUser()?.name ?? "");
+    setProfileEmail(currentUser()?.email ?? "");
+    setProfilePassword("");
+    setProfileError(null);
+    setProfileOpen(true);
+  };
+
+  const closeProfile = () => {
+    setProfileOpen(false);
+    setProfilePassword("");
+    setProfileError(null);
+  };
+
+  const emailChanged = () => profileEmail().trim().toLowerCase() !== (currentUser()?.email ?? "");
+
+  const saveProfile = async (event: Event) => {
+    event.preventDefault();
+    const name = profileName().trim();
+    const email = profileEmail().trim();
+    if (name === "") {
+      setProfileError(t("settings.nameRequired"));
+      return;
+    }
+    if (!email.includes("@")) {
+      setProfileError(t("settings.emailInvalid"));
+      return;
+    }
+    const changingEmail = emailChanged();
+    if (changingEmail && profilePassword() === "") {
+      setProfileError(t("settings.currentPasswordRequired"));
+      return;
+    }
+
+    setProfileBusy(true);
+    setProfileError(null);
+    try {
+      const updated = await auth.updateProfile({
+        name,
+        email,
+        ...(changingEmail ? { current_password: profilePassword() } : {}),
+      });
+      setCurrentUser(updated);
+      setProfileOpen(false);
+      setProfilePassword("");
+      setProfileNotice(t("settings.profileUpdated"));
+    } catch (err) {
+      setProfileError(errorMessage(err));
+    } finally {
+      setProfileBusy(false);
+    }
   };
 
   const startSetup = async () => {
@@ -140,7 +200,12 @@ export function ProfileRoute() {
       </div>
 
       <section class="rounded-xl border border-line bg-surface p-4">
-        <h2 class="text-sm font-semibold text-ink">{t("settings.profile")}</h2>
+        <div class="flex items-start justify-between gap-4">
+          <h2 class="text-sm font-semibold text-ink">{t("settings.profile")}</h2>
+          <Button variant="secondary" icon="pencil" onClick={openProfile}>
+            {t("settings.profileEdit")}
+          </Button>
+        </div>
         <dl class="mt-4 space-y-3 text-sm">
           <div class="flex items-start justify-between gap-4">
             <dt class="shrink-0 text-xs font-medium uppercase tracking-wide text-ink-faint">
@@ -155,6 +220,9 @@ export function ProfileRoute() {
             <dd class="min-w-0 text-right text-ink">{currentUser()?.email ?? ""}</dd>
           </div>
         </dl>
+        <Show when={profileNotice()}>
+          <p class="mt-3 text-sm text-success">{profileNotice()}</p>
+        </Show>
       </section>
 
       <section class="rounded-xl border border-line bg-surface p-4">
@@ -294,6 +362,56 @@ export function ProfileRoute() {
         <Show when={error()}>
           <p class="mt-3 text-sm text-danger">{error()}</p>
         </Show>
+      </Dialog>
+
+      <Dialog
+        open={profileOpen()}
+        onClose={closeProfile}
+        title={t("settings.profileEdit")}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeProfile}>
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" form="profile-form" loading={profileBusy()}>
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <form id="profile-form" onSubmit={saveProfile} class="space-y-4">
+          <Field label={t("common.name")}>
+            <Input
+              value={profileName()}
+              onInput={(e) => setProfileName(e.currentTarget.value)}
+              autocomplete="name"
+            />
+          </Field>
+          <Field label={t("login.email")}>
+            <Input
+              type="email"
+              value={profileEmail()}
+              onInput={(e) => setProfileEmail(e.currentTarget.value)}
+              autocomplete="email"
+            />
+          </Field>
+          <Show when={emailChanged()}>
+            <Field
+              label={t("settings.currentPassword")}
+              hint={t("settings.currentPasswordRequired")}
+            >
+              <Input
+                type="password"
+                value={profilePassword()}
+                onInput={(e) => setProfilePassword(e.currentTarget.value)}
+                autocomplete="current-password"
+              />
+            </Field>
+          </Show>
+          <Show when={profileError()}>
+            <p class="text-sm text-danger">{profileError()}</p>
+          </Show>
+        </form>
       </Dialog>
     </div>
   );
