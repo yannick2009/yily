@@ -24,6 +24,8 @@ const ACTIONS = [
   "signed_out",
   "totp_enabled",
   "totp_disabled",
+  "password_changed",
+  "profile_updated",
 ];
 
 // Page size for the audit log listing. It matches the server's default page

@@ -1,11 +1,14 @@
 // Authentication API: first-run setup, login, logout and the current session.
 import { request, requestRaw, setCSRFToken } from "./client";
 import { downloadBlob } from "../lib/download";
-import type { LoginResult, TOTPSetup, User } from "../types";
-
-export interface SetupStatus {
-  initialized: boolean;
-}
+import type {
+  ChangePasswordInput,
+  LoginResult,
+  SetupStatus,
+  TOTPSetup,
+  UpdateProfileInput,
+  User,
+} from "../types";
 
 // status reports whether the instance has a Super Admin account yet.
 export async function status(): Promise<SetupStatus> {
@@ -114,4 +117,20 @@ export async function logout(): Promise<void> {
 // me returns the authenticated Super Admin from the session.
 export async function me(): Promise<User> {
   return request<User>("GET", "/auth/me");
+}
+
+// updateProfile updates the signed-in Super Admin's display name and/or email
+// and returns the refreshed account.
+export async function updateProfile(input: UpdateProfileInput): Promise<User> {
+  return request<User>("PATCH", "/auth/me", {
+    body: JSON.stringify(input),
+  });
+}
+
+// changePassword replaces the signed-in Super Admin's password. The server
+// revokes every other session; the current session stays usable.
+export async function changePassword(input: ChangePasswordInput): Promise<void> {
+  await request<unknown>("PATCH", "/auth/me/password", {
+    body: JSON.stringify(input),
+  });
 }

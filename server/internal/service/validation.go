@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"net/mail"
 	"unicode"
 	"unicode/utf8"
 )
@@ -17,6 +18,10 @@ var (
 	ErrNameTooLong = errors.New("name must be at most 255 characters")
 	// ErrInvalidNameChars is returned when a name contains characters that are not allowed.
 	ErrInvalidNameChars = errors.New("name contains characters that are not allowed")
+	// ErrNameRequired is returned when a name is empty after trimming.
+	ErrNameRequired = errors.New("name must not be empty")
+	// ErrInvalidEmail is returned when a value is not a single valid email address.
+	ErrInvalidEmail = errors.New("invalid email address")
 )
 
 // validateName rejects names longer than MaxNameLength and names that contain
@@ -31,6 +36,16 @@ func validateName(name string) error {
 		if !unicode.IsPrint(r) {
 			return ErrInvalidNameChars
 		}
+	}
+	return nil
+}
+
+// validateEmail accepts a single bare email address. Display names and comments
+// are rejected so the stored value is exactly the address.
+func validateEmail(email string) error {
+	addr, err := mail.ParseAddress(email)
+	if err != nil || addr.Address != email {
+		return ErrInvalidEmail
 	}
 	return nil
 }

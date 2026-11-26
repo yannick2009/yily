@@ -17,17 +17,20 @@ var (
 
 // UserRepository defines the interface for user persistence.
 type UserRepository interface {
-	Create(ctx context.Context, user *model.User) error                                                                   // Create persists the single Super Admin user if none exists yet.
-	GetByEmail(ctx context.Context, email string) (*model.User, error)                                                    // GetByEmail retrieves the Super Admin by normalized lowercase email during login.
-	GetByID(ctx context.Context, userID id.ID) (*model.User, error)                                                       // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
-	Count(ctx context.Context) (int64, error)                                                                             // Count returns how many Super Admin accounts exist (0 or 1 by design).
-	GetAdmin(ctx context.Context) (*model.User, error)                                                                    // GetAdmin returns the single Super Admin account.
-	ResetCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string, revokedAt time.Time) error // ResetCredentials atomically replaces the password and recovery code hashes, disables TOTP, and revokes every active session and PAT.
-	SetTOTPSecret(ctx context.Context, userID id.ID, encryptedSecret string) error                                        // SetTOTPSecret stores a pending, encrypted TOTP seed and leaves TOTP disabled until it is confirmed.
-	EnableTOTP(ctx context.Context, userID id.ID, step int64) error                                                       // EnableTOTP activates TOTP and records the first accepted time step.
-	DisableTOTP(ctx context.Context, userID id.ID) error                                                                  // DisableTOTP clears the seed, the replay marker, and every failure counter.
-	ConsumeTOTPStep(ctx context.Context, userID id.ID, step int64) (bool, error)                                          // ConsumeTOTPStep atomically accepts a time step once, rejecting replayed codes.
-	RecordTOTPFailure(ctx context.Context, userID id.ID, threshold int, lockedUntil time.Time) error                      // RecordTOTPFailure increments the failure counter and locks verification once the threshold is reached.
+	Create(ctx context.Context, user *model.User) error                                                                    // Create persists the single Super Admin user if none exists yet.
+	GetByEmail(ctx context.Context, email string) (*model.User, error)                                                     // GetByEmail retrieves the Super Admin by normalized lowercase email during login.
+	GetByID(ctx context.Context, userID id.ID) (*model.User, error)                                                        // GetByID loads the User entity owning a validated session or PAT to attach to the request context.
+	SetName(ctx context.Context, userID id.ID, name string) error                                                          // SetName updates the Super Admin display name.
+	SetEmail(ctx context.Context, userID id.ID, email string) error                                                        // SetEmail updates the Super Admin email; callers must pass a normalized lowercase address.
+	Count(ctx context.Context) (int64, error)                                                                              // Count returns how many Super Admin accounts exist (0 or 1 by design).
+	GetAdmin(ctx context.Context) (*model.User, error)                                                                     // GetAdmin returns the single Super Admin account.
+	ResetCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string, revokedAt time.Time) error  // ResetCredentials atomically replaces the password and recovery code hashes, disables TOTP, and revokes every active session and PAT.
+	ChangePassword(ctx context.Context, userID id.ID, passwordHash string, keepSessionID id.ID, changedAt time.Time) error // ChangePassword replaces the password hash and revokes every session except keepSessionID in one transaction.
+	SetTOTPSecret(ctx context.Context, userID id.ID, encryptedSecret string) error                                         // SetTOTPSecret stores a pending, encrypted TOTP seed and leaves TOTP disabled until it is confirmed.
+	EnableTOTP(ctx context.Context, userID id.ID, step int64) error                                                        // EnableTOTP activates TOTP and records the first accepted time step.
+	DisableTOTP(ctx context.Context, userID id.ID) error                                                                   // DisableTOTP clears the seed, the replay marker, and every failure counter.
+	ConsumeTOTPStep(ctx context.Context, userID id.ID, step int64) (bool, error)                                           // ConsumeTOTPStep atomically accepts a time step once, rejecting replayed codes.
+	RecordTOTPFailure(ctx context.Context, userID id.ID, threshold int, lockedUntil time.Time) error                       // RecordTOTPFailure increments the failure counter and locks verification once the threshold is reached.
 }
 
 // userRepository implements UserRepository.
@@ -108,10 +111,10 @@ func (r *userRepository) GetAdmin(ctx context.Context) (*model.User, error) {
 }
 
 // ResetCredentials replaces the password and recovery code hashes of the Super
-// Admin and revokes every active session and every unexpired Personal Access
-// Token, in a single transaction: either the whole reset applies or nothing
-// changes. Nothing obtained under the old password (a stolen session cookie, or
-// a token minted with it) can outlive the reset.
+// Admin and revokes every active session of the account and every unexpired
+// Personal Access Token, in a single transaction: either the whole reset
+// applies or nothing changes. Nothing obtained under the old password (a stolen
+// session cookie, or a token minted with it) can outlive the reset.
 func (r *userRepository) ResetCredentials(ctx context.Context, userID id.ID, passwordHash, recoveryCodeHash string, revokedAt time.Time) error {
 	return r.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&model.User{}).
@@ -128,15 +131,28 @@ func (r *userRepository) ResetCredentials(ctx context.Context, userID id.ID, pas
 			return err
 		}
 
-		if err := tx.Model(&model.Session{}).
-			Where("revoked_at IS NULL").
-			Update("revoked_at", revokedAt).Error; err != nil {
+		if err := revokeSessions(tx, userID, "", revokedAt); err != nil {
 			return err
 		}
 
 		return tx.Model(&model.PersonalAccessToken{}).
 			Where("user_id = ? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)", userID, revokedAt).
 			Update("revoked_at", revokedAt).Error
+	})
+}
+
+// ChangePassword replaces the Super Admin password hash and revokes every
+// session except keepSessionID in a single transaction, so a stolen session
+// cannot outlive the password change while the caller stays signed in.
+func (r *userRepository) ChangePassword(ctx context.Context, userID id.ID, passwordHash string, keepSessionID id.ID, changedAt time.Time) error {
+	return r.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.User{}).
+			Where("id = ?", userID).
+			Update("password_hash", passwordHash).Error; err != nil {
+			return err
+		}
+
+		return revokeSessions(tx, userID, keepSessionID, changedAt)
 	})
 }
 
@@ -209,4 +225,19 @@ func (r *userRepository) RecordTOTPFailure(ctx context.Context, userID id.ID, th
 			"totp_failed_attempts": gorm.Expr("CASE WHEN totp_failed_attempts + 1 >= ? THEN 0 ELSE totp_failed_attempts + 1 END", threshold),
 			"totp_locked_until":    gorm.Expr("CASE WHEN totp_failed_attempts + 1 >= ? THEN ? ELSE totp_locked_until END", threshold, lockedUntil),
 		}).Error
+}
+
+// SetName updates the display name of the Super Admin account.
+func (r *userRepository) SetName(ctx context.Context, userID id.ID, name string) error {
+	return r.DB.WithContext(ctx).Model(&model.User{}).
+		Where("id = ?", userID).
+		Update("name", name).Error
+}
+
+// SetEmail updates the email address of the Super Admin account. Callers must
+// pass a normalized lowercase address so login lookups keep matching.
+func (r *userRepository) SetEmail(ctx context.Context, userID id.ID, email string) error {
+	return r.DB.WithContext(ctx).Model(&model.User{}).
+		Where("id = ?", userID).
+		Update("email", email).Error
 }

@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Optional TOTP two-factor authentication for the web login and passwordless sign-in with an authenticator code (`POST /api/v1/auth/login/totp`). The TOTP seed is encrypted at rest with `YILY_MASTER_KEY` and bound to the user ID; codes are single-use, five invalid attempts trigger a five-minute lockout, and recovery codes disable TOTP so a lost authenticator app is never a permanent lockout. Personal access tokens are unchanged and remain the only credential for CLI and CI automation.
+- Profile editing from the profile page via `PATCH /api/v1/auth/me`: the display name is trimmed and validated, the email is normalized and validated, and changing the email requires the account password (`AUTH_CURRENT_PASSWORD_REQUIRED`). Successful updates are recorded as `profile_updated` audit events.
+- Password change via `PATCH /api/v1/auth/me/password` after re-verifying the current password with Argon2id (`AUTH_INVALID_CURRENT_PASSWORD`). The existing 12–128 character complexity policy is enforced, only the new hash is stored, and the change is recorded as a `password_changed` audit event.
+- New stable error codes: `AUTH_INVALID_EMAIL`, `AUTH_CURRENT_PASSWORD_REQUIRED` and `AUTH_INVALID_CURRENT_PASSWORD`.
 
 ### Changed
 
@@ -22,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export filenames replace every character other than letters, digits, `.`, `-` and `_` with `_` (e.g. `prod/eu-west` → `export_prod_eu-west.env`). An environment name containing `/` could previously make the CLI write a file other than `export_*`, such as `.env`.
 - Audit log CSV export prefixes cells starting with `=`, `+`, `-`, `@`, a tab or a carriage return with `'`, preventing spreadsheet formula injection.
 - Environment descriptions reject non-printable characters, so they cannot carry terminal escape sequences into CLI output (new error code `ENVIRONMENT_DESCRIPTION_INVALID_CHARS`).
+- Changing the account email now requires the current password, so a stolen session cannot silently change the login identifier. Changing the password revokes every other session of the account, leaving only the session that performed the change active.
 
 ## [1.0.0-beta.2] - 2026-11-15
 

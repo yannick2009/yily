@@ -76,3 +76,14 @@ func (r *sessionRepository) TouchActivity(ctx context.Context, sessionID id.ID, 
 	_, err := gorm.G[model.Session](r.DB).Where("id = ?", sessionID).Update(ctx, "last_activity_at", activityAt)
 	return err
 }
+
+// revokeSessions marks every active session of userID as revoked inside the
+// caller's transaction. When keepSessionID is non-empty, that session is left
+// untouched so the caller can change a credential from its own session.
+func revokeSessions(tx *gorm.DB, userID id.ID, keepSessionID id.ID, revokedAt time.Time) error {
+	query := tx.Model(&model.Session{}).Where("user_id = ? AND revoked_at IS NULL", userID)
+	if keepSessionID != "" {
+		query = query.Where("id <> ?", keepSessionID)
+	}
+	return query.Update("revoked_at", revokedAt).Error
+}

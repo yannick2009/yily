@@ -92,6 +92,11 @@ func httpStatus(err error) int {
 		errors.Is(err, service.ErrDuplicateVariableSelection),
 		errors.Is(err, service.ErrNameTooLong),
 		errors.Is(err, service.ErrInvalidNameChars),
+		errors.Is(err, service.ErrNameRequired),
+		errors.Is(err, service.ErrInvalidEmail),
+		errors.Is(err, service.ErrCurrentPasswordRequired),
+		errors.Is(err, service.ErrInvalidCurrentPassword),
+		errors.Is(err, service.ErrNoProfileUpdate),
 		errors.Is(err, service.ErrSetupTokenNotSet),
 		errors.Is(err, service.ErrTOTPNotEnabled):
 		return http.StatusBadRequest

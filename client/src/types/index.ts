@@ -74,6 +74,10 @@ export interface VariableVersion {
 }
 
 // --- Authentication & tokens ------------------------------------------------
+// The initial setup status of the instance, used to gate the first-run setup
+export interface SetupStatus {
+  initialized: boolean;
+}
 
 // Scope granted to a token. Read-only tokens can list and reveal values; write tokens can also mutate resources.
 export type TokenScope = "read" | "write";
@@ -124,6 +128,24 @@ export interface TOTPSetup {
   secret: string;
   otpauth_uri: string;
   qr_png: string;
+}
+
+// UpdateProfileInput carries the profile fields to change. Omitted fields are
+// left unchanged by the server; current_password is required only when the
+// email address changes.
+export interface UpdateProfileInput {
+  name?: string;
+  email?: string;
+  current_password?: string;
+}
+
+// ChangePasswordInput carries the password change fields. The current password
+// is re-verified by the server, which also checks that confirm matches
+// new_password.
+export interface ChangePasswordInput {
+  current_password: string;
+  new_password: string;
+  confirm: string;
 }
 
 // --- Server metadata ---------------------------------------------------------

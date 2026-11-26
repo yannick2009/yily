@@ -25,23 +25,26 @@ const (
 )
 
 var (
-	ErrInvalidCredentials  = errors.New("invalid email or password")                                                                                      // ErrInvalidCredentials is returned when login email or password verification fails.
-	ErrWeakPassword        = errors.New("password must be at least 12 characters long")                                                                   // ErrWeakPassword is returned when the provided password is shorter than MinPasswordLength.
-	ErrPasswordTooLong     = errors.New("password must be at most 128 characters long")                                                                   // ErrPasswordTooLong is returned when the provided password is longer than MaxPasswordLength.
-	ErrPasswordNotComplex  = errors.New("password must contain at least one uppercase letter, one lowercase letter, one digit and one special character") // ErrPasswordNotComplex is returned when the password fails the character-class complexity policy.
-	ErrUnauthorized        = errors.New("unauthorized")                                                                                                   // ErrUnauthorized is returned when a request lacks a valid session or PAT.
-	ErrSessionExpired      = errors.New("session expired")                                                                                                // ErrSessionExpired is returned when a session has exceeded its TTL or idle timeout.
-	ErrSessionRevoked      = errors.New("session revoked")                                                                                                // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
-	ErrInvalidSetupToken   = errors.New("invalid setup token")                                                                                            // ErrInvalidSetupToken is returned when the first-run setup token is missing or wrong.
-	ErrSetupAlreadyDone    = errors.New("setup has already been completed")                                                                               // ErrSetupAlreadyDone is returned when setup is attempted after the Super Admin already exists.
-	ErrSetupTokenNotSet    = errors.New("setup token is not configured; set YILY_SETUP_TOKEN")                                                            // ErrSetupTokenNotSet is returned when setup is attempted on an uninitialized instance without a configured setup token.
-	ErrInvalidRecoveryCode = errors.New("invalid recovery code")                                                                                          // ErrInvalidRecoveryCode is returned when the provided recovery code does not match the stored hash.
-	ErrRecoveryUnavailable = errors.New("password recovery is not available")                                                                             // ErrRecoveryUnavailable is returned when the Super Admin has no recovery code configured.
-	ErrTOTPRequired        = errors.New("a TOTP code is required")                                                                                        // ErrTOTPRequired is returned when the password is valid but TOTP is enabled and no code was supplied.
-	ErrInvalidTOTPCode     = errors.New("invalid TOTP code")                                                                                              // ErrInvalidTOTPCode is returned when a code does not match the current or adjacent time steps, or was already used.
-	ErrTOTPAlreadyEnabled  = errors.New("TOTP is already enabled")                                                                                        // ErrTOTPAlreadyEnabled is returned when enrollment starts for an account that already requires TOTP.
-	ErrTOTPNotEnabled      = errors.New("TOTP is not enabled")                                                                                            // ErrTOTPNotEnabled is returned when TOTP is confirmed or disabled without an active or pending enrollment.
-	ErrTOTPLocked          = errors.New("too many invalid TOTP codes; try again later")                                                                   // ErrTOTPLocked is returned while the account is locked after repeated invalid codes.
+	ErrInvalidCredentials      = errors.New("invalid email or password")                                                                                      // ErrInvalidCredentials is returned when login email or password verification fails.
+	ErrWeakPassword            = errors.New("password must be at least 12 characters long")                                                                   // ErrWeakPassword is returned when the provided password is shorter than MinPasswordLength.
+	ErrPasswordTooLong         = errors.New("password must be at most 128 characters long")                                                                   // ErrPasswordTooLong is returned when the provided password is longer than MaxPasswordLength.
+	ErrPasswordNotComplex      = errors.New("password must contain at least one uppercase letter, one lowercase letter, one digit and one special character") // ErrPasswordNotComplex is returned when the password fails the character-class complexity policy.
+	ErrUnauthorized            = errors.New("unauthorized")                                                                                                   // ErrUnauthorized is returned when a request lacks a valid session or PAT.
+	ErrSessionExpired          = errors.New("session expired")                                                                                                // ErrSessionExpired is returned when a session has exceeded its TTL or idle timeout.
+	ErrSessionRevoked          = errors.New("session revoked")                                                                                                // ErrSessionRevoked is returned when a session has been explicitly logged out or rotated.
+	ErrInvalidSetupToken       = errors.New("invalid setup token")                                                                                            // ErrInvalidSetupToken is returned when the first-run setup token is missing or wrong.
+	ErrSetupAlreadyDone        = errors.New("setup has already been completed")                                                                               // ErrSetupAlreadyDone is returned when setup is attempted after the Super Admin already exists.
+	ErrSetupTokenNotSet        = errors.New("setup token is not configured; set YILY_SETUP_TOKEN")                                                            // ErrSetupTokenNotSet is returned when setup is attempted on an uninitialized instance without a configured setup token.
+	ErrInvalidRecoveryCode     = errors.New("invalid recovery code")                                                                                          // ErrInvalidRecoveryCode is returned when the provided recovery code does not match the stored hash.
+	ErrRecoveryUnavailable     = errors.New("password recovery is not available")                                                                             // ErrRecoveryUnavailable is returned when the Super Admin has no recovery code configured.
+	ErrTOTPRequired            = errors.New("a TOTP code is required")                                                                                        // ErrTOTPRequired is returned when the password is valid but TOTP is enabled and no code was supplied.
+	ErrInvalidTOTPCode         = errors.New("invalid TOTP code")                                                                                              // ErrInvalidTOTPCode is returned when a code does not match the current or adjacent time steps, or was already used.
+	ErrTOTPAlreadyEnabled      = errors.New("TOTP is already enabled")                                                                                        // ErrTOTPAlreadyEnabled is returned when enrollment starts for an account that already requires TOTP.
+	ErrTOTPNotEnabled          = errors.New("TOTP is not enabled")                                                                                            // ErrTOTPNotEnabled is returned when TOTP is confirmed or disabled without an active or pending enrollment.
+	ErrTOTPLocked              = errors.New("too many invalid TOTP codes; try again later")                                                                   // ErrTOTPLocked is returned while the account is locked after repeated invalid codes.
+	ErrNoProfileUpdate         = errors.New("no profile fields to update")                                                                                    // ErrNoProfileUpdate is returned when a profile update carries neither a name nor an email.
+	ErrCurrentPasswordRequired = errors.New("current password is required to change the email address")                                                       // ErrCurrentPasswordRequired is returned when an email change is attempted without the account password.
+	ErrInvalidCurrentPassword  = errors.New("current password is incorrect")                                                                                  // ErrInvalidCurrentPassword is returned when the password supplied with an email change does not match.
 )
 
 // AuthService defines the interface for Super Admin authentication and server-side session management.
@@ -51,6 +54,8 @@ type AuthService interface {
 	LoginWithTOTP(ctx context.Context, email, code, existingRawToken string) (string, *model.Session, *model.User, error)       // LoginWithTOTP authenticates with a TOTP code alone, for passwordless sign-in.
 	ValidateSession(ctx context.Context, rawToken string) (*model.User, *model.Session, error)                                  // ValidateSession verifies a raw session token against its stored SHA-256 hash and loads the owning user.
 	Logout(ctx context.Context, rawToken string) error                                                                          // Logout revokes a server-side session by hashing its raw token.
+	UpdateProfile(ctx context.Context, userID id.ID, name, email, currentPassword *string) (*model.User, error)                 // UpdateProfile updates the Super Admin's display name and/or email and returns the refreshed user.
+	ChangePassword(ctx context.Context, userID id.ID, currentSessionID id.ID, currentPassword, newPassword string) error        // ChangePassword re-verifies the current password, stores a new hash, and revokes every other session.
 	IsInitialized(ctx context.Context) (bool, error)                                                                            // IsInitialized reports whether the Super Admin account has been created.
 	Recover(ctx context.Context, recoveryCode, newPassword string) (string, error)                                              // Recover resets the Super Admin password using the recovery code, disables TOTP, and returns a new recovery code.
 	SetupTOTP(ctx context.Context, userID id.ID) (*TOTPSetup, error)                                                            // SetupTOTP starts enrollment: it stores a new encrypted seed and returns it with a provisioning URI and QR image.
@@ -480,6 +485,102 @@ func (s *authService) Logout(ctx context.Context, rawToken string) error {
 		return err
 	}
 	return nil
+}
+
+// UpdateProfile updates the Super Admin's display name and/or email. Nil
+// fields are left unchanged. The name is trimmed and validated; the email is
+// normalized to lowercase and validated. Changing the email address requires
+// the account's current password. It returns the refreshed user.
+func (s *authService) UpdateProfile(ctx context.Context, userID id.ID, name, email, currentPassword *string) (*model.User, error) {
+	if name == nil && email == nil {
+		return nil, ErrNoProfileUpdate
+	}
+
+	var newName, newEmail string
+	if name != nil {
+		newName = strings.TrimSpace(*name)
+		if newName == "" {
+			return nil, ErrNameRequired
+		}
+		if err := validateName(newName); err != nil {
+			return nil, err
+		}
+	}
+	if email != nil {
+		newEmail = normalizeEmail(*email)
+		if err := validateEmail(newEmail); err != nil {
+			return nil, err
+		}
+	}
+
+	user, err := s.userRepository.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// The email address is the login identifier: re-authenticate before
+	// changing it so a stolen session cannot silently lock the owner out.
+	if email != nil && newEmail != user.Email {
+		password := ""
+		if currentPassword != nil {
+			password = *currentPassword
+		}
+		if password == "" {
+			return nil, ErrCurrentPasswordRequired
+		}
+		valid, err := crypto.VerifyPassword(password, user.PasswordHash)
+		if err != nil || !valid {
+			return nil, ErrInvalidCurrentPassword
+		}
+	}
+
+	if name != nil {
+		if err := s.userRepository.SetName(ctx, userID, newName); err != nil {
+			return nil, err
+		}
+	}
+	if email != nil {
+		if err := s.userRepository.SetEmail(ctx, userID, newEmail); err != nil {
+			return nil, err
+		}
+	}
+
+	return s.userRepository.GetByID(ctx, userID)
+}
+
+// ChangePassword re-verifies the account password, stores a hash of the new
+// password, and revokes every session except the one performing the change so
+// stolen sessions cannot outlive it.
+func (s *authService) ChangePassword(ctx context.Context, userID id.ID, currentSessionID id.ID, currentPassword, newPassword string) error {
+	if currentSessionID == "" {
+		return ErrUnauthorized
+	}
+	if len(newPassword) < MinPasswordLength {
+		return ErrWeakPassword
+	}
+	if len(newPassword) > MaxPasswordLength {
+		return ErrPasswordTooLong
+	}
+	if !crypto.IsStrongPassword(newPassword) {
+		return ErrPasswordNotComplex
+	}
+
+	user, err := s.userRepository.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	valid, err := crypto.VerifyPassword(currentPassword, user.PasswordHash)
+	if err != nil || !valid {
+		return ErrInvalidCurrentPassword
+	}
+
+	passwordHash, err := crypto.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
+	return s.userRepository.ChangePassword(ctx, userID, passwordHash, currentSessionID, s.nowFunc().UTC())
 }
 
 // normalizeEmail trims leading/trailing whitespace and converts an email address to lowercase.
